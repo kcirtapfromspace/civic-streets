@@ -1,21 +1,5 @@
-'use client';
-
-import { useStreetStore } from '@/stores/street-store';
-import { EditorPage } from '@/features/editor';
-import { NewStreetForm } from '@/features/editor/NewStreetForm';
-import { TemplateGalleryModal } from '@/features/gallery';
+import { ClientApp } from '@/features/editor/ClientApp';
 
 export default function Home() {
-  const currentStreet = useStreetStore((s) => s.currentStreet);
-
-  if (!currentStreet) {
-    return <NewStreetForm />;
-  }
-
-  return (
-    <>
-      <EditorPage />
-      <TemplateGalleryModal />
-    </>
-  );
+  return <ClientApp />;
 }

@@ -8,7 +8,7 @@ import type {
 } from '@/lib/types';
 import { Modal, Select } from '@/components/ui';
 import { TemplateCard } from './TemplateCard';
-import { MOCK_TEMPLATES } from './mock-templates';
+import { loadTemplates } from '@/lib/templates';
 
 const CATEGORY_OPTIONS = [
   { value: 'all', label: 'All Categories' },
@@ -37,9 +37,7 @@ export function TemplateGalleryModal() {
   const [classFilter, setClassFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Use mock templates for Round 1. When WS3 loadTemplates() is ready,
-  // replace this with a useEffect that loads real templates.
-  const templates: TemplateDefinition[] = useMemo(() => MOCK_TEMPLATES, []);
+  const templates: TemplateDefinition[] = useMemo(() => loadTemplates(), []);
 
   const filteredTemplates = useMemo(() => {
     return templates.filter((t) => {

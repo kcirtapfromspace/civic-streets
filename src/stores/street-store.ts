@@ -10,6 +10,7 @@ import type {
   StreetDirection,
 } from '@/lib/types';
 import { DEFAULT_CONSTRAINTS, DEFAULT_WIDTHS } from '@/lib/constants';
+import { adaptTemplate } from '@/lib/templates/adapter';
 
 // Element types that live between the curbs (for curbToCurbWidth calculation)
 const CURB_TO_CURB_TYPES: Set<ElementType> = new Set([
@@ -362,34 +363,14 @@ export const useStreetStore = create<StreetState>()(
           set({ beforeStreet: { ...current } });
         }
 
-        // Build new street from template elements directly.
-        // When WS3 adaptTemplate is ready, this can be replaced with
-        // the adapter call for parametric width fitting.
-        const now = new Date().toISOString();
-        const elements: CrossSectionElement[] = template.elements.map(
-          (el) => ({
-            ...el,
-            id: crypto.randomUUID(),
-          }),
-        );
-
-        const newStreet: StreetSegment = {
-          id: crypto.randomUUID(),
-          name: current?.name ?? template.name,
-          totalROWWidth: rowWidth,
-          curbToCurbWidth: computeCurbToCurb(elements),
-          direction: current?.direction ?? 'two-way',
-          functionalClass:
-            current?.functionalClass ??
-            template.applicableFunctionalClasses[0] ??
-            'local',
-          elements,
-          metadata: {
-            createdAt: now,
-            updatedAt: now,
-            templateId: template.id,
-          },
-        };
+        // Use WS3 parametric adapter for PROWAG-first width fitting
+        const newStreet = adaptTemplate(template, rowWidth);
+        // Preserve the user's street name and settings if editing
+        if (current) {
+          newStreet.name = current.name;
+          newStreet.direction = current.direction;
+          newStreet.functionalClass = current.functionalClass;
+        }
 
         set({
           currentStreet: newStreet,

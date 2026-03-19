@@ -1,27 +1,20 @@
 // WS3: PDF report generator — main entry point
-// Uses @react-pdf/renderer to generate professional PDF reports
-import React from 'react';
-import { pdf } from '@react-pdf/renderer';
+// @react-pdf/renderer is imported lazily to avoid SSR issues with localStorage
 import type { StreetSegment, ValidationResult } from '@/lib/types';
-import { StreetReportDocument } from './pdf-document';
 
 /**
  * Generate a PDF report for a street design concept.
- *
- * @param currentStreet - The current (proposed) street segment design
- * @param beforeStreet - The existing/before street segment (null if no comparison)
- * @param validationResults - Validation results from the standards engine
- * @returns A Blob containing the PDF document
+ * Lazily imports @react-pdf/renderer to avoid SSR/Node localStorage issues.
  */
 export async function generatePDF(
   currentStreet: StreetSegment,
   beforeStreet: StreetSegment | null,
   validationResults: ValidationResult[],
 ): Promise<Blob> {
-  // StreetReportDocument renders a <Document> at its root, which @react-pdf/renderer
-  // requires. The cast is needed because React.createElement returns
-  // ReactElement<StreetReportDocumentProps> while pdf() expects ReactElement<DocumentProps>.
-  // At runtime the element tree is correct.
+  const React = await import('react');
+  const { pdf } = await import('@react-pdf/renderer');
+  const { StreetReportDocument } = await import('./pdf-document');
+
   const document = React.createElement(StreetReportDocument, {
     currentStreet,
     beforeStreet,
