@@ -45,8 +45,9 @@ export function ElementRow({
 
   return (
     <div
-      role="button"
+      role="option"
       tabIndex={0}
+      aria-selected={isSelected}
       onClick={onSelect}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -54,7 +55,7 @@ export function ElementRow({
           onSelect();
         }
       }}
-      aria-label={`${element.label || color.label}, ${element.width} ${UNITS.primary} wide`}
+      aria-label={`${element.label || color.label}, ${element.width} ${UNITS.primary} wide${hasError ? ', has errors' : hasWarning ? ', has warnings' : ''}`}
       className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer transition-colors ${
         isSelected
           ? 'bg-blue-50 ring-2 ring-blue-500'
@@ -108,7 +109,7 @@ export function ElementRow({
         className="w-14 px-1 py-0.5 text-sm text-right border border-gray-300 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         aria-label={`Width of ${element.label || color.label} in feet`}
       />
-      <span className="text-xs text-gray-400 shrink-0">{UNITS.primary}</span>
+      <span className="text-xs text-gray-500 shrink-0">{UNITS.primary}</span>
 
       {/* Lock toggle */}
       <Tooltip content={element.locked ? 'Unlock width' : 'Lock width'}>

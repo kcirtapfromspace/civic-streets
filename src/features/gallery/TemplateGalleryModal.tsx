@@ -65,7 +65,20 @@ export function TemplateGalleryModal() {
     });
   }, [templates, categoryFilter, classFilter, searchQuery]);
 
+  const DEFAULT_ELEMENT_COUNT = 5;
+
   const handleApply = (template: TemplateDefinition) => {
+    // If the user has modified the design (more elements than the default),
+    // confirm before replacing it.
+    const elementCount = currentStreet?.elements.length ?? 0;
+    if (elementCount > DEFAULT_ELEMENT_COUNT) {
+      const confirmed = window.confirm(
+        'Applying this template will replace your current design. ' +
+          "Your current design will be saved as the 'before' view. Continue?",
+      );
+      if (!confirmed) return;
+    }
+
     const rowWidth = currentStreet?.totalROWWidth ?? 66;
     applyTemplate(template, rowWidth);
   };

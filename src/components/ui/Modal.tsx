@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 
 interface ModalProps {
@@ -14,6 +14,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const firstFocusableRef = useRef<HTMLButtonElement>(null);
   const lastFocusRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
 
   // Trap focus within modal
   const handleKeyDown = useCallback(
@@ -88,11 +89,11 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       role="dialog"
       aria-modal="true"
-      aria-label={title}
+      aria-labelledby={titleId}
     >
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+          <h2 id={titleId} className="text-lg font-semibold text-gray-900">{title}</h2>
           <button
             ref={firstFocusableRef}
             onClick={onClose}

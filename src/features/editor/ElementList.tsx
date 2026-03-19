@@ -80,7 +80,11 @@ export function ElementList() {
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+      <div
+        role="listbox"
+        aria-label="Cross-section elements"
+        className="flex-1 overflow-y-auto p-2 space-y-0.5"
+      >
         {elements.map((element, index) => (
           <ElementRow
             key={element.id}
@@ -101,7 +105,7 @@ export function ElementList() {
         ))}
       </div>
 
-      <div className="px-3 py-3 border-t border-gray-200">
+      <div className="px-3 py-3 border-t border-gray-200" role="group" aria-label="Add element">
         {showAddForm ? (
           <div className="space-y-2">
             <div className="flex gap-2">

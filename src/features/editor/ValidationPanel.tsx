@@ -69,6 +69,7 @@ function ValidationItem({ result }: { result: ValidationResult }) {
         if (isClickable) selectElement(result.elementId);
       }}
       disabled={!isClickable}
+      aria-label={`${result.severity}: ${label} — ${result.message}`}
       className={`w-full text-left flex items-start gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
         isClickable
           ? 'hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer'
@@ -76,10 +77,11 @@ function ValidationItem({ result }: { result: ValidationResult }) {
       }`}
     >
       <SeverityIcon severity={result.severity} />
+      <span className="sr-only">{result.severity}:</span>
       <div className="min-w-0 flex-1">
         <div className="font-medium text-gray-800">{label}</div>
         <div className="text-xs text-gray-600 mt-0.5">{result.message}</div>
-        <div className="text-xs text-gray-400 mt-0.5 italic">
+        <div className="text-xs text-gray-500 mt-0.5 italic">
           {result.citation}
         </div>
       </div>

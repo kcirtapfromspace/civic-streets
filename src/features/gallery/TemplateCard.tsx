@@ -32,7 +32,7 @@ export function TemplateCard({ template, onApply }: TemplateCardProps) {
       : `${minROW}–${maxROW} ${UNITS.primary}`;
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm transition-shadow bg-white flex flex-col">
+    <div role="group" aria-label={`${template.name} template`} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm transition-shadow bg-white flex flex-col">
       <div className="flex items-start justify-between gap-2 mb-2">
         <h3 className="text-sm font-semibold text-gray-800 leading-tight">
           {template.name}
@@ -48,7 +48,7 @@ export function TemplateCard({ template, onApply }: TemplateCardProps) {
         {template.tags.map((tag) => (
           <span
             key={tag}
-            className="inline-block px-1.5 py-0.5 text-[10px] bg-gray-100 text-gray-500 rounded"
+            className="inline-block px-1.5 py-0.5 text-[10px] bg-gray-100 text-gray-600 rounded"
           >
             {tag}
           </span>
@@ -57,7 +57,11 @@ export function TemplateCard({ template, onApply }: TemplateCardProps) {
 
       <div className="flex items-center justify-between mt-auto">
         <span className="text-xs text-gray-500">ROW: {rowLabel}</span>
-        <Button variant="primary" onClick={() => onApply(template)}>
+        <Button
+          variant="primary"
+          onClick={() => onApply(template)}
+          aria-label={`Apply ${template.name} template`}
+        >
           Apply
         </Button>
       </div>

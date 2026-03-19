@@ -1,0 +1,191 @@
+{
+  "id": "hero-road-diet",
+  "name": "Main Street Road Diet",
+  "totalROWWidth": 60,
+  "curbToCurbWidth": 40,
+  "direction": "two-way",
+  "functionalClass": "minor-arterial",
+  "elements": [
+    {
+      "id": "rd-sw-l",
+      "type": "sidewalk",
+      "side": "left",
+      "width": 6,
+      "constraints": {
+        "absoluteMin": 4,
+        "recommendedMin": 5,
+        "recommended": 6,
+        "absoluteMax": 20,
+        "source": "PROWAG R302.3; NACTO USDG p.39",
+        "prowagRequired": true
+      },
+      "locked": false,
+      "label": "Sidewalk"
+    },
+    {
+      "id": "rd-ps-l",
+      "type": "planting-strip",
+      "side": "left",
+      "width": 4,
+      "constraints": {
+        "absoluteMin": 2,
+        "recommendedMin": 4,
+        "recommended": 6,
+        "absoluteMax": 12,
+        "source": "NACTO USDG p.43",
+        "prowagRequired": false
+      },
+      "locked": false,
+      "label": "Planting Strip"
+    },
+    {
+      "id": "rd-curb-l",
+      "type": "curb",
+      "side": "left",
+      "width": 0.5,
+      "constraints": {
+        "absoluteMin": 0.5,
+        "recommendedMin": 0.5,
+        "recommended": 0.5,
+        "absoluteMax": 1,
+        "source": "NACTO USDG p.38",
+        "prowagRequired": false
+      },
+      "locked": false,
+      "label": "Curb"
+    },
+    {
+      "id": "rd-bl-l",
+      "type": "bike-lane",
+      "side": "left",
+      "width": 5,
+      "constraints": {
+        "absoluteMin": 4,
+        "recommendedMin": 5,
+        "recommended": 6,
+        "absoluteMax": 8,
+        "source": "NACTO USDG p.126",
+        "prowagRequired": false
+      },
+      "locked": false,
+      "label": "Bike Lane"
+    },
+    {
+      "id": "rd-tl-1",
+      "type": "travel-lane",
+      "side": "center",
+      "width": 10,
+      "constraints": {
+        "absoluteMin": 9,
+        "recommendedMin": 10,
+        "recommended": 10,
+        "absoluteMax": 12,
+        "source": "NACTO USDG p.74",
+        "prowagRequired": false
+      },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "id": "rd-ctl",
+      "type": "turn-lane",
+      "side": "center",
+      "width": 10,
+      "constraints": {
+        "absoluteMin": 9,
+        "recommendedMin": 10,
+        "recommended": 10,
+        "absoluteMax": 12,
+        "source": "NACTO USDG p.77",
+        "prowagRequired": false
+      },
+      "locked": false,
+      "label": "Center Turn Lane"
+    },
+    {
+      "id": "rd-tl-2",
+      "type": "travel-lane",
+      "side": "center",
+      "width": 10,
+      "constraints": {
+        "absoluteMin": 9,
+        "recommendedMin": 10,
+        "recommended": 10,
+        "absoluteMax": 12,
+        "source": "NACTO USDG p.74",
+        "prowagRequired": false
+      },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "id": "rd-bl-r",
+      "type": "bike-lane",
+      "side": "right",
+      "width": 5,
+      "constraints": {
+        "absoluteMin": 4,
+        "recommendedMin": 5,
+        "recommended": 6,
+        "absoluteMax": 8,
+        "source": "NACTO USDG p.126",
+        "prowagRequired": false
+      },
+      "locked": false,
+      "label": "Bike Lane"
+    },
+    {
+      "id": "rd-curb-r",
+      "type": "curb",
+      "side": "right",
+      "width": 0.5,
+      "constraints": {
+        "absoluteMin": 0.5,
+        "recommendedMin": 0.5,
+        "recommended": 0.5,
+        "absoluteMax": 1,
+        "source": "NACTO USDG p.38",
+        "prowagRequired": false
+      },
+      "locked": false,
+      "label": "Curb"
+    },
+    {
+      "id": "rd-ps-r",
+      "type": "planting-strip",
+      "side": "right",
+      "width": 4,
+      "constraints": {
+        "absoluteMin": 2,
+        "recommendedMin": 4,
+        "recommended": 6,
+        "absoluteMax": 12,
+        "source": "NACTO USDG p.43",
+        "prowagRequired": false
+      },
+      "locked": false,
+      "label": "Planting Strip"
+    },
+    {
+      "id": "rd-sw-r",
+      "type": "sidewalk",
+      "side": "right",
+      "width": 5,
+      "constraints": {
+        "absoluteMin": 4,
+        "recommendedMin": 5,
+        "recommended": 6,
+        "absoluteMax": 20,
+        "source": "PROWAG R302.3; NACTO USDG p.39",
+        "prowagRequired": true
+      },
+      "locked": false,
+      "label": "Sidewalk"
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-03-19T00:00:00.000Z",
+    "updatedAt": "2026-03-19T00:00:00.000Z",
+    "templateId": "hero-road-diet"
+  }
+}

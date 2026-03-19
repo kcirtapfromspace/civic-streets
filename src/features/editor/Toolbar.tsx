@@ -75,7 +75,7 @@ export function Toolbar() {
   if (!currentStreet) return null;
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 bg-white border-b border-gray-200 flex-wrap">
+    <div role="toolbar" aria-label="Street editor toolbar" className="flex items-center gap-3 px-4 py-2 bg-white border-b border-gray-200 flex-wrap">
       {/* Street name */}
       <div>
         <label htmlFor="street-name" className="sr-only">
@@ -125,6 +125,8 @@ export function Toolbar() {
           <Button
             variant={showBeforeAfter ? 'primary' : 'secondary'}
             onClick={toggleBeforeAfter}
+            aria-pressed={showBeforeAfter}
+            aria-label={showBeforeAfter ? 'Showing before view — click to show after' : 'Showing after view — click to show before'}
           >
             {showBeforeAfter ? 'Before' : 'After'}
           </Button>
@@ -141,9 +143,36 @@ export function Toolbar() {
         variant="primary"
         onClick={handleExport}
         disabled={isExporting}
+        aria-busy={isExporting}
       >
+        {isExporting && (
+          <svg
+            className="animate-spin -ml-0.5 mr-1.5 h-4 w-4 inline-block"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
+          </svg>
+        )}
         {isExporting ? 'Exporting...' : 'Export PDF'}
       </Button>
+      <div aria-live="assertive" aria-atomic="true" className="sr-only">
+        {isExporting ? 'PDF export in progress' : ''}
+      </div>
 
       <div className="w-px h-6 bg-gray-200" aria-hidden="true" />
 

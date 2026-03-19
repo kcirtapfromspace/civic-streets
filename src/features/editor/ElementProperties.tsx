@@ -12,8 +12,11 @@ export function ElementProperties() {
 
   if (!currentStreet || !selectedElementId) {
     return (
-      <div className="p-4 text-sm text-gray-500 italic">
-        Select an element to view its properties.
+      <div className="p-4">
+        <h2 className="sr-only">Element Properties</h2>
+        <p className="text-sm text-gray-500 italic">
+          Select an element to view its properties.
+        </p>
       </div>
     );
   }
@@ -27,7 +30,8 @@ export function ElementProperties() {
   const c = element.constraints;
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4" role="region" aria-label={`Properties for ${element.label || color.label}`}>
+      <h2 className="sr-only">Element Properties</h2>
       <div className="flex items-center gap-2">
         <span
           className="w-4 h-4 rounded border"
@@ -94,7 +98,7 @@ export function ElementProperties() {
             aria-valuemax={c.absoluteMax}
             aria-valuenow={element.width}
           />
-          <div className="flex justify-between text-xs text-gray-400 mt-0.5">
+          <div className="flex justify-between text-xs text-gray-500 mt-0.5">
             <span>{c.absoluteMin} {UNITS.primary}</span>
             <span>{c.absoluteMax} {UNITS.primary}</span>
           </div>
@@ -131,7 +135,7 @@ export function ElementProperties() {
             <dd className="text-gray-800">{c.absoluteMax} {UNITS.primary}</dd>
           </div>
         </dl>
-        <p className="text-xs text-gray-400 mt-2 italic">
+        <p className="text-xs text-gray-500 mt-2 italic">
           Source: {c.source}
         </p>
       </div>
