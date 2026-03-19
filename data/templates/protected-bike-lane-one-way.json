@@ -1,0 +1,107 @@
+{
+  "id": "protected-bike-lane-one-way",
+  "name": "One-Way Protected Bike Lanes (Both Sides)",
+  "description": "Provides one-way protected bike lanes on each side of the street with physical buffer separation from motor vehicle traffic. Appropriate for moderate to high-speed corridors where mixing bicycle and motor vehicle traffic is undesirable.",
+  "category": "protected-bike",
+  "applicableROWWidths": [60, 66, 70, 80],
+  "applicableFunctionalClasses": ["collector", "minor-arterial", "major-arterial"],
+  "elements": [
+    {
+      "type": "sidewalk",
+      "side": "left",
+      "width": 6,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39", "prowagRequired": true },
+      "locked": false,
+      "label": "Sidewalk"
+    },
+    {
+      "type": "planting-strip",
+      "side": "left",
+      "width": 5,
+      "constraints": { "absoluteMin": 2, "recommendedMin": 4, "recommended": 6, "absoluteMax": 12, "source": "NACTO USDG p.43", "prowagRequired": false },
+      "locked": false,
+      "label": "Planting Strip"
+    },
+    {
+      "type": "curb",
+      "side": "left",
+      "width": 0.5,
+      "constraints": { "absoluteMin": 0.5, "recommendedMin": 0.5, "recommended": 0.5, "absoluteMax": 1, "source": "NACTO USDG p.38", "prowagRequired": false },
+      "locked": true,
+      "label": "Curb"
+    },
+    {
+      "type": "bike-lane-protected",
+      "side": "left",
+      "width": 6,
+      "constraints": { "absoluteMin": 5, "recommendedMin": 6.5, "recommended": 7, "absoluteMax": 12, "source": "NACTO USDG p.150", "prowagRequired": false },
+      "locked": false,
+      "label": "Protected Bike Lane"
+    },
+    {
+      "type": "buffer",
+      "side": "left",
+      "width": 3,
+      "constraints": { "absoluteMin": 1.5, "recommendedMin": 3, "recommended": 3, "absoluteMax": 6, "source": "NACTO USDG p.152", "prowagRequired": false },
+      "locked": false,
+      "label": "Buffer"
+    },
+    {
+      "type": "travel-lane",
+      "side": "left",
+      "width": 10,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 12, "source": "NACTO USDG p.74", "prowagRequired": false },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "type": "travel-lane",
+      "side": "right",
+      "width": 10,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 12, "source": "NACTO USDG p.74", "prowagRequired": false },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "type": "buffer",
+      "side": "right",
+      "width": 3,
+      "constraints": { "absoluteMin": 1.5, "recommendedMin": 3, "recommended": 3, "absoluteMax": 6, "source": "NACTO USDG p.152", "prowagRequired": false },
+      "locked": false,
+      "label": "Buffer"
+    },
+    {
+      "type": "bike-lane-protected",
+      "side": "right",
+      "width": 6,
+      "constraints": { "absoluteMin": 5, "recommendedMin": 6.5, "recommended": 7, "absoluteMax": 12, "source": "NACTO USDG p.150", "prowagRequired": false },
+      "locked": false,
+      "label": "Protected Bike Lane"
+    },
+    {
+      "type": "curb",
+      "side": "right",
+      "width": 0.5,
+      "constraints": { "absoluteMin": 0.5, "recommendedMin": 0.5, "recommended": 0.5, "absoluteMax": 1, "source": "NACTO USDG p.38", "prowagRequired": false },
+      "locked": true,
+      "label": "Curb"
+    },
+    {
+      "type": "planting-strip",
+      "side": "right",
+      "width": 4,
+      "constraints": { "absoluteMin": 2, "recommendedMin": 4, "recommended": 6, "absoluteMax": 12, "source": "NACTO USDG p.43", "prowagRequired": false },
+      "locked": false,
+      "label": "Planting Strip"
+    },
+    {
+      "type": "sidewalk",
+      "side": "right",
+      "width": 6,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39", "prowagRequired": true },
+      "locked": false,
+      "label": "Sidewalk"
+    }
+  ],
+  "tags": ["protected-bike-lane", "one-way", "buffered", "high-comfort", "all-ages-abilities"]
+}

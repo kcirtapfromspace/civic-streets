@@ -1,0 +1,52 @@
+{
+  "id": "shared-street-residential",
+  "name": "Shared-Space Residential Street",
+  "description": "A shared-space woonerf-style residential street where pedestrians, cyclists, and vehicles share the full right-of-way at very low speeds. No curbs or lane markings; design uses texture, planting, and furniture to define zones. Speeds limited to 10-15 mph through design.",
+  "category": "shared-street",
+  "applicableROWWidths": [30, 40],
+  "applicableFunctionalClasses": ["local"],
+  "elements": [
+    {
+      "type": "sidewalk",
+      "side": "left",
+      "width": 5,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39", "prowagRequired": true },
+      "locked": false,
+      "label": "Pedestrian Zone"
+    },
+    {
+      "type": "planting-strip",
+      "side": "left",
+      "width": 3,
+      "constraints": { "absoluteMin": 2, "recommendedMin": 4, "recommended": 6, "absoluteMax": 12, "source": "NACTO USDG p.43", "prowagRequired": false },
+      "locked": false,
+      "label": "Planting / Rain Garden"
+    },
+    {
+      "type": "travel-lane",
+      "side": "center",
+      "width": 14,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 20, "source": "NACTO USDG p.74; shared space yield street", "prowagRequired": false },
+      "locked": false,
+      "label": "Shared Travel Way",
+      "variant": "shared"
+    },
+    {
+      "type": "planting-strip",
+      "side": "right",
+      "width": 3,
+      "constraints": { "absoluteMin": 2, "recommendedMin": 4, "recommended": 6, "absoluteMax": 12, "source": "NACTO USDG p.43", "prowagRequired": false },
+      "locked": false,
+      "label": "Planting / Rain Garden"
+    },
+    {
+      "type": "sidewalk",
+      "side": "right",
+      "width": 5,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39", "prowagRequired": true },
+      "locked": false,
+      "label": "Pedestrian Zone"
+    }
+  ],
+  "tags": ["shared-street", "woonerf", "residential", "low-speed", "green-infrastructure", "livable"]
+}

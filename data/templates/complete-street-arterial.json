@@ -1,0 +1,131 @@
+{
+  "id": "complete-street-arterial",
+  "name": "Complete Arterial Street",
+  "description": "A complete street design for arterials balancing high vehicular throughput with protected bicycle and pedestrian infrastructure. Features wide sidewalks, planting strips, protected bike lanes, multiple travel lanes, and a center median for pedestrian refuge.",
+  "category": "complete-street",
+  "applicableROWWidths": [80, 84, 100, 120],
+  "applicableFunctionalClasses": ["minor-arterial", "major-arterial"],
+  "elements": [
+    {
+      "type": "sidewalk",
+      "side": "left",
+      "width": 6,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39", "prowagRequired": true },
+      "locked": false,
+      "label": "Sidewalk"
+    },
+    {
+      "type": "planting-strip",
+      "side": "left",
+      "width": 4,
+      "constraints": { "absoluteMin": 2, "recommendedMin": 4, "recommended": 6, "absoluteMax": 12, "source": "NACTO USDG p.43", "prowagRequired": false },
+      "locked": false,
+      "label": "Planting Strip"
+    },
+    {
+      "type": "curb",
+      "side": "left",
+      "width": 0.5,
+      "constraints": { "absoluteMin": 0.5, "recommendedMin": 0.5, "recommended": 0.5, "absoluteMax": 1, "source": "NACTO USDG p.38", "prowagRequired": false },
+      "locked": true,
+      "label": "Curb"
+    },
+    {
+      "type": "bike-lane-protected",
+      "side": "left",
+      "width": 5,
+      "constraints": { "absoluteMin": 5, "recommendedMin": 6.5, "recommended": 7, "absoluteMax": 12, "source": "NACTO USDG p.150", "prowagRequired": false },
+      "locked": false,
+      "label": "Protected Bike Lane"
+    },
+    {
+      "type": "buffer",
+      "side": "left",
+      "width": 2,
+      "constraints": { "absoluteMin": 1.5, "recommendedMin": 3, "recommended": 3, "absoluteMax": 6, "source": "NACTO USDG p.152", "prowagRequired": false },
+      "locked": false,
+      "label": "Buffer"
+    },
+    {
+      "type": "travel-lane",
+      "side": "left",
+      "width": 10,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 12, "source": "NACTO USDG p.74", "prowagRequired": false },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "type": "travel-lane",
+      "side": "left",
+      "width": 10,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 12, "source": "NACTO USDG p.74", "prowagRequired": false },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "type": "median",
+      "side": "center",
+      "width": 5,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 6, "recommended": 8, "absoluteMax": 20, "source": "NACTO USDG p.80; pedestrian refuge", "prowagRequired": false },
+      "locked": false,
+      "label": "Median / Pedestrian Refuge"
+    },
+    {
+      "type": "travel-lane",
+      "side": "right",
+      "width": 10,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 12, "source": "NACTO USDG p.74", "prowagRequired": false },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "type": "travel-lane",
+      "side": "right",
+      "width": 10,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 12, "source": "NACTO USDG p.74", "prowagRequired": false },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "type": "buffer",
+      "side": "right",
+      "width": 2,
+      "constraints": { "absoluteMin": 1.5, "recommendedMin": 3, "recommended": 3, "absoluteMax": 6, "source": "NACTO USDG p.152", "prowagRequired": false },
+      "locked": false,
+      "label": "Buffer"
+    },
+    {
+      "type": "bike-lane-protected",
+      "side": "right",
+      "width": 5,
+      "constraints": { "absoluteMin": 5, "recommendedMin": 6.5, "recommended": 7, "absoluteMax": 12, "source": "NACTO USDG p.150", "prowagRequired": false },
+      "locked": false,
+      "label": "Protected Bike Lane"
+    },
+    {
+      "type": "curb",
+      "side": "right",
+      "width": 0.5,
+      "constraints": { "absoluteMin": 0.5, "recommendedMin": 0.5, "recommended": 0.5, "absoluteMax": 1, "source": "NACTO USDG p.38", "prowagRequired": false },
+      "locked": true,
+      "label": "Curb"
+    },
+    {
+      "type": "planting-strip",
+      "side": "right",
+      "width": 4,
+      "constraints": { "absoluteMin": 2, "recommendedMin": 4, "recommended": 6, "absoluteMax": 12, "source": "NACTO USDG p.43", "prowagRequired": false },
+      "locked": false,
+      "label": "Planting Strip"
+    },
+    {
+      "type": "sidewalk",
+      "side": "right",
+      "width": 6,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39", "prowagRequired": true },
+      "locked": false,
+      "label": "Sidewalk"
+    }
+  ],
+  "tags": ["complete-street", "arterial", "protected-bike", "median", "pedestrian-refuge", "multimodal"]
+}

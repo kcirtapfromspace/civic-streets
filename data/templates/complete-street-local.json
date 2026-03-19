@@ -1,0 +1,91 @@
+{
+  "id": "complete-street-local",
+  "name": "Complete Local Street",
+  "description": "A complete street design for low-volume local/residential streets. Features sidewalks with planting strips on both sides, on-street parking, and narrow travel lanes to encourage low speeds. Designed for neighborhood livability.",
+  "category": "complete-street",
+  "applicableROWWidths": [50, 60],
+  "applicableFunctionalClasses": ["local"],
+  "elements": [
+    {
+      "type": "sidewalk",
+      "side": "left",
+      "width": 5,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39", "prowagRequired": true },
+      "locked": false,
+      "label": "Sidewalk"
+    },
+    {
+      "type": "planting-strip",
+      "side": "left",
+      "width": 3.5,
+      "constraints": { "absoluteMin": 2, "recommendedMin": 4, "recommended": 6, "absoluteMax": 12, "source": "NACTO USDG p.43", "prowagRequired": false },
+      "locked": false,
+      "label": "Planting Strip"
+    },
+    {
+      "type": "curb",
+      "side": "left",
+      "width": 0.5,
+      "constraints": { "absoluteMin": 0.5, "recommendedMin": 0.5, "recommended": 0.5, "absoluteMax": 1, "source": "NACTO USDG p.38", "prowagRequired": false },
+      "locked": true,
+      "label": "Curb"
+    },
+    {
+      "type": "parking-lane",
+      "side": "left",
+      "width": 7,
+      "constraints": { "absoluteMin": 7, "recommendedMin": 7.5, "recommended": 8, "absoluteMax": 10, "source": "NACTO USDG p.84", "prowagRequired": false },
+      "locked": false,
+      "label": "Parking Lane"
+    },
+    {
+      "type": "travel-lane",
+      "side": "left",
+      "width": 9,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 12, "source": "NACTO USDG p.74; narrow for traffic calming", "prowagRequired": false },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "type": "travel-lane",
+      "side": "right",
+      "width": 9,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 12, "source": "NACTO USDG p.74; narrow for traffic calming", "prowagRequired": false },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "type": "parking-lane",
+      "side": "right",
+      "width": 7,
+      "constraints": { "absoluteMin": 7, "recommendedMin": 7.5, "recommended": 8, "absoluteMax": 10, "source": "NACTO USDG p.84", "prowagRequired": false },
+      "locked": false,
+      "label": "Parking Lane"
+    },
+    {
+      "type": "curb",
+      "side": "right",
+      "width": 0.5,
+      "constraints": { "absoluteMin": 0.5, "recommendedMin": 0.5, "recommended": 0.5, "absoluteMax": 1, "source": "NACTO USDG p.38", "prowagRequired": false },
+      "locked": true,
+      "label": "Curb"
+    },
+    {
+      "type": "planting-strip",
+      "side": "right",
+      "width": 3.5,
+      "constraints": { "absoluteMin": 2, "recommendedMin": 4, "recommended": 6, "absoluteMax": 12, "source": "NACTO USDG p.43", "prowagRequired": false },
+      "locked": false,
+      "label": "Planting Strip"
+    },
+    {
+      "type": "sidewalk",
+      "side": "right",
+      "width": 5,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39", "prowagRequired": true },
+      "locked": false,
+      "label": "Sidewalk"
+    }
+  ],
+  "tags": ["complete-street", "local", "residential", "planting-strip", "traffic-calming", "parking"]
+}

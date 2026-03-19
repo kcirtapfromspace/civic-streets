@@ -1,0 +1,107 @@
+{
+  "id": "transit-priority-dedicated",
+  "name": "Dedicated Transit Lane",
+  "description": "Curbside dedicated transit lanes on both sides of the street with general-purpose travel lanes in the center. Improves bus speed and reliability while maintaining vehicular capacity. Suitable for high-ridership corridors with frequent bus service.",
+  "category": "transit-priority",
+  "applicableROWWidths": [80, 84, 100],
+  "applicableFunctionalClasses": ["minor-arterial", "major-arterial"],
+  "elements": [
+    {
+      "type": "sidewalk",
+      "side": "left",
+      "width": 10,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39; wider for transit stop boarding", "prowagRequired": true },
+      "locked": false,
+      "label": "Sidewalk"
+    },
+    {
+      "type": "planting-strip",
+      "side": "left",
+      "width": 5.5,
+      "constraints": { "absoluteMin": 2, "recommendedMin": 4, "recommended": 6, "absoluteMax": 12, "source": "NACTO USDG p.43", "prowagRequired": false },
+      "locked": false,
+      "label": "Planting Strip"
+    },
+    {
+      "type": "curb",
+      "side": "left",
+      "width": 0.5,
+      "constraints": { "absoluteMin": 0.5, "recommendedMin": 0.5, "recommended": 0.5, "absoluteMax": 1, "source": "NACTO USDG p.38", "prowagRequired": false },
+      "locked": true,
+      "label": "Curb"
+    },
+    {
+      "type": "transit-lane",
+      "side": "left",
+      "width": 12,
+      "constraints": { "absoluteMin": 10, "recommendedMin": 11, "recommended": 12, "absoluteMax": 14, "source": "NACTO Transit Street Design Guide p.62", "prowagRequired": false },
+      "locked": false,
+      "label": "Transit Lane"
+    },
+    {
+      "type": "buffer",
+      "side": "left",
+      "width": 2,
+      "constraints": { "absoluteMin": 1.5, "recommendedMin": 3, "recommended": 3, "absoluteMax": 6, "source": "NACTO Transit Street Design Guide p.70", "prowagRequired": false },
+      "locked": false,
+      "label": "Buffer"
+    },
+    {
+      "type": "travel-lane",
+      "side": "left",
+      "width": 10,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 12, "source": "NACTO USDG p.74", "prowagRequired": false },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "type": "travel-lane",
+      "side": "right",
+      "width": 10,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 12, "source": "NACTO USDG p.74", "prowagRequired": false },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "type": "buffer",
+      "side": "right",
+      "width": 2,
+      "constraints": { "absoluteMin": 1.5, "recommendedMin": 3, "recommended": 3, "absoluteMax": 6, "source": "NACTO Transit Street Design Guide p.70", "prowagRequired": false },
+      "locked": false,
+      "label": "Buffer"
+    },
+    {
+      "type": "transit-lane",
+      "side": "right",
+      "width": 12,
+      "constraints": { "absoluteMin": 10, "recommendedMin": 11, "recommended": 12, "absoluteMax": 14, "source": "NACTO Transit Street Design Guide p.62", "prowagRequired": false },
+      "locked": false,
+      "label": "Transit Lane"
+    },
+    {
+      "type": "curb",
+      "side": "right",
+      "width": 0.5,
+      "constraints": { "absoluteMin": 0.5, "recommendedMin": 0.5, "recommended": 0.5, "absoluteMax": 1, "source": "NACTO USDG p.38", "prowagRequired": false },
+      "locked": true,
+      "label": "Curb"
+    },
+    {
+      "type": "planting-strip",
+      "side": "right",
+      "width": 5.5,
+      "constraints": { "absoluteMin": 2, "recommendedMin": 4, "recommended": 6, "absoluteMax": 12, "source": "NACTO USDG p.43", "prowagRequired": false },
+      "locked": false,
+      "label": "Planting Strip"
+    },
+    {
+      "type": "sidewalk",
+      "side": "right",
+      "width": 10,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39; wider for transit stop boarding", "prowagRequired": true },
+      "locked": false,
+      "label": "Sidewalk"
+    }
+  ],
+  "tags": ["transit", "dedicated-lane", "bus-lane", "high-frequency", "curbside"]
+}

@@ -1,0 +1,107 @@
+{
+  "id": "protected-bike-lane-parking",
+  "name": "Parking-Protected Bike Lane",
+  "description": "Uses parked cars as a physical barrier between the bike lane and travel lanes. The parking lane sits between the buffer and travel lanes, providing a high level of separation. Common retrofit for streets with existing on-street parking.",
+  "category": "protected-bike",
+  "applicableROWWidths": [66, 70, 80, 84],
+  "applicableFunctionalClasses": ["collector", "minor-arterial"],
+  "elements": [
+    {
+      "type": "sidewalk",
+      "side": "left",
+      "width": 5.5,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39", "prowagRequired": true },
+      "locked": false,
+      "label": "Sidewalk"
+    },
+    {
+      "type": "curb",
+      "side": "left",
+      "width": 0.5,
+      "constraints": { "absoluteMin": 0.5, "recommendedMin": 0.5, "recommended": 0.5, "absoluteMax": 1, "source": "NACTO USDG p.38", "prowagRequired": false },
+      "locked": true,
+      "label": "Curb"
+    },
+    {
+      "type": "bike-lane-protected",
+      "side": "left",
+      "width": 7,
+      "constraints": { "absoluteMin": 5, "recommendedMin": 6.5, "recommended": 7, "absoluteMax": 12, "source": "NACTO USDG p.150", "prowagRequired": false },
+      "locked": false,
+      "label": "Protected Bike Lane"
+    },
+    {
+      "type": "buffer",
+      "side": "left",
+      "width": 3,
+      "constraints": { "absoluteMin": 1.5, "recommendedMin": 3, "recommended": 3, "absoluteMax": 6, "source": "NACTO USDG p.152; door zone clearance", "prowagRequired": false },
+      "locked": false,
+      "label": "Buffer (Door Zone)"
+    },
+    {
+      "type": "parking-lane",
+      "side": "left",
+      "width": 7,
+      "constraints": { "absoluteMin": 7, "recommendedMin": 7.5, "recommended": 8, "absoluteMax": 10, "source": "NACTO USDG p.84", "prowagRequired": false },
+      "locked": false,
+      "label": "Parking Lane"
+    },
+    {
+      "type": "travel-lane",
+      "side": "left",
+      "width": 10,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 12, "source": "NACTO USDG p.74", "prowagRequired": false },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "type": "travel-lane",
+      "side": "right",
+      "width": 10,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 12, "source": "NACTO USDG p.74", "prowagRequired": false },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "type": "parking-lane",
+      "side": "right",
+      "width": 7,
+      "constraints": { "absoluteMin": 7, "recommendedMin": 7.5, "recommended": 8, "absoluteMax": 10, "source": "NACTO USDG p.84", "prowagRequired": false },
+      "locked": false,
+      "label": "Parking Lane"
+    },
+    {
+      "type": "buffer",
+      "side": "right",
+      "width": 3,
+      "constraints": { "absoluteMin": 1.5, "recommendedMin": 3, "recommended": 3, "absoluteMax": 6, "source": "NACTO USDG p.152; door zone clearance", "prowagRequired": false },
+      "locked": false,
+      "label": "Buffer (Door Zone)"
+    },
+    {
+      "type": "bike-lane-protected",
+      "side": "right",
+      "width": 7,
+      "constraints": { "absoluteMin": 5, "recommendedMin": 6.5, "recommended": 7, "absoluteMax": 12, "source": "NACTO USDG p.150", "prowagRequired": false },
+      "locked": false,
+      "label": "Protected Bike Lane"
+    },
+    {
+      "type": "curb",
+      "side": "right",
+      "width": 0.5,
+      "constraints": { "absoluteMin": 0.5, "recommendedMin": 0.5, "recommended": 0.5, "absoluteMax": 1, "source": "NACTO USDG p.38", "prowagRequired": false },
+      "locked": true,
+      "label": "Curb"
+    },
+    {
+      "type": "sidewalk",
+      "side": "right",
+      "width": 5.5,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39", "prowagRequired": true },
+      "locked": false,
+      "label": "Sidewalk"
+    }
+  ],
+  "tags": ["protected-bike-lane", "parking-protected", "door-zone", "retrofit", "commercial"]
+}

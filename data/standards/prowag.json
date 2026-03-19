@@ -1,0 +1,78 @@
+{
+  "version": "PROWAG 2023",
+  "requirements": {
+    "R302.3": {
+      "description": "Minimum clear width of pedestrian access route",
+      "minimumWidth": 4,
+      "appliesTo": ["sidewalk"],
+      "severity": "error",
+      "citation": "PROWAG R302.3",
+      "notes": "Continuous clear width of 4 ft minimum; 5 ft passing spaces required at intervals no greater than 200 ft"
+    },
+    "R302.5": {
+      "description": "Maximum running slope of pedestrian access route",
+      "appliesTo": ["sidewalk"],
+      "severity": "error",
+      "citation": "PROWAG R302.5",
+      "notes": "Running slope shall not exceed 5% (1:20); steeper slopes require ramp standards"
+    },
+    "R302.6": {
+      "description": "Maximum cross slope of pedestrian access route",
+      "appliesTo": ["sidewalk"],
+      "severity": "error",
+      "citation": "PROWAG R302.6",
+      "notes": "Cross slope shall not exceed 2% (1:48) at pedestrian access routes"
+    },
+    "R302.7": {
+      "description": "Surface requirements for pedestrian access route",
+      "appliesTo": ["sidewalk"],
+      "severity": "error",
+      "citation": "PROWAG R302.7",
+      "notes": "Surfaces shall be firm, stable, and slip resistant"
+    },
+    "R305.1": {
+      "description": "Curb ramp requirements at pedestrian crossings",
+      "appliesTo": ["curb", "sidewalk"],
+      "severity": "error",
+      "citation": "PROWAG R305.1",
+      "notes": "Curb ramps required wherever pedestrian access route crosses a curb"
+    },
+    "R305.2": {
+      "description": "Curb ramp width",
+      "appliesTo": ["curb"],
+      "severity": "error",
+      "citation": "PROWAG R305.2",
+      "notes": "Clear width of curb ramp run shall be 4 ft minimum, exclusive of flared sides. This is a ramp design requirement, not a cross-section curb element width."
+    },
+    "R306.2": {
+      "description": "Accessible pedestrian signal push button location",
+      "appliesTo": ["sidewalk", "furniture-zone"],
+      "severity": "warning",
+      "citation": "PROWAG R306.2",
+      "notes": "Push buttons shall be located adjacent to a level clear space and within reach range"
+    },
+    "R402.1": {
+      "description": "Pedestrian access route clear width in medians and islands",
+      "minimumWidth": 4,
+      "appliesTo": ["median"],
+      "severity": "error",
+      "citation": "PROWAG R402.1",
+      "notes": "Pedestrian access routes through medians and pedestrian refuge islands shall be 4 ft minimum clear width"
+    },
+    "R210.1": {
+      "description": "Furniture and objects shall not reduce accessible path width",
+      "appliesTo": ["furniture-zone", "planting-strip"],
+      "severity": "error",
+      "citation": "PROWAG R210.1",
+      "notes": "Street furniture, signs, and other objects shall not reduce the clear width of the pedestrian access route below 4 ft"
+    },
+    "R302.3.1": {
+      "description": "Passing spaces on pedestrian access route",
+      "minimumWidth": 5,
+      "appliesTo": ["sidewalk"],
+      "severity": "warning",
+      "citation": "PROWAG R302.3.1",
+      "notes": "Where continuous clear width is less than 5 ft, passing spaces of 5 ft x 5 ft shall be provided at intervals no greater than 200 ft"
+    }
+  }
+}

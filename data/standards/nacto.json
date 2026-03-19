@@ -1,0 +1,113 @@
+{
+  "version": "NACTO USDG 2013",
+  "elements": {
+    "sidewalk": {
+      "absoluteMin": 4,
+      "recommendedMin": 5,
+      "recommended": 6,
+      "absoluteMax": 20,
+      "source": "NACTO USDG p.39",
+      "prowagRequired": true,
+      "notes": "Minimum clear walking zone width; PROWAG R302.3 requires 4 ft absolute minimum"
+    },
+    "planting-strip": {
+      "absoluteMin": 2,
+      "recommendedMin": 4,
+      "recommended": 6,
+      "absoluteMax": 12,
+      "source": "NACTO USDG p.43",
+      "prowagRequired": false,
+      "notes": "Buffer between pedestrian zone and roadway; provides shade, stormwater management"
+    },
+    "furniture-zone": {
+      "absoluteMin": 2,
+      "recommendedMin": 4,
+      "recommended": 5,
+      "absoluteMax": 10,
+      "source": "NACTO USDG p.41",
+      "prowagRequired": false,
+      "notes": "Zone for street furniture, signs, utilities; must not encroach on pedestrian access route"
+    },
+    "bike-lane": {
+      "absoluteMin": 4,
+      "recommendedMin": 5,
+      "recommended": 6,
+      "absoluteMax": 8,
+      "source": "NACTO USDG p.126",
+      "prowagRequired": false,
+      "notes": "Conventional bike lane adjacent to travel lane or parking"
+    },
+    "bike-lane-protected": {
+      "absoluteMin": 5,
+      "recommendedMin": 6.5,
+      "recommended": 7,
+      "absoluteMax": 12,
+      "source": "NACTO USDG p.150",
+      "prowagRequired": false,
+      "notes": "Physically separated cycle track; 7 ft preferred for two-way, 5 ft minimum one-way"
+    },
+    "buffer": {
+      "absoluteMin": 1.5,
+      "recommendedMin": 3,
+      "recommended": 3,
+      "absoluteMax": 6,
+      "source": "NACTO USDG p.152",
+      "prowagRequired": false,
+      "notes": "Physical separation between bike lane and travel/parking lane; may include vertical elements"
+    },
+    "parking-lane": {
+      "absoluteMin": 7,
+      "recommendedMin": 7.5,
+      "recommended": 8,
+      "absoluteMax": 10,
+      "source": "NACTO USDG p.84",
+      "prowagRequired": false,
+      "notes": "Parallel parking lane width; 8 ft standard, 7 ft acceptable in constrained corridors"
+    },
+    "travel-lane": {
+      "absoluteMin": 9,
+      "recommendedMin": 10,
+      "recommended": 10,
+      "absoluteMax": 12,
+      "source": "NACTO USDG p.74",
+      "prowagRequired": false,
+      "notes": "General travel lane; 10 ft preferred on urban streets to reduce speeds; 12 ft max for arterials"
+    },
+    "turn-lane": {
+      "absoluteMin": 9,
+      "recommendedMin": 10,
+      "recommended": 10,
+      "absoluteMax": 12,
+      "source": "NACTO USDG p.77",
+      "prowagRequired": false,
+      "notes": "Dedicated turn lane; same width guidance as travel lanes"
+    },
+    "transit-lane": {
+      "absoluteMin": 10,
+      "recommendedMin": 11,
+      "recommended": 12,
+      "absoluteMax": 14,
+      "source": "NACTO Transit Street Design Guide p.62",
+      "prowagRequired": false,
+      "notes": "Dedicated bus/transit lane; 11 ft minimum for standard bus, 12 ft recommended"
+    },
+    "median": {
+      "absoluteMin": 4,
+      "recommendedMin": 6,
+      "recommended": 8,
+      "absoluteMax": 20,
+      "source": "NACTO USDG p.80",
+      "prowagRequired": false,
+      "notes": "Raised or painted median; 6 ft minimum for pedestrian refuge island"
+    },
+    "curb": {
+      "absoluteMin": 0.5,
+      "recommendedMin": 0.5,
+      "recommended": 0.5,
+      "absoluteMax": 1,
+      "source": "NACTO USDG p.38",
+      "prowagRequired": false,
+      "notes": "Standard curb width; curb reveal height typically 6 in per AASHTO"
+    }
+  }
+}

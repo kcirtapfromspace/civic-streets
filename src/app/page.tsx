@@ -1,8 +1,21 @@
+'use client';
+
+import { useStreetStore } from '@/stores/street-store';
+import { EditorPage } from '@/features/editor';
+import { NewStreetForm } from '@/features/editor/NewStreetForm';
+import { TemplateGalleryModal } from '@/features/gallery';
+
 export default function Home() {
+  const currentStreet = useStreetStore((s) => s.currentStreet);
+
+  if (!currentStreet) {
+    return <NewStreetForm />;
+  }
+
   return (
-    <main className="min-h-screen bg-gray-50">
-      <h1 className="text-2xl font-bold p-8">Street Copilot</h1>
-      <p className="px-8 text-gray-600">Editor shell will be built by WS4.</p>
-    </main>
+    <>
+      <EditorPage />
+      <TemplateGalleryModal />
+    </>
   );
 }

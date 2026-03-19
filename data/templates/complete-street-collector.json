@@ -1,0 +1,107 @@
+{
+  "id": "complete-street-collector",
+  "name": "Complete Collector Street",
+  "description": "A balanced complete street for collector roads serving mixed-use and commercial areas. Includes sidewalks with furniture zones, bike lanes, on-street parking, and two travel lanes. Balances multimodal access with neighborhood connectivity.",
+  "category": "complete-street",
+  "applicableROWWidths": [66, 70, 80],
+  "applicableFunctionalClasses": ["collector"],
+  "elements": [
+    {
+      "type": "sidewalk",
+      "side": "left",
+      "width": 6,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39", "prowagRequired": true },
+      "locked": false,
+      "label": "Sidewalk"
+    },
+    {
+      "type": "furniture-zone",
+      "side": "left",
+      "width": 4,
+      "constraints": { "absoluteMin": 2, "recommendedMin": 4, "recommended": 5, "absoluteMax": 10, "source": "NACTO USDG p.41", "prowagRequired": false },
+      "locked": false,
+      "label": "Furniture Zone"
+    },
+    {
+      "type": "curb",
+      "side": "left",
+      "width": 0.5,
+      "constraints": { "absoluteMin": 0.5, "recommendedMin": 0.5, "recommended": 0.5, "absoluteMax": 1, "source": "NACTO USDG p.38", "prowagRequired": false },
+      "locked": true,
+      "label": "Curb"
+    },
+    {
+      "type": "parking-lane",
+      "side": "left",
+      "width": 7.5,
+      "constraints": { "absoluteMin": 7, "recommendedMin": 7.5, "recommended": 8, "absoluteMax": 10, "source": "NACTO USDG p.84", "prowagRequired": false },
+      "locked": false,
+      "label": "Parking Lane"
+    },
+    {
+      "type": "bike-lane",
+      "side": "left",
+      "width": 5,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 8, "source": "NACTO USDG p.126", "prowagRequired": false },
+      "locked": false,
+      "label": "Bike Lane"
+    },
+    {
+      "type": "travel-lane",
+      "side": "left",
+      "width": 10,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 12, "source": "NACTO USDG p.74", "prowagRequired": false },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "type": "travel-lane",
+      "side": "right",
+      "width": 10,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 12, "source": "NACTO USDG p.74", "prowagRequired": false },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "type": "bike-lane",
+      "side": "right",
+      "width": 5,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 8, "source": "NACTO USDG p.126", "prowagRequired": false },
+      "locked": false,
+      "label": "Bike Lane"
+    },
+    {
+      "type": "parking-lane",
+      "side": "right",
+      "width": 7.5,
+      "constraints": { "absoluteMin": 7, "recommendedMin": 7.5, "recommended": 8, "absoluteMax": 10, "source": "NACTO USDG p.84", "prowagRequired": false },
+      "locked": false,
+      "label": "Parking Lane"
+    },
+    {
+      "type": "curb",
+      "side": "right",
+      "width": 0.5,
+      "constraints": { "absoluteMin": 0.5, "recommendedMin": 0.5, "recommended": 0.5, "absoluteMax": 1, "source": "NACTO USDG p.38", "prowagRequired": false },
+      "locked": true,
+      "label": "Curb"
+    },
+    {
+      "type": "furniture-zone",
+      "side": "right",
+      "width": 4,
+      "constraints": { "absoluteMin": 2, "recommendedMin": 4, "recommended": 5, "absoluteMax": 10, "source": "NACTO USDG p.41", "prowagRequired": false },
+      "locked": false,
+      "label": "Furniture Zone"
+    },
+    {
+      "type": "sidewalk",
+      "side": "right",
+      "width": 6,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39", "prowagRequired": true },
+      "locked": false,
+      "label": "Sidewalk"
+    }
+  ],
+  "tags": ["complete-street", "collector", "mixed-use", "bike-lanes", "parking", "furniture-zone"]
+}

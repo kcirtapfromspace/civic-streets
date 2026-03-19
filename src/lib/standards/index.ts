@@ -1,3 +1,4 @@
 export { loadStandards, validateStreet } from './validator';
-export type { StandardsData } from './validator';
-export { solveConstraints } from './constraint-solver';
+export type { StandardsData, NactoElementConstraint, ProwagRequirement } from './validator';
+export { solveConstraints, solveConstraintsDetailed } from './constraint-solver';
+export type { SolveResult } from './constraint-solver';

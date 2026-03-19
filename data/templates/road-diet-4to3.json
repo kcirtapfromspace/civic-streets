@@ -1,0 +1,83 @@
+{
+  "id": "road-diet-4to3",
+  "name": "Classic Road Diet (4-to-3 Lane)",
+  "description": "Converts a 4-lane undivided road to 3 lanes with bike lanes. Reduces vehicle speeds, adds bike infrastructure, and maintains traffic capacity for roads under 20,000 ADT. The center turn lane eliminates left-turn conflicts, improving safety for all users.",
+  "category": "road-diet",
+  "applicableROWWidths": [60, 66],
+  "applicableFunctionalClasses": ["collector", "minor-arterial"],
+  "elements": [
+    {
+      "type": "sidewalk",
+      "side": "left",
+      "width": 8,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39", "prowagRequired": true },
+      "locked": false,
+      "label": "Sidewalk"
+    },
+    {
+      "type": "curb",
+      "side": "left",
+      "width": 0.5,
+      "constraints": { "absoluteMin": 0.5, "recommendedMin": 0.5, "recommended": 0.5, "absoluteMax": 1, "source": "NACTO USDG p.38", "prowagRequired": false },
+      "locked": true,
+      "label": "Curb"
+    },
+    {
+      "type": "bike-lane",
+      "side": "left",
+      "width": 7,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 8, "source": "NACTO USDG p.126", "prowagRequired": false },
+      "locked": false,
+      "label": "Bike Lane"
+    },
+    {
+      "type": "travel-lane",
+      "side": "left",
+      "width": 10,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 12, "source": "NACTO USDG p.74", "prowagRequired": false },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "type": "turn-lane",
+      "side": "center",
+      "width": 10,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 12, "source": "NACTO USDG p.77", "prowagRequired": false },
+      "locked": false,
+      "label": "Center Turn Lane"
+    },
+    {
+      "type": "travel-lane",
+      "side": "right",
+      "width": 10,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 12, "source": "NACTO USDG p.74", "prowagRequired": false },
+      "locked": false,
+      "label": "Travel Lane"
+    },
+    {
+      "type": "bike-lane",
+      "side": "right",
+      "width": 7,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 8, "source": "NACTO USDG p.126", "prowagRequired": false },
+      "locked": false,
+      "label": "Bike Lane"
+    },
+    {
+      "type": "curb",
+      "side": "right",
+      "width": 0.5,
+      "constraints": { "absoluteMin": 0.5, "recommendedMin": 0.5, "recommended": 0.5, "absoluteMax": 1, "source": "NACTO USDG p.38", "prowagRequired": false },
+      "locked": true,
+      "label": "Curb"
+    },
+    {
+      "type": "sidewalk",
+      "side": "right",
+      "width": 7,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39", "prowagRequired": true },
+      "locked": false,
+      "label": "Sidewalk"
+    }
+  ],
+  "tags": ["road-diet", "4-to-3", "bike-lanes", "traffic-calming", "center-turn-lane"]
+}

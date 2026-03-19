@@ -1,0 +1,52 @@
+{
+  "id": "shared-street-commercial",
+  "name": "Shared-Space Commercial / Plaza Street",
+  "description": "A shared-space commercial street or festival street that can be temporarily or permanently closed to through traffic. Features wide pedestrian zones with furniture areas, a narrow shared travel way for local access, and flexible space for outdoor dining and retail displays.",
+  "category": "shared-street",
+  "applicableROWWidths": [40, 50, 60],
+  "applicableFunctionalClasses": ["local"],
+  "elements": [
+    {
+      "type": "sidewalk",
+      "side": "left",
+      "width": 8,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39", "prowagRequired": true },
+      "locked": false,
+      "label": "Pedestrian / Dining Zone"
+    },
+    {
+      "type": "furniture-zone",
+      "side": "left",
+      "width": 5,
+      "constraints": { "absoluteMin": 2, "recommendedMin": 4, "recommended": 5, "absoluteMax": 10, "source": "NACTO USDG p.41", "prowagRequired": false },
+      "locked": false,
+      "label": "Furniture / Retail Zone"
+    },
+    {
+      "type": "travel-lane",
+      "side": "center",
+      "width": 14,
+      "constraints": { "absoluteMin": 9, "recommendedMin": 10, "recommended": 10, "absoluteMax": 20, "source": "NACTO USDG p.74; slow shared access", "prowagRequired": false },
+      "locked": false,
+      "label": "Shared Travel Way",
+      "variant": "shared"
+    },
+    {
+      "type": "furniture-zone",
+      "side": "right",
+      "width": 5,
+      "constraints": { "absoluteMin": 2, "recommendedMin": 4, "recommended": 5, "absoluteMax": 10, "source": "NACTO USDG p.41", "prowagRequired": false },
+      "locked": false,
+      "label": "Furniture / Retail Zone"
+    },
+    {
+      "type": "sidewalk",
+      "side": "right",
+      "width": 8,
+      "constraints": { "absoluteMin": 4, "recommendedMin": 5, "recommended": 6, "absoluteMax": 20, "source": "PROWAG R302.3; NACTO USDG p.39", "prowagRequired": true },
+      "locked": false,
+      "label": "Pedestrian / Dining Zone"
+    }
+  ],
+  "tags": ["shared-street", "commercial", "plaza", "festival-street", "outdoor-dining", "flexible"]
+}
