@@ -1,5 +1,4 @@
-import { Suspense, lazy, useState, useEffect, ComponentType } from 'react';
-import { useWorkspaceStore } from '@/stores/workspace-store';
+import { useState, useEffect, ComponentType } from 'react';
 
 function MapPlaceholder() {
   return (
@@ -60,8 +59,6 @@ function useDynamicComponent<P extends object>(
 }
 
 export default function MapPage() {
-  const mode = useWorkspaceStore((s) => s.mode);
-
   const MapView = useDynamicComponent(
     () => import('@/features/map/MapView'),
     'MapView',
@@ -71,15 +68,6 @@ export default function MapPage() {
   return (
     <div className="relative h-full">
       <MapView />
-
-      {/* Tip: right-click (or long-press) the map to design a street */}
-      {mode === 'explore' && (
-        <div className="absolute bottom-20 right-4 lg:bottom-6 lg:right-6 z-10">
-          <div className="bg-white/90 backdrop-blur-md text-gray-500 text-xs px-3 py-2 rounded-full shadow-md border border-gray-200">
-            Right-click the map to design a street
-          </div>
-        </div>
-      )}
     </div>
   );
 }
