@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type WorkspaceMode = 'explore' | 'configure' | 'design' | 'propose';
+export type WorkspaceMode = 'explore' | 'configure' | 'design' | 'propose' | 'propose-intersection';
 
 export interface DesignLocation {
   lat: number;
@@ -22,6 +22,7 @@ export interface WorkspaceState {
   enterConfigureMode: (location: DesignLocation) => void;
   enterDesignMode: (location?: DesignLocation) => void;
   enterProposeMode: (location: DesignLocation) => void;
+  enterIntersectionMode: (location: DesignLocation) => void;
   exitToExplore: () => void;
 
   // Panel toggles
@@ -59,6 +60,12 @@ export const useWorkspaceStore = create<WorkspaceState>()((set) => ({
   enterProposeMode: (location) =>
     set({
       mode: 'propose',
+      designLocation: location,
+    }),
+
+  enterIntersectionMode: (location) =>
+    set({
+      mode: 'propose-intersection',
       designLocation: location,
     }),
 

@@ -36,6 +36,9 @@ export function MapControls({ map }: MapControlsProps) {
     setSelectedLocation,
   } = useMapStore();
 
+  // Reactive subscription to crash data enabled state (fixes non-reactive getState() bug)
+  const crashEnabled = useSafetyDataStore((s) => s.enabled);
+
   const [searchText, setSearchText] = useState('');
   const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -381,10 +384,9 @@ export function MapControls({ map }: MapControlsProps) {
             <label className="flex items-center gap-2.5 cursor-pointer group">
               <input
                 type="checkbox"
-                checked={useSafetyDataStore.getState().enabled}
+                checked={crashEnabled}
                 onChange={() => {
-                  const store = useSafetyDataStore.getState();
-                  store.setEnabled(!store.enabled);
+                  useSafetyDataStore.getState().setEnabled(!crashEnabled);
                 }}
                 className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
               />

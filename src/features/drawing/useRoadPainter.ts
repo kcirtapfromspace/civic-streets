@@ -227,18 +227,74 @@ export function useRoadPainter(map: maplibregl.Map | null) {
   useEffect(() => {
     if (!map || activeTool !== 'intersection') return;
 
+    const MARKER_SOURCE = 'intersection-marker';
+    const MARKER_LAYER = 'intersection-marker-circle';
+    const MARKER_PULSE_LAYER = 'intersection-marker-pulse';
+
     const canvas = map.getCanvas();
     canvas.style.cursor = 'pointer';
+
+    const cleanupMarker = () => {
+      removeLayerSafe(map, MARKER_PULSE_LAYER);
+      removeLayerSafe(map, MARKER_LAYER);
+      removeSourceSafe(map, MARKER_SOURCE);
+    };
 
     const onClick = async (e: maplibregl.MapMouseEvent) => {
       const center = { lat: e.lngLat.lat, lng: e.lngLat.lng };
       const store = useDrawingStore.getState();
 
+      // Store intersection center point
+      store.setIntersectionCenter(center);
       store.setIsSnapping(true);
+
+      // Render a circle marker at click point
+      cleanupMarker();
+      if (map.isStyleLoaded()) {
+        map.addSource(MARKER_SOURCE, {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [center.lng, center.lat] },
+            properties: {},
+          },
+        });
+        map.addLayer({
+          id: MARKER_PULSE_LAYER,
+          type: 'circle',
+          source: MARKER_SOURCE,
+          paint: {
+            'circle-radius': 20,
+            'circle-color': '#F97316',
+            'circle-opacity': 0.15,
+          },
+        });
+        map.addLayer({
+          id: MARKER_LAYER,
+          type: 'circle',
+          source: MARKER_SOURCE,
+          paint: {
+            'circle-radius': 8,
+            'circle-color': '#F97316',
+            'circle-opacity': 0.9,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#FFFFFF',
+          },
+        });
+      }
+
+      // Fetch road geometry and reverse-geocode for intersection name
       try {
         const { path } = await fetchRoadPath(center);
         store.setSelectedPath(path);
+
+        // Reverse-geocode for cross street name
+        const name = await reverseGeocodeStreetName(center);
+        if (name) store.setStreetName(name);
       } catch {
+        // Road geometry is optional for intersections
+        store.setSelectedPath([center, { lat: center.lat + 0.0001, lng: center.lng }]);
+      } finally {
         store.setIsSnapping(false);
       }
     };
@@ -246,6 +302,7 @@ export function useRoadPainter(map: maplibregl.Map | null) {
     map.on('click', onClick);
     return () => {
       canvas.style.cursor = '';
+      cleanupMarker();
       map.off('click', onClick);
     };
   }, [map, activeTool]);

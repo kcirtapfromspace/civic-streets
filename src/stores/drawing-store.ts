@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { useProposalStore } from './proposal-store';
 import { useWorkspaceStore } from './workspace-store';
+import { useIntersectionStore } from './intersection-store';
 
 export type DrawingTool = 'select' | 'road' | 'intersection' | 'newroad';
 
@@ -12,12 +13,14 @@ export interface DrawingState {
   selectedPath: LatLng[] | null;
   isSnapping: boolean;
   streetName: string | null;
+  intersectionCenter: LatLng | null;
 
   setActiveTool: (tool: DrawingTool) => void;
   setIsDragging: (d: boolean) => void;
   setSelectedPath: (path: LatLng[] | null) => void;
   setIsSnapping: (s: boolean) => void;
   setStreetName: (name: string | null) => void;
+  setIntersectionCenter: (center: LatLng | null) => void;
   clear: () => void;
   commitToProposal: () => void;
 }
@@ -39,9 +42,10 @@ export const useDrawingStore = create<DrawingState>()((set, get) => ({
   selectedPath: null,
   isSnapping: false,
   streetName: null,
+  intersectionCenter: null,
 
   setActiveTool: (tool) =>
-    set({ activeTool: tool, selectedPath: null, isDragging: false, isSnapping: false, streetName: null }),
+    set({ activeTool: tool, selectedPath: null, isDragging: false, isSnapping: false, streetName: null, intersectionCenter: null }),
 
   setIsDragging: (d) => set({ isDragging: d }),
 
@@ -51,10 +55,24 @@ export const useDrawingStore = create<DrawingState>()((set, get) => ({
 
   setStreetName: (name) => set({ streetName: name }),
 
-  clear: () => set({ selectedPath: null, isDragging: false, isSnapping: false, streetName: null }),
+  setIntersectionCenter: (center) => set({ intersectionCenter: center }),
+
+  clear: () => set({ selectedPath: null, isDragging: false, isSnapping: false, streetName: null, intersectionCenter: null }),
 
   commitToProposal: () => {
-    const { selectedPath, activeTool, streetName } = get();
+    const { selectedPath, activeTool, streetName, intersectionCenter } = get();
+
+    // Intersection tool: enter intersection improvement flow
+    if (activeTool === 'intersection' && intersectionCenter) {
+      const name = streetName ?? 'Intersection';
+      const location = { lat: intersectionCenter.lat, lng: intersectionCenter.lng, address: name };
+      useIntersectionStore.getState().initIntersection(name, intersectionCenter, location);
+      useWorkspaceStore.getState().enterIntersectionMode(location);
+      set({ activeTool: 'select', selectedPath: null, streetName: null, intersectionCenter: null });
+      return;
+    }
+
+    // Road / New Road: enter street proposal flow
     if (!selectedPath || selectedPath.length < 2) return;
 
     const { initProposal, setRoadPath } = useProposalStore.getState();
@@ -74,6 +92,6 @@ export const useDrawingStore = create<DrawingState>()((set, get) => ({
     setRoadPath(selectedPath, bearing);
     enterProposeMode(location);
 
-    set({ activeTool: 'select', selectedPath: null, streetName: null });
+    set({ activeTool: 'select', selectedPath: null, streetName: null, intersectionCenter: null });
   },
 }));

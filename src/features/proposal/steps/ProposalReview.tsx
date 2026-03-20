@@ -2,6 +2,7 @@ import { Suspense, lazy, useState } from 'react';
 import { useProposalStore } from '@/stores/proposal-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useStreetStore } from '@/stores/street-store';
+import { useSavedProposalsStore } from '@/stores/saved-proposals-store';
 import { generatePDF } from '@/features/export';
 
 const CrossSectionSVG = lazy(() =>
@@ -54,6 +55,8 @@ export function ProposalReview() {
   };
 
   const handleDone = () => {
+    const proposal = useProposalStore.getState().getProposal();
+    if (proposal) useSavedProposalsStore.getState().saveProposal(proposal);
     reset();
     exitToExplore();
   };

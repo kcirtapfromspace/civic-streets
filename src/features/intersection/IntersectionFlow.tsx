@@ -1,23 +1,26 @@
-import { useProposalStore } from '@/stores/proposal-store';
+import { useIntersectionStore } from '@/stores/intersection-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
-import { useSavedProposalsStore } from '@/stores/saved-proposals-store';
-import { BeforeSelector } from './steps/BeforeSelector';
-import { TransformationPicker } from './steps/TransformationPicker';
-import { ProposalReview } from './steps/ProposalReview';
+import { IntersectionConditionsSelector } from './steps/IntersectionConditionsSelector';
+import { ImprovementPicker } from './steps/ImprovementPicker';
+import { IntersectionReview } from './steps/IntersectionReview';
+
+const STEPS = [
+  { key: 'conditions', label: 'Conditions' },
+  { key: 'improvements', label: 'Improvements' },
+  { key: 'review', label: 'Review' },
+] as const;
 
 /**
- * Main wizard orchestrator for the proposal flow.
- * Renders as a floating card with double-bezel architecture.
+ * Wizard orchestrator for intersection improvement proposals.
+ * Mirrors ProposalFlow's double-bezel visual language.
  */
-export function ProposalFlow() {
-  const step = useProposalStore((s) => s.step);
-  const streetName = useProposalStore((s) => s.streetName);
+export function IntersectionFlow() {
+  const step = useIntersectionStore((s) => s.step);
+  const intersectionName = useIntersectionStore((s) => s.intersectionName);
+  const reset = useIntersectionStore((s) => s.reset);
   const exitToExplore = useWorkspaceStore((s) => s.exitToExplore);
-  const reset = useProposalStore((s) => s.reset);
 
   const handleClose = () => {
-    const proposal = useProposalStore.getState().getProposal();
-    if (proposal) useSavedProposalsStore.getState().saveProposal(proposal);
     reset();
     exitToExplore();
   };
@@ -31,9 +34,9 @@ export function ProposalFlow() {
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100/80">
             <div className="flex items-center gap-2.5">
-              <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.4)]" />
+              <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_6px_rgba(249,115,22,0.4)]" />
               <span className="text-[13px] font-bold text-gray-900 tracking-tight truncate max-w-[260px]">
-                {streetName || 'Street Proposal'}
+                {intersectionName || 'Intersection Improvement'}
               </span>
             </div>
             <button
@@ -53,11 +56,9 @@ export function ProposalFlow() {
 
           {/* Step content */}
           <div className="px-5 pb-5 max-h-[60vh] overflow-y-auto">
-            {step === 'street-selected' && <BeforeSelector />}
-            {step === 'before-selected' && <TransformationPicker />}
-            {(step === 'transform-selected' || step === 'review') && (
-              <ProposalReview />
-            )}
+            {step === 'conditions' && <IntersectionConditionsSelector />}
+            {step === 'improvements' && <ImprovementPicker />}
+            {step === 'review' && <IntersectionReview />}
           </div>
         </div>
       </div>
@@ -65,16 +66,8 @@ export function ProposalFlow() {
   );
 }
 
-const STEPS = [
-  { key: 'street-selected', label: 'Street' },
-  { key: 'before-selected', label: 'Today' },
-  { key: 'review', label: 'Proposal' },
-] as const;
-
 function StepIndicator({ current }: { current: string }) {
-  const currentIndex = STEPS.findIndex(
-    (s) => s.key === current || (current === 'transform-selected' && s.key === 'review'),
-  );
+  const currentIndex = STEPS.findIndex((s) => s.key === current);
 
   return (
     <div className="flex items-center gap-2 mb-2">
@@ -82,7 +75,7 @@ function StepIndicator({ current }: { current: string }) {
         <div key={step.key} className="flex items-center gap-1.5 flex-1">
           <div
             className={`h-1 flex-1 rounded-full transition-all duration-500 ease-spring ${
-              i <= currentIndex ? 'bg-blue-500 shadow-[0_0_4px_rgba(59,130,246,0.3)]' : 'bg-gray-100'
+              i <= currentIndex ? 'bg-orange-500 shadow-[0_0_4px_rgba(249,115,22,0.3)]' : 'bg-gray-100'
             }`}
           />
         </div>

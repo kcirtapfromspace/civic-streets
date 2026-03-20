@@ -49,3 +49,14 @@ export {
   MODE_LABELS,
   SEVERITY_LABELS as CRASH_SEVERITY_LABELS,
 } from './safety-data';
+
+export type {
+  TrafficControl,
+  CrossingType,
+  IntersectionShape,
+  ImprovementCategory,
+  IntersectionConditions,
+  IntersectionImprovement,
+  CrashSummary,
+  IntersectionProposal,
+} from './intersection';

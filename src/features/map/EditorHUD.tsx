@@ -2,6 +2,9 @@ import { Suspense, lazy, useEffect } from 'react';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useStreetStore } from '@/stores/street-store';
 import { useProposalStore } from '@/stores/proposal-store';
+import { useSavedProposalsStore } from '@/stores/saved-proposals-store';
+import { useSafetyDataStore } from '@/features/safety-data/safety-data-store';
+import { useIntersectionStore } from '@/stores/intersection-store';
 import { useMapStore } from './map-store';
 
 // Lazy-load editor components to keep initial map bundle small
@@ -29,6 +32,9 @@ const TemplateGalleryModal = lazy(() =>
 const ProposalFlow = lazy(() =>
   import('@/features/proposal/ProposalFlow').then((m) => ({ default: m.ProposalFlow })),
 );
+const IntersectionFlow = lazy(() =>
+  import('@/features/intersection/IntersectionFlow').then((m) => ({ default: m.IntersectionFlow })),
+);
 
 /**
  * Orchestrator component: renders floating editor panels on top of the map.
@@ -52,9 +58,13 @@ export function EditorHUD() {
 
   // Zoom to design location when entering configure/design/propose mode
   useEffect(() => {
-    if ((mode === 'configure' || mode === 'design' || mode === 'propose') && designLocation) {
+    if ((mode === 'configure' || mode === 'design' || mode === 'propose' || mode === 'propose-intersection') && designLocation) {
       setCenter({ lat: designLocation.lat, lng: designLocation.lng });
-      setZoom(mode === 'propose' ? 17 : 18);
+      setZoom((mode === 'propose' || mode === 'propose-intersection') ? 17 : 18);
+    }
+    // Auto-enable crash data in propose modes
+    if (mode === 'propose' || mode === 'propose-intersection') {
+      useSafetyDataStore.getState().setEnabled(true);
     }
   }, [mode, designLocation, setCenter, setZoom]);
 
@@ -86,7 +96,12 @@ export function EditorHUD() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (mode === 'propose') {
+          // Save proposal before resetting so it persists on the map
+          const proposal = useProposalStore.getState().getProposal();
+          if (proposal) useSavedProposalsStore.getState().saveProposal(proposal);
           useProposalStore.getState().reset();
+        } else if (mode === 'propose-intersection') {
+          useIntersectionStore.getState().reset();
         }
         exitToExplore();
       }
@@ -106,6 +121,9 @@ export function EditorHUD() {
 
         {/* Propose mode: guided proposal flow */}
         {mode === 'propose' && <ProposalFlow />}
+
+        {/* Intersection propose mode */}
+        {mode === 'propose-intersection' && <IntersectionFlow />}
 
         {/* Design mode: full HUD */}
         {mode === 'design' && currentStreet && (

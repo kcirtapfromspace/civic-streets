@@ -7,6 +7,7 @@ import { PinDesignFlow } from './PinDesignFlow';
 import { CommunityPinsLayer } from './CommunityPinsLayer';
 import { EditorHUD } from './EditorHUD';
 import { MapOverlay as ProposalMapOverlay } from '@/features/proposal/MapOverlay';
+import { SavedProposalsLayer } from '@/features/proposal/SavedProposalsLayer';
 import { DrawingLayer } from '@/features/drawing/DrawingLayer';
 import { DrawingToolbar } from '@/features/drawing/DrawingToolbar';
 import { DrawingActionCard } from '@/features/drawing/DrawingActionCard';
@@ -124,6 +125,7 @@ export function MapView() {
           <EarthView map={map} enabled={is3D} />
           <PinDesignFlow map={map} />
           <CommunityPinsLayer map={map} />
+          <SavedProposalsLayer map={map} />
           <ProposalMapOverlay map={map} />
           <DrawingLayer map={map} />
           <DrawingToolbar />

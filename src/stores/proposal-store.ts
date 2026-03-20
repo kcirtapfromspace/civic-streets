@@ -38,6 +38,7 @@ export interface ProposalState {
   bearing: number;
 
   selectedPreset: BeforePreset | null;
+  beforePresetId: string | null;
   beforeStreet: StreetSegment | null;
   afterStreet: StreetSegment | null;
   selectedTemplateId: string | null;
@@ -52,6 +53,7 @@ export interface ProposalState {
   toggleMapView: () => void;
   goBack: () => void;
   reset: () => void;
+  loadProposal: (proposal: StreetProposal) => void;
 
   // Computed
   getProposal: () => StreetProposal | null;
@@ -64,6 +66,7 @@ export const useProposalStore = create<ProposalState>()((set, get) => ({
   roadPath: [],
   bearing: 0,
   selectedPreset: null,
+  beforePresetId: null,
   beforeStreet: null,
   afterStreet: null,
   selectedTemplateId: null,
@@ -77,6 +80,7 @@ export const useProposalStore = create<ProposalState>()((set, get) => ({
       roadPath: [],
       bearing: 0,
       selectedPreset: null,
+      beforePresetId: null,
       beforeStreet: null,
       afterStreet: null,
       selectedTemplateId: null,
@@ -108,6 +112,7 @@ export const useProposalStore = create<ProposalState>()((set, get) => ({
     set({
       step: 'before-selected',
       selectedPreset: preset,
+      beforePresetId: preset.id,
       beforeStreet,
       afterStreet: null,
       selectedTemplateId: null,
@@ -151,15 +156,31 @@ export const useProposalStore = create<ProposalState>()((set, get) => ({
       roadPath: [],
       bearing: 0,
       selectedPreset: null,
+      beforePresetId: null,
       beforeStreet: null,
       afterStreet: null,
       selectedTemplateId: null,
       showBeforeOnMap: true,
     }),
 
+  loadProposal: (proposal) =>
+    set({
+      step: 'review',
+      streetName: proposal.streetName,
+      location: proposal.location,
+      roadPath: proposal.roadPath,
+      bearing: proposal.bearing,
+      selectedPreset: null,
+      beforePresetId: proposal.beforePresetId,
+      beforeStreet: proposal.beforeStreet,
+      afterStreet: proposal.afterStreet,
+      selectedTemplateId: proposal.transformationTemplateId,
+      showBeforeOnMap: false,
+    }),
+
   getProposal: () => {
     const s = get();
-    if (!s.location || !s.beforeStreet || !s.afterStreet || !s.selectedPreset || !s.selectedTemplateId) {
+    if (!s.location || !s.beforeStreet || !s.afterStreet || !s.beforePresetId || !s.selectedTemplateId) {
       return null;
     }
     const now = new Date().toISOString();
@@ -169,7 +190,7 @@ export const useProposalStore = create<ProposalState>()((set, get) => ({
       location: s.location,
       roadPath: s.roadPath,
       bearing: s.bearing,
-      beforePresetId: s.selectedPreset.id,
+      beforePresetId: s.beforePresetId,
       beforeStreet: s.beforeStreet,
       afterStreet: s.afterStreet,
       transformationTemplateId: s.selectedTemplateId,

@@ -1,4 +1,5 @@
 import { useSafetyDataStore } from './safety-data-store';
+import { useMapStore } from '@/features/map/map-store';
 import {
   MODE_LABELS,
   SEVERITY_LABELS,
@@ -21,6 +22,7 @@ export function CrashFilterPanel() {
   const filters = useSafetyDataStore((s) => s.filters);
   const crashes = useSafetyDataStore((s) => s.crashes);
   const isLoading = useSafetyDataStore((s) => s.isLoading);
+  const zoom = useMapStore((s) => s.zoom);
   const showHeatmap = useSafetyDataStore((s) => s.showHeatmap);
   const showPoints = useSafetyDataStore((s) => s.showPoints);
   const toggleMode = useSafetyDataStore((s) => s.toggleMode);
@@ -43,7 +45,9 @@ export function CrashFilterPanel() {
         </div>
 
         <div className="text-[10px] text-gray-400">
-          {crashes.length.toLocaleString()} crashes loaded
+          {crashes.length === 0 && !isLoading && zoom < 11
+            ? 'Zoom in to see crash data'
+            : `${crashes.length.toLocaleString()} crashes loaded`}
         </div>
 
         {/* Layer toggles */}
