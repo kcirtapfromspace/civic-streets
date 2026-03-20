@@ -73,16 +73,16 @@ export function DrawingToolbar() {
 
   return (
     <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10">
-      <div className="bg-gray-900/92 backdrop-blur-xl rounded-2xl shadow-[0_8px_48px_rgba(0,0,0,0.3)] ring-1 ring-white/[0.08] flex flex-col items-center overflow-hidden">
+      <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.06] flex flex-col items-center overflow-hidden">
         {/* Status bar */}
         {statusText && (
           <div className="w-full px-4 pt-2.5 pb-1.5 flex items-center justify-center gap-2">
             {isSnapping ? (
-              <div className="w-3 h-3 border-2 border-blue-400/40 border-t-blue-400 rounded-full animate-spin" />
+              <div className="w-3 h-3 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
             ) : isDragging ? (
-              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
             ) : null}
-            <span className="text-[11px] text-gray-400 font-medium">{statusText}</span>
+            <span className="text-[11px] text-gray-500 font-medium">{statusText}</span>
           </div>
         )}
 
@@ -97,15 +97,15 @@ export function DrawingToolbar() {
                 onClick={() => setActiveTool(selected ? 'select' : tool)}
                 className={`group flex flex-col items-center gap-1 px-4 py-2.5 rounded-xl transition-all duration-200 min-w-[100px] ${
                   selected
-                    ? 'bg-blue-500 text-white shadow-[0_2px_12px_rgba(59,130,246,0.4)]'
-                    : 'text-gray-400 hover:text-white hover:bg-white/[0.06]'
+                    ? 'bg-blue-600 text-white shadow-[0_2px_12px_rgba(59,130,246,0.3)]'
+                    : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100/60'
                 }`}
               >
                 <div className={`transition-transform duration-200 ${selected ? 'scale-110' : 'group-hover:scale-105'}`}>
                   {icon}
                 </div>
                 <span className="text-[11px] font-bold leading-tight">{label}</span>
-                <span className={`text-[9px] leading-tight ${selected ? 'text-blue-100' : 'text-gray-500'}`}>
+                <span className={`text-[9px] leading-tight ${selected ? 'text-blue-100' : 'text-gray-400'}`}>
                   {hint}
                 </span>
               </button>
@@ -119,7 +119,7 @@ export function DrawingToolbar() {
                 clear();
                 setActiveTool('select');
               }}
-              className="flex items-center justify-center px-2 ml-0.5 rounded-xl text-gray-500 hover:text-red-400 hover:bg-white/[0.06] transition-all duration-200"
+              className="flex items-center justify-center px-2 ml-0.5 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200"
               title="Exit build mode (Esc)"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">

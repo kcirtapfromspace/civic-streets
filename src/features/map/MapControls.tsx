@@ -5,7 +5,21 @@ import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useProposalStore } from '@/stores/proposal-store';
 import { fetchRoadPath } from '@/features/proposal/utils/road-geometry';
 import { useSafetyDataStore } from '@/features/safety-data/safety-data-store';
-import { CrashFilterPanel } from '@/features/safety-data/CrashFilterPanel';
+import {
+  MODE_LABELS,
+  SEVERITY_LABELS,
+  SEVERITY_COLORS,
+  type CrashMode,
+  type CrashSeverity,
+} from '@/lib/types/safety-data';
+
+const ALL_MODES: CrashMode[] = ['pedestrian', 'cyclist', 'motorist'];
+const ALL_SEVERITIES: CrashSeverity[] = ['fatal', 'severe-injury', 'moderate-injury', 'minor'];
+const MODE_COLORS: Record<CrashMode, string> = {
+  pedestrian: '#8B5CF6',
+  cyclist: '#10B981',
+  motorist: '#3B82F6',
+};
 
 interface MapControlsProps {
   map: maplibregl.Map | null;
@@ -36,8 +50,18 @@ export function MapControls({ map }: MapControlsProps) {
     setSelectedLocation,
   } = useMapStore();
 
-  // Reactive subscription to crash data enabled state (fixes non-reactive getState() bug)
+  // Reactive crash data state
   const crashEnabled = useSafetyDataStore((s) => s.enabled);
+  const crashFilters = useSafetyDataStore((s) => s.filters);
+  const crashes = useSafetyDataStore((s) => s.crashes);
+  const crashLoading = useSafetyDataStore((s) => s.isLoading);
+  const showCrashHeatmap = useSafetyDataStore((s) => s.showHeatmap);
+  const showCrashPoints = useSafetyDataStore((s) => s.showPoints);
+  const toggleCrashMode = useSafetyDataStore((s) => s.toggleMode);
+  const toggleCrashSeverity = useSafetyDataStore((s) => s.toggleSeverity);
+  const toggleCrashHeatmap = useSafetyDataStore((s) => s.toggleHeatmap);
+  const toggleCrashPoints = useSafetyDataStore((s) => s.togglePoints);
+  const mapZoom = useMapStore((s) => s.zoom);
 
   const [searchText, setSearchText] = useState('');
   const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
@@ -319,7 +343,7 @@ export function MapControls({ map }: MapControlsProps) {
 
         {/* Layers panel */}
         {isLayersPanelOpen && (
-          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.04] p-3.5 flex flex-col gap-3 min-w-[180px] animate-fade-up">
+          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.04] p-3.5 flex flex-col gap-3 min-w-[200px] animate-fade-up">
             <div className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.15em]">
               Map Layers
             </div>
@@ -375,6 +399,7 @@ export function MapControls({ map }: MapControlsProps) {
               </span>
             </label>
 
+            {/* Safety Data section */}
             <div className="border-t border-gray-100 pt-2 mt-1">
               <div className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.15em] mb-2">
                 Safety Data
@@ -400,6 +425,86 @@ export function MapControls({ map }: MapControlsProps) {
                 Crash Heatmap
               </span>
             </label>
+
+            {/* Inline crash filters — shown when crash data is enabled */}
+            {crashEnabled && (
+              <div className="flex flex-col gap-2.5 pl-1">
+                <div className="text-[10px] text-gray-400">
+                  {crashes.length === 0 && !crashLoading && mapZoom < 11
+                    ? 'Zoom in to see crash data'
+                    : `${crashes.length.toLocaleString()} crashes loaded`}
+                  {crashLoading && (
+                    <span className="ml-1.5 inline-block w-2.5 h-2.5 border border-orange-200 border-t-orange-500 rounded-full animate-spin align-middle" />
+                  )}
+                </div>
+
+                {/* Display toggles */}
+                <div className="flex flex-col gap-1">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showCrashHeatmap}
+                      onChange={toggleCrashHeatmap}
+                      className="w-3.5 h-3.5 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                    />
+                    <span className="text-[11px] text-gray-600">Heatmap</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showCrashPoints}
+                      onChange={toggleCrashPoints}
+                      className="w-3.5 h-3.5 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                    />
+                    <span className="text-[11px] text-gray-600">Points</span>
+                  </label>
+                </div>
+
+                {/* Mode filters */}
+                <div>
+                  <div className="text-[9px] font-bold text-gray-300 uppercase tracking-[0.12em] mb-1">Mode</div>
+                  <div className="flex flex-col gap-1">
+                    {ALL_MODES.map((mode) => (
+                      <label key={mode} className="flex items-center gap-2 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={crashFilters.modes.has(mode)}
+                          onChange={() => toggleCrashMode(mode)}
+                          className="w-3.5 h-3.5 rounded border-gray-300"
+                          style={{ accentColor: MODE_COLORS[mode] }}
+                        />
+                        <span className="flex items-center gap-1.5 text-[11px] text-gray-600 group-hover:text-gray-900">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: MODE_COLORS[mode] }} />
+                          {MODE_LABELS[mode]}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Severity filters */}
+                <div>
+                  <div className="text-[9px] font-bold text-gray-300 uppercase tracking-[0.12em] mb-1">Severity</div>
+                  <div className="flex flex-col gap-1">
+                    {ALL_SEVERITIES.map((sev) => (
+                      <label key={sev} className="flex items-center gap-2 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={crashFilters.severities.has(sev)}
+                          onChange={() => toggleCrashSeverity(sev)}
+                          className="w-3.5 h-3.5 rounded border-gray-300"
+                          style={{ accentColor: SEVERITY_COLORS[sev] }}
+                        />
+                        <span className="flex items-center gap-1.5 text-[11px] text-gray-600 group-hover:text-gray-900">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: SEVERITY_COLORS[sev] }} />
+                          {SEVERITY_LABELS[sev]}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -414,8 +519,6 @@ export function MapControls({ map }: MapControlsProps) {
           </div>
         </div>
       )}
-
-      <CrashFilterPanel />
     </>
   );
 }
