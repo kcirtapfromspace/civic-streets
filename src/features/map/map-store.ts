@@ -1,5 +1,11 @@
 import { create } from 'zustand';
 
+export interface ReportFormLocation {
+  lat: number;
+  lng: number;
+  address: string;
+}
+
 export interface MapState {
   center: { lat: number; lng: number };
   zoom: number;
@@ -20,6 +26,9 @@ export interface MapState {
   } | null;
   // Lock map interaction during design mode
   lockedToLocation: boolean;
+  // Report form
+  reportFormOpen: boolean;
+  reportFormLocation: ReportFormLocation | null;
   // Actions
   setCenter: (center: { lat: number; lng: number }) => void;
   setZoom: (zoom: number) => void;
@@ -32,6 +41,8 @@ export interface MapState {
   setLockedToLocation: (locked: boolean) => void;
   openContextMenu: (position: MapState['contextMenuPosition']) => void;
   closeContextMenu: () => void;
+  openReportForm: (location: ReportFormLocation) => void;
+  closeReportForm: () => void;
 }
 
 export const useMapStore = create<MapState>()((set) => ({
@@ -48,6 +59,8 @@ export const useMapStore = create<MapState>()((set) => ({
   selectedLocation: null,
   contextMenuPosition: null,
   lockedToLocation: false,
+  reportFormOpen: false,
+  reportFormLocation: null,
 
   setCenter: (center) => set({ center }),
   setZoom: (zoom) => set({ zoom }),
@@ -75,4 +88,9 @@ export const useMapStore = create<MapState>()((set) => ({
   setLockedToLocation: (locked) => set({ lockedToLocation: locked }),
   openContextMenu: (position) => set({ contextMenuPosition: position }),
   closeContextMenu: () => set({ contextMenuPosition: null }),
+
+  openReportForm: (location) =>
+    set({ reportFormOpen: true, reportFormLocation: location }),
+  closeReportForm: () =>
+    set({ reportFormOpen: false, reportFormLocation: null }),
 }));

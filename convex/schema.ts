@@ -43,6 +43,11 @@ export default defineSchema({
     status: v.string(), // 'open' | 'acknowledged' | 'in-progress' | 'resolved'
     // Link to a design if someone created one for this hotspot
     designId: v.optional(v.id('designs')),
+    // Civic report integration (SeeClickFix, Open311, etc.)
+    civicReportId: v.optional(v.string()),
+    civicReportUrl: v.optional(v.string()),
+    // Accessibility subtype for structured ADA reporting
+    accessibilitySubtype: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

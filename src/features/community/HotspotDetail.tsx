@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { Badge, Button } from '@/components/ui';
 import {
   HOTSPOT_CATEGORY_LABELS,
@@ -12,6 +12,7 @@ import { DesignCard } from './DesignCard';
 import type { MockHotspot } from './mock-data';
 import { MOCK_COMMENTS, MOCK_DESIGNS, MOCK_USERS } from './mock-data';
 import type { MockUser } from './mock-data';
+import { detectCivicService, submitCivicReport } from '@/lib/api/civic-report';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -141,6 +142,40 @@ export function HotspotDetail({
   const linkedDesigns = MOCK_DESIGNS.filter((d) =>
     hotspot.linkedDesignIds.includes(d.id),
   );
+
+  // Civic reporting state
+  const civicService = detectCivicService(hotspot.lat, hotspot.lng);
+  const [civicStatus, setCivicStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [civicResult, setCivicResult] = useState<{ trackingId?: string; trackingUrl?: string; deepLinkUrl?: string } | null>(null);
+  const [civicError, setCivicError] = useState<string | null>(null);
+
+  const handleReportToCity = useCallback(async () => {
+    setCivicStatus('submitting');
+    setCivicError(null);
+
+    const result = await submitCivicReport({
+      lat: hotspot.lat,
+      lng: hotspot.lng,
+      address: hotspot.address,
+      category: hotspot.category,
+      title: hotspot.title,
+      description: hotspot.description,
+    });
+
+    if (result.deepLinkUrl) {
+      window.open(result.deepLinkUrl, '_blank', 'noopener');
+      setCivicStatus('idle');
+      return;
+    }
+
+    if (result.success) {
+      setCivicStatus('success');
+      setCivicResult(result);
+    } else {
+      setCivicStatus('error');
+      setCivicError(result.error ?? 'Failed to submit report.');
+    }
+  }, [hotspot]);
 
   return (
     <div className="bg-gray-50 min-h-full">
@@ -297,7 +332,57 @@ export function HotspotDetail({
               </svg>
               Send to My Rep
             </Button>
+            <Button
+              variant="secondary"
+              onClick={handleReportToCity}
+              disabled={civicStatus === 'submitting'}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-1.5"
+                aria-hidden="true"
+              >
+                <path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16" />
+              </svg>
+              {civicStatus === 'submitting' ? 'Submitting...' : 'Report to City'}
+            </Button>
           </div>
+
+          {/* Civic report result */}
+          {civicStatus === 'success' && civicResult && (
+            <div className="mx-5 mt-3 rounded-lg bg-green-50 border border-green-200 p-3">
+              <p className="text-sm font-medium text-green-800">
+                Report submitted successfully!
+              </p>
+              {civicResult.trackingId && (
+                <p className="text-xs text-green-700 mt-1">
+                  Tracking ID: <span className="font-mono">{civicResult.trackingId}</span>
+                </p>
+              )}
+              {civicResult.trackingUrl && (
+                <a
+                  href={civicResult.trackingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-green-600 underline mt-1 inline-block"
+                >
+                  Track your report &rarr;
+                </a>
+              )}
+            </div>
+          )}
+          {civicStatus === 'error' && civicError && (
+            <div className="mx-5 mt-3 rounded-lg bg-red-50 border border-red-200 p-3">
+              <p className="text-sm text-red-800">{civicError}</p>
+            </div>
+          )}
 
           {/* Status Timeline */}
           <div className="px-5 pt-6 pb-2">

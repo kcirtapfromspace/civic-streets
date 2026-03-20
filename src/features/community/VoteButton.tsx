@@ -8,6 +8,8 @@ interface VoteButtonProps {
   /** Horizontal layout for compact cards */
   horizontal?: boolean;
   className?: string;
+  /** Callback when user votes. Called with 1 (upvote) or -1 (downvote). */
+  onVote?: (value: 1 | -1) => void;
 }
 
 export function VoteButton({
@@ -15,6 +17,7 @@ export function VoteButton({
   downvotes,
   horizontal = false,
   className = '',
+  onVote,
 }: VoteButtonProps) {
   const [vote, setVote] = useState<VoteState>(null);
 
@@ -27,11 +30,13 @@ export function VoteButton({
 
   const handleUpvote = useCallback(() => {
     setVote((prev) => (prev === 'up' ? null : 'up'));
-  }, []);
+    onVote?.(1);
+  }, [onVote]);
 
   const handleDownvote = useCallback(() => {
     setVote((prev) => (prev === 'down' ? null : 'down'));
-  }, []);
+    onVote?.(-1);
+  }, [onVote]);
 
   const containerClass = horizontal
     ? 'flex flex-row items-center gap-1'

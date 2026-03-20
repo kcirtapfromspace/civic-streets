@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useId } from 'react';
 import { Modal, Button, Select } from '@/components/ui';
 import { useCommunityStore } from './community-store';
-import { MOCK_HOTSPOTS } from './mock-data';
+import { useHotspotsList } from '@/lib/api/use-hotspots';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -21,16 +21,6 @@ interface SaveDesignModalProps {
   onSave?: (data: SaveDesignData) => void;
 }
 
-// ── Hotspot options for linking ───────────────────────────────────────────
-
-const hotspotLinkOptions = [
-  { value: '', label: 'None' },
-  ...MOCK_HOTSPOTS.map((h) => ({
-    value: h.id,
-    label: `${h.title} (${h.address.split(',')[0]})`,
-  })),
-];
-
 // ── Component ─────────────────────────────────────────────────────────────
 
 export function SaveDesignModal({
@@ -38,9 +28,22 @@ export function SaveDesignModal({
   address = '',
   onSave,
 }: SaveDesignModalProps) {
-  const { isSaveDesignOpen, closeSaveDesign } = useCommunityStore();
+  const { isSaveDesignOpen, closeSaveDesign, saveDesignData } = useCommunityStore();
+  const { hotspots } = useHotspotsList();
 
-  const [title, setTitle] = useState(initialTitle);
+  const hotspotLinkOptions = [
+    { value: '', label: 'None' },
+    ...hotspots.map((h) => ({
+      value: h.id,
+      label: `${h.title} (${h.address.split(',')[0]})`,
+    })),
+  ];
+
+  // Use saveDesignData from store if provided
+  const effectiveTitle = saveDesignData?.title || initialTitle;
+  const effectiveAddress = saveDesignData?.address || address;
+
+  const [title, setTitle] = useState(effectiveTitle);
   const [description, setDescription] = useState('');
   const [linkedHotspotId, setLinkedHotspotId] = useState('');
   const [privacy, setPrivacy] = useState<'public' | 'private'>('public');
@@ -55,19 +58,17 @@ export function SaveDesignModal({
       if (!title.trim()) return;
 
       setIsSaving(true);
-      setTimeout(() => {
-        onSave?.({
-          title: title.trim(),
-          description: description.trim(),
-          address,
-          linkedHotspotId,
-          privacy,
-        });
-        setIsSaving(false);
-        closeSaveDesign();
-      }, 400);
+      onSave?.({
+        title: title.trim(),
+        description: description.trim(),
+        address: effectiveAddress,
+        linkedHotspotId,
+        privacy,
+      });
+      setIsSaving(false);
+      closeSaveDesign();
     },
-    [title, description, address, linkedHotspotId, privacy, onSave, closeSaveDesign],
+    [title, description, effectiveAddress, linkedHotspotId, privacy, onSave, closeSaveDesign],
   );
 
   return (
@@ -116,7 +117,7 @@ export function SaveDesignModal({
         </div>
 
         {/* Location display */}
-        {address && (
+        {effectiveAddress && (
           <div>
             <span className="block text-xs font-medium text-gray-600 mb-1">
               Location
@@ -137,7 +138,7 @@ export function SaveDesignModal({
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
                 <circle cx="12" cy="10" r="3" />
               </svg>
-              {address}
+              {effectiveAddress}
             </div>
           </div>
         )}

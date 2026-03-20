@@ -8,7 +8,8 @@ import {
 } from '@/lib/types';
 import { useMapStore } from './map-store';
 import { useStyleReload } from './useStyleReload';
-import { MOCK_HOTSPOTS, MOCK_DESIGNS } from './mock-data';
+import { useHotspotsByBounds } from '@/lib/api/use-hotspots';
+import { useDesignsByBounds } from '@/lib/api/use-designs';
 
 interface CommunityPinsLayerProps {
   map: maplibregl.Map | null;
@@ -136,7 +137,7 @@ function buildHotspotPopupElement(pin: HotspotPin): HTMLDivElement {
   const linkWrapper = document.createElement('div');
   linkWrapper.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid #eee;';
   const link = document.createElement('a');
-  link.href = `#/hotspot/${pin.id}`;
+  link.href = `/hotspot/${pin.id}`;
   link.style.cssText = 'font-size:13px;color:#2563EB;text-decoration:none;font-weight:500;';
   link.textContent = 'View Details \u2192';
   linkWrapper.appendChild(link);
@@ -184,7 +185,7 @@ function buildDesignPopupElement(pin: DesignPin): HTMLDivElement {
   const linkWrapper = document.createElement('div');
   linkWrapper.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid #eee;';
   const link = document.createElement('a');
-  link.href = `#/design/${pin.id}`;
+  link.href = `/editor/${pin.id}`;
   link.style.cssText = 'font-size:13px;color:#2563EB;text-decoration:none;font-weight:500;';
   link.textContent = 'Open in Editor \u2192';
   linkWrapper.appendChild(link);
@@ -198,6 +199,10 @@ export function CommunityPinsLayer({ map }: CommunityPinsLayerProps) {
   const showDesigns = useMapStore((s) => s.showDesigns);
   const showHeatmap = useMapStore((s) => s.showHeatmap);
   const styleVersion = useStyleReload(map);
+
+  // Use data hooks instead of direct mock imports
+  const { hotspots: hotspotPins } = useHotspotsByBounds();
+  const { designs: designPins } = useDesignsByBounds();
 
   const hotspotMarkersRef = useRef<maplibregl.Marker[]>([]);
   const designMarkersRef = useRef<maplibregl.Marker[]>([]);
@@ -223,7 +228,7 @@ export function CommunityPinsLayer({ map }: CommunityPinsLayerProps) {
 
     if (!showHotspots) return;
 
-    const markers = MOCK_HOTSPOTS.map((pin: HotspotPin) => {
+    const markers = hotspotPins.map((pin: HotspotPin) => {
       const color = HOTSPOT_CATEGORY_COLORS[pin.category];
       const size = upvoteScale(pin.upvotes);
       const el = createHotspotSvg(color, size);
@@ -248,7 +253,7 @@ export function CommunityPinsLayer({ map }: CommunityPinsLayerProps) {
     return () => {
       markers.forEach((m) => m.remove());
     };
-  }, [map, showHotspots]);
+  }, [map, showHotspots, hotspotPins]);
 
   // Design markers
   useEffect(() => {
@@ -259,7 +264,7 @@ export function CommunityPinsLayer({ map }: CommunityPinsLayerProps) {
 
     if (!showDesigns) return;
 
-    const markers = MOCK_DESIGNS.map((pin: DesignPin) => {
+    const markers = designPins.map((pin: DesignPin) => {
       const el = createDesignSvg();
 
       const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
@@ -282,7 +287,7 @@ export function CommunityPinsLayer({ map }: CommunityPinsLayerProps) {
     return () => {
       markers.forEach((m) => m.remove());
     };
-  }, [map, showDesigns]);
+  }, [map, showDesigns, designPins]);
 
   // Heatmap layer via MapLibre heatmap layer
   useEffect(() => {
@@ -302,7 +307,7 @@ export function CommunityPinsLayer({ map }: CommunityPinsLayerProps) {
 
     const geojson: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
-      features: MOCK_HOTSPOTS.map((pin) => ({
+      features: hotspotPins.map((pin) => ({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [pin.lng, pin.lat] },
         properties: { weight: pin.upvotes },
@@ -341,7 +346,7 @@ export function CommunityPinsLayer({ map }: CommunityPinsLayerProps) {
     }
 
     return cleanup;
-  }, [map, showHeatmap, styleVersion]);
+  }, [map, showHeatmap, styleVersion, hotspotPins]);
 
   return null;
 }

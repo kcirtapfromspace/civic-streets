@@ -3,6 +3,7 @@ import { useProposalStore } from '@/stores/proposal-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useStreetStore } from '@/stores/street-store';
 import { useSavedProposalsStore } from '@/stores/saved-proposals-store';
+import { useCommunityStore } from '@/features/community/community-store';
 import { generatePDF } from '@/features/export';
 
 const CrossSectionSVG = lazy(() =>
@@ -54,9 +55,18 @@ export function ProposalReview() {
     }
   };
 
+  const openSaveDesign = useCommunityStore((s) => s.openSaveDesign);
+
   const handleDone = () => {
     const proposal = useProposalStore.getState().getProposal();
     if (proposal) useSavedProposalsStore.getState().saveProposal(proposal);
+
+    // Open SaveDesignModal to share with community
+    openSaveDesign({
+      title: streetName || 'Street Proposal',
+      address: designLocation?.address || '',
+    });
+
     reset();
     exitToExplore();
   };

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useId } from 'react';
 import { Button, Select } from '@/components/ui';
-import type { HotspotCategory, HotspotSeverity } from '@/lib/types/community';
-import { HOTSPOT_CATEGORY_LABELS, SEVERITY_LABELS } from '@/lib/types/community';
+import type { HotspotCategory, HotspotSeverity, AccessibilitySubtype } from '@/lib/types/community';
+import { HOTSPOT_CATEGORY_LABELS, SEVERITY_LABELS, ACCESSIBILITY_SUBTYPE_LABELS } from '@/lib/types/community';
 
 // ── Severity colors ───────────────────────────────────────────────────────
 
@@ -18,6 +18,7 @@ interface ReportFormData {
   address: string;
   category: HotspotCategory;
   severity: HotspotSeverity;
+  accessibilitySubtype?: AccessibilitySubtype;
   title: string;
   description: string;
   photoDataUrls: string[];
@@ -36,6 +37,10 @@ const categoryOptions = Object.entries(HOTSPOT_CATEGORY_LABELS).map(
   ([value, label]) => ({ value, label }),
 );
 
+const accessibilitySubtypeOptions = Object.entries(ACCESSIBILITY_SUBTYPE_LABELS).map(
+  ([value, label]) => ({ value, label }),
+);
+
 // ── Component ─────────────────────────────────────────────────────────────
 
 export function HotspotReportForm({
@@ -45,6 +50,7 @@ export function HotspotReportForm({
 }: HotspotReportFormProps) {
   const [address, setAddress] = useState(initialAddress);
   const [category, setCategory] = useState<HotspotCategory>('dangerous-intersection');
+  const [accessibilitySubtype, setAccessibilitySubtype] = useState<AccessibilitySubtype | ''>('');
   const [severity, setSeverity] = useState<HotspotSeverity>('medium');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -117,21 +123,18 @@ export function HotspotReportForm({
       if (!title.trim() || !address.trim()) return;
 
       setIsSubmitting(true);
-
-      // Simulate async submission
-      setTimeout(() => {
-        onSubmit?.({
-          address: address.trim(),
-          category,
-          severity,
-          title: title.trim(),
-          description: description.trim(),
-          photoDataUrls,
-        });
-        setIsSubmitting(false);
-      }, 400);
+      onSubmit?.({
+        address: address.trim(),
+        category,
+        severity,
+        accessibilitySubtype: category === 'accessibility' && accessibilitySubtype ? accessibilitySubtype : undefined,
+        title: title.trim(),
+        description: description.trim(),
+        photoDataUrls,
+      });
+      setIsSubmitting(false);
     },
-    [address, category, severity, title, description, photoDataUrls, onSubmit],
+    [address, category, severity, accessibilitySubtype, title, description, photoDataUrls, onSubmit],
   );
 
   return (
@@ -173,9 +176,25 @@ export function HotspotReportForm({
         <Select
           label="Category"
           value={category}
-          onChange={(v) => setCategory(v as HotspotCategory)}
+          onChange={(v) => {
+            setCategory(v as HotspotCategory);
+            if (v !== 'accessibility') setAccessibilitySubtype('');
+          }}
           options={categoryOptions}
         />
+
+        {/* Accessibility subtype picker */}
+        {category === 'accessibility' && (
+          <Select
+            label="Accessibility Issue Type"
+            value={accessibilitySubtype}
+            onChange={(v) => setAccessibilitySubtype(v as AccessibilitySubtype)}
+            options={[
+              { value: '', label: 'Select specific issue...' },
+              ...accessibilitySubtypeOptions,
+            ]}
+          />
+        )}
 
         {/* Severity */}
         <fieldset>

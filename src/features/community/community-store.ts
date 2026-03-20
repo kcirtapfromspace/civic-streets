@@ -7,6 +7,11 @@ export interface FeedFilter {
   sort: 'votes' | 'newest' | 'nearest';
 }
 
+export interface SaveDesignData {
+  title: string;
+  address: string;
+}
+
 export interface CommunityState {
   // Feed state
   feedFilter: FeedFilter;
@@ -16,12 +21,13 @@ export interface CommunityState {
   activeDesignId: string | null;
   // Save design modal
   isSaveDesignOpen: boolean;
+  saveDesignData: SaveDesignData | null;
   // Actions
   setFeedFilter: (filter: Partial<FeedFilter>) => void;
   setSearchQuery: (query: string) => void;
   setActiveHotspot: (id: string | null) => void;
   setActiveDesign: (id: string | null) => void;
-  openSaveDesign: () => void;
+  openSaveDesign: (data?: SaveDesignData) => void;
   closeSaveDesign: () => void;
 }
 
@@ -31,6 +37,7 @@ export const useCommunityStore = create<CommunityState>()((set) => ({
   activeHotspotId: null,
   activeDesignId: null,
   isSaveDesignOpen: false,
+  saveDesignData: null,
 
   setFeedFilter: (filter) =>
     set((state) => ({ feedFilter: { ...state.feedFilter, ...filter } })),
@@ -41,7 +48,9 @@ export const useCommunityStore = create<CommunityState>()((set) => ({
 
   setActiveDesign: (id) => set({ activeDesignId: id }),
 
-  openSaveDesign: () => set({ isSaveDesignOpen: true }),
+  openSaveDesign: (data) =>
+    set({ isSaveDesignOpen: true, saveDesignData: data ?? null }),
 
-  closeSaveDesign: () => set({ isSaveDesignOpen: false }),
+  closeSaveDesign: () =>
+    set({ isSaveDesignOpen: false, saveDesignData: null }),
 }));

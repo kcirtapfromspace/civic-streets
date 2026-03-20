@@ -9,6 +9,7 @@ import type { HotspotCategory, HotspotStatus, HotspotSeverity } from '@/lib/type
 import { useCommunityStore } from './community-store';
 import type { MockHotspot } from './mock-data';
 import { MOCK_HOTSPOTS } from './mock-data';
+import { useLocalHotspotsStore } from '@/stores/local-hotspots-store';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -172,9 +173,11 @@ export function HotspotFeed({
 
   const [visibleCount, setVisibleCount] = useState(10);
 
+  const localHotspots = useLocalHotspotsStore((s) => s.hotspots);
+
   // Filter + sort
   const filtered = useMemo(() => {
-    let items = [...MOCK_HOTSPOTS];
+    let items = [...localHotspots, ...MOCK_HOTSPOTS];
 
     // Category filter
     if (feedFilter.category) {
@@ -211,7 +214,7 @@ export function HotspotFeed({
     }
 
     return items;
-  }, [feedFilter, searchQuery]);
+  }, [feedFilter, searchQuery, localHotspots]);
 
   const visible = filtered.slice(0, visibleCount);
   const hasMore = visibleCount < filtered.length;

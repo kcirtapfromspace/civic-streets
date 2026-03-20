@@ -1,22 +1,31 @@
-import { useState, useEffect, ComponentType } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { HotspotDetail } from '@/features/community/HotspotDetail';
+import { useHotspotById } from '@/lib/api/use-hotspots';
+import { useMapStore } from '@/features/map/map-store';
+import { useWorkspaceStore } from '@/stores/workspace-store';
 
-interface HotspotDetailProps {
-  hotspotId: string;
-}
+export default function HotspotDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { hotspot, isLoading } = useHotspotById(id);
+  const setCenter = useMapStore((s) => s.setCenter);
+  const setZoom = useMapStore((s) => s.setZoom);
+  const enterProposeMode = useWorkspaceStore((s) => s.enterProposeMode);
 
-function HotspotDetailPlaceholder({ hotspotId }: HotspotDetailProps) {
-  return (
-    <div className="max-w-2xl mx-auto px-4 py-12">
-      <div className="text-center space-y-4">
-        <div className="w-16 h-16 mx-auto rounded-full bg-orange-100 flex items-center justify-center">
-          <svg className="w-8 h-8 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-            <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
-          </svg>
-        </div>
-        <h1 className="text-2xl font-bold text-gray-900">Hotspot Detail</h1>
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!hotspot) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-12 text-center space-y-4">
+        <h1 className="text-2xl font-bold text-gray-900">Hotspot Not Found</h1>
         <p className="text-gray-500">
-          Hotspot <span className="font-mono text-gray-700">{hotspotId}</span> — detailed view coming soon.
+          Hotspot <span className="font-mono text-gray-700">{id}</span> could not be found.
         </p>
         <Link
           to="/hotspots"
@@ -25,47 +34,35 @@ function HotspotDetailPlaceholder({ hotspotId }: HotspotDetailProps) {
           &larr; Back to Hotspots
         </Link>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
-function useDynamicComponent<P extends object>(
-  loader: () => Promise<Record<string, unknown>>,
-  namedExport: string | null,
-  Fallback: ComponentType<P>,
-): ComponentType<P> {
-  const [Component, setComponent] = useState<ComponentType<P>>(() => Fallback);
+  const handleDesignFix = () => {
+    setCenter({ lat: hotspot.lat, lng: hotspot.lng });
+    setZoom(18);
+    enterProposeMode({ lat: hotspot.lat, lng: hotspot.lng, address: hotspot.address });
+    navigate('/map');
+  };
 
-  useEffect(() => {
-    let cancelled = false;
-    loader()
-      .then((mod) => {
-        if (cancelled) return;
-        const resolved =
-          namedExport && namedExport in mod
-            ? (mod[namedExport] as ComponentType<P>)
-            : (mod.default as ComponentType<P>);
-        if (resolved) setComponent(() => resolved);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
+  const handleSendToRep = () => {
+    navigate(`/report?hotspot=${hotspot.id}`);
+  };
 
-  return Component;
-}
-
-export default function HotspotDetailPage() {
-  const { id } = useParams<{ id: string }>();
-
-  const HotspotDetail = useDynamicComponent<HotspotDetailProps>(
-    () => import('@/features/community/HotspotDetail'),
-    'HotspotDetail',
-    HotspotDetailPlaceholder,
-  );
+  const handleViewOnMap = (lat: number, lng: number) => {
+    setCenter({ lat, lng });
+    setZoom(17);
+    navigate('/map');
+  };
 
   return (
     <div className="h-full overflow-y-auto">
-      <HotspotDetail hotspotId={id ?? ''} />
+      <HotspotDetail
+        hotspot={hotspot}
+        onBack={() => navigate('/hotspots')}
+        onDesignFix={handleDesignFix}
+        onSendToRep={handleSendToRep}
+        onViewOnMap={handleViewOnMap}
+      />
     </div>
   );
 }

@@ -96,6 +96,8 @@ export function PinDesignFlow({ map }: PinDesignFlowProps) {
     enterConfigureMode(location);
   }, [contextMenuPosition, reverseGeocode, setSelectedLocation, closeContextMenu, enterConfigureMode]);
 
+  const openReportForm = useMapStore((s) => s.openReportForm);
+
   const handleReportHotspot = useCallback(async () => {
     if (!contextMenuPosition) return;
 
@@ -103,9 +105,8 @@ export function PinDesignFlow({ map }: PinDesignFlowProps) {
     const address = await reverseGeocode(lat, lng);
     setSelectedLocation({ lat, lng, address });
     closeContextMenu();
-
-    console.info('[Curbwise] Report a Hotspot:', { lat, lng, address });
-  }, [contextMenuPosition, reverseGeocode, setSelectedLocation, closeContextMenu]);
+    openReportForm({ lat, lng, address });
+  }, [contextMenuPosition, reverseGeocode, setSelectedLocation, closeContextMenu, openReportForm]);
 
   if (!contextMenuPosition) return null;
 
