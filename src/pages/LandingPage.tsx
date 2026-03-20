@@ -77,7 +77,7 @@ export default function LandingPage() {
 
           <div className="mt-10 flex flex-wrap gap-4">
             <Link
-              to="/map"
+              to="/"
               className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-full text-[15px] font-bold bg-blue-600 text-white hover:bg-blue-500 transition-all duration-300 ease-spring active:scale-[0.97] shadow-[0_4px_24px_rgba(59,130,246,0.4)]"
             >
               Open the Map
@@ -219,7 +219,7 @@ export default function LandingPage() {
           </p>
           <div className="mt-10">
             <Link
-              to="/map"
+              to="/"
               className="inline-flex items-center gap-2.5 px-8 py-4 rounded-full text-base font-bold bg-blue-600 text-white hover:bg-blue-500 transition-all duration-300 ease-spring active:scale-[0.97] shadow-[0_4px_24px_rgba(59,130,246,0.4)]"
             >
               Open Curbwise

@@ -26,12 +26,12 @@ export default function App() {
       <ToastProvider>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            {/* Landing page — no nav chrome */}
-            <Route path="/" element={<LandingPage />} />
+            {/* Marketing landing page — no nav chrome */}
+            <Route path="/welcome" element={<LandingPage />} />
 
             {/* App pages — with nav layout */}
             <Route element={<Layout />}>
-              <Route path="/map" element={<MapPage />} />
+              <Route path="/" element={<MapPage />} />
               <Route path="/editor" element={<EditorPage />} />
               <Route path="/editor/:id" element={<EditorPage />} />
               <Route path="/hotspots" element={<HotspotFeedPage />} />

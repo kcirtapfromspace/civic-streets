@@ -33,21 +33,9 @@ async function main() {
   const page = await context.newPage();
   console.log('Recording started...');
 
-  // === SCENE 1: Navigate to map & Search ===
-  await page.goto(BASE);
-  await page.waitForTimeout(3000);
-
-  // If landing page, click "Open the Map" CTA to navigate client-side
-  try {
-    const mapCta = page.locator('a').filter({ hasText: 'Open the Map' }).first();
-    await mapCta.waitFor({ state: 'visible', timeout: 4000 });
-    await mapCta.click();
-    await page.waitForTimeout(4000);
-  } catch {
-    // Already on map or no landing page — try direct nav
-    await page.goto(`${BASE}/map`);
-    await page.waitForTimeout(5000);
-  }
+  // === SCENE 1: Go straight to map (root route) ===
+  await page.goto(BASE, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(5000);
   console.log('Scene 1: Map loaded');
 
   // Search for Humboldt Park
