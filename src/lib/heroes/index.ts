@@ -1,9 +1,9 @@
 import type { StreetSegment } from '@/lib/types';
 import { DEFAULT_CONSTRAINTS } from '@/lib/constants';
 
-import roadDietData from '@/data/heroes/road-diet-hero.json';
-import protectedBikeData from '@/data/heroes/protected-bike-hero.json';
-import transitPriorityData from '@/data/heroes/transit-priority-hero.json';
+import roadDietData from '../../../data/heroes/road-diet-hero.json';
+import protectedBikeData from '../../../data/heroes/protected-bike-hero.json';
+import transitPriorityData from '../../../data/heroes/transit-priority-hero.json';
 
 export interface HeroExample {
   segment: StreetSegment;

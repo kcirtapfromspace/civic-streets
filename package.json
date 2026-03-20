@@ -3,35 +3,38 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "dev": "next dev",
-        "build": "next build",
-        "start": "next start",
-        "lint": "next lint",
+        "dev": "vite",
+        "build": "tsc -b && vite build",
+        "preview": "vite preview",
+        "lint": "eslint .",
         "test": "vitest run",
         "test:watch": "vitest"
     },
     "dependencies": {
         "@react-pdf/renderer": "^4.3.2",
-        "next": "15.3.3",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
         "zundo": "^2.3.0",
         "zustand": "^5.0.12"
     },
     "devDependencies": {
-        "@eslint/eslintrc": "^3.3.5",
-        "@tailwindcss/postcss": "^4",
+        "@eslint/js": "^10.0.1",
+        "@tailwindcss/vite": "^4.2.2",
         "@testing-library/jest-dom": "^6.9.1",
         "@testing-library/react": "^16.3.2",
         "@types/node": "^22",
         "@types/react": "^19",
         "@types/react-dom": "^19",
+        "@vitejs/plugin-react": "^6.0.1",
         "eslint": "^9",
-        "eslint-config-next": "15.3.3",
+        "eslint-plugin-react-hooks": "^7.0.1",
+        "eslint-plugin-react-refresh": "^0.5.2",
         "jsdom": "^29.0.0",
         "prettier": "^3.8.1",
         "tailwindcss": "^4",
         "typescript": "^5",
+        "typescript-eslint": "^8.57.1",
+        "vite": "^8.0.1",
         "vitest": "^4.1.0"
     }
 }
