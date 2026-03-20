@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type WorkspaceMode = 'explore' | 'configure' | 'design';
+export type WorkspaceMode = 'explore' | 'configure' | 'design' | 'propose';
 
 export interface DesignLocation {
   lat: number;
@@ -21,6 +21,7 @@ export interface WorkspaceState {
   // Actions
   enterConfigureMode: (location: DesignLocation) => void;
   enterDesignMode: (location?: DesignLocation) => void;
+  enterProposeMode: (location: DesignLocation) => void;
   exitToExplore: () => void;
 
   // Panel toggles
@@ -54,6 +55,12 @@ export const useWorkspaceStore = create<WorkspaceState>()((set) => ({
       showValidationPanel: true,
       dockExpanded: true,
     })),
+
+  enterProposeMode: (location) =>
+    set({
+      mode: 'propose',
+      designLocation: location,
+    }),
 
   exitToExplore: () =>
     set({

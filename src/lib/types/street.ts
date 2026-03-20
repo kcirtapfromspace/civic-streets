@@ -103,3 +103,29 @@ export interface TemplateDefinition {
   elements: Omit<CrossSectionElement, 'id'>[];
   tags: string[];
 }
+
+// ── Proposal flow types ──────────────────────────────────────────────────────
+
+export interface BeforePreset {
+  id: string;
+  label: string;
+  description: string;
+  rowWidth: number;
+  direction: StreetDirection;
+  functionalClass: FunctionalClass;
+  elements: Omit<CrossSectionElement, 'id'>[];
+  suggestedTransformations: string[];
+}
+
+export interface StreetProposal {
+  id: string;
+  streetName: string;
+  location: StreetLocation;
+  roadPath: Array<{ lat: number; lng: number }>;
+  bearing: number;
+  beforePresetId: string;
+  beforeStreet: StreetSegment;
+  afterStreet: StreetSegment;
+  transformationTemplateId: string;
+  metadata: { createdAt: string; updatedAt: string };
+}

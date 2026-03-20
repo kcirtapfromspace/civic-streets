@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMapStore } from './map-store';
+import { useWorkspaceStore } from '@/stores/workspace-store';
+import { useProposalStore } from '@/stores/proposal-store';
+import { fetchRoadPath } from '@/features/proposal/utils/road-geometry';
 
 interface MapControlsProps {
   map: google.maps.Map | null;
@@ -131,22 +134,67 @@ export function MapControls({ map, googleApi }: MapControlsProps) {
 
         {/* Selected location info bar */}
         {selectedLocation && (
-          <div className="bg-white/95 backdrop-blur rounded-lg shadow-md border border-gray-200 px-3 py-2 flex items-center gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              className="w-4 h-4 text-blue-500 flex-shrink-0"
-            >
-              <path
-                fillRule="evenodd"
-                d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C15.302 14.988 17 12.493 17 9A7 7 0 103 9c0 3.492 1.698 5.988 3.355 7.584a13.731 13.731 0 002.273 1.765 11.842 11.842 0 00.976.544l.062.029.018.008.006.003zM10 11.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <span className="text-xs text-gray-700 truncate">
-              {selectedLocation.address}
-            </span>
+          <div className="bg-white/95 backdrop-blur rounded-lg shadow-md border border-gray-200 px-3 py-2 flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="w-4 h-4 text-blue-500 flex-shrink-0"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C15.302 14.988 17 12.493 17 9A7 7 0 103 9c0 3.492 1.698 5.988 3.355 7.584a13.731 13.731 0 002.273 1.765 11.842 11.842 0 00.976.544l.062.029.018.008.006.003zM10 11.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span className="text-xs text-gray-700 truncate">
+                {selectedLocation.address}
+              </span>
+            </div>
+
+            {/* Propose a Change button */}
+            {useWorkspaceStore.getState().mode === 'explore' && (
+              <button
+                onClick={async () => {
+                  const location = {
+                    lat: selectedLocation.lat,
+                    lng: selectedLocation.lng,
+                    address: selectedLocation.address,
+                  };
+                  const initProposal = useProposalStore.getState().initProposal;
+                  const setRoadPath = useProposalStore.getState().setRoadPath;
+                  const enterProposeMode = useWorkspaceStore.getState().enterProposeMode;
+
+                  // Extract street name from address (first part before comma)
+                  const streetName = selectedLocation.address.split(',')[0].trim();
+
+                  initProposal(streetName, location);
+                  enterProposeMode(location);
+
+                  // Fetch road geometry in background
+                  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+                  if (apiKey) {
+                    try {
+                      const { path, bearing } = await fetchRoadPath(
+                        { lat: selectedLocation.lat, lng: selectedLocation.lng },
+                        apiKey,
+                      );
+                      setRoadPath(path, bearing);
+                    } catch {
+                      // Road geometry is optional — overlay won't render but flow works
+                    }
+                  }
+                }}
+                className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-md transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                  <path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z" />
+                  <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0010 3H4.75A2.75 2.75 0 002 5.75v9.5A2.75 2.75 0 004.75 18h9.5A2.75 2.75 0 0017 15.25V10a.75.75 0 00-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5z" />
+                </svg>
+                Propose a Change
+              </button>
+            )}
           </div>
         )}
       </div>

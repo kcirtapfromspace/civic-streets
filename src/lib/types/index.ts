@@ -14,6 +14,8 @@ export type {
   StreetSegment,
   ValidationResult,
   TemplateDefinition,
+  BeforePreset,
+  StreetProposal,
 } from './street';
 
 export type {

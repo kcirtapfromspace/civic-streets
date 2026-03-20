@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect } from 'react';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useStreetStore } from '@/stores/street-store';
+import { useProposalStore } from '@/stores/proposal-store';
 import { useMapStore } from './map-store';
 
 // Lazy-load editor components to keep initial map bundle small
@@ -24,6 +25,9 @@ const ValidationPanel = lazy(() =>
 );
 const TemplateGalleryModal = lazy(() =>
   import('@/features/gallery').then((m) => ({ default: m.TemplateGalleryModal })),
+);
+const ProposalFlow = lazy(() =>
+  import('@/features/proposal/ProposalFlow').then((m) => ({ default: m.ProposalFlow })),
 );
 
 interface EditorHUDProps {
@@ -52,11 +56,11 @@ export function EditorHUD({ googleApi }: EditorHUDProps) {
   const setZoom = useMapStore((s) => s.setZoom);
   const setLockedToLocation = useMapStore((s) => s.setLockedToLocation);
 
-  // Zoom to design location when entering configure/design mode
+  // Zoom to design location when entering configure/design/propose mode
   useEffect(() => {
-    if ((mode === 'configure' || mode === 'design') && designLocation) {
+    if ((mode === 'configure' || mode === 'design' || mode === 'propose') && designLocation) {
       setCenter({ lat: designLocation.lat, lng: designLocation.lng });
-      setZoom(18);
+      setZoom(mode === 'propose' ? 17 : 18);
     }
   }, [mode, designLocation, setCenter, setZoom]);
 
@@ -87,6 +91,9 @@ export function EditorHUD({ googleApi }: EditorHUDProps) {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (mode === 'propose') {
+          useProposalStore.getState().reset();
+        }
         exitToExplore();
       }
     };
@@ -102,6 +109,9 @@ export function EditorHUD({ googleApi }: EditorHUDProps) {
       <Suspense fallback={null}>
         {/* Configure mode: compact new street form */}
         {mode === 'configure' && <CompactNewStreetForm />}
+
+        {/* Propose mode: guided proposal flow */}
+        {mode === 'propose' && <ProposalFlow />}
 
         {/* Design mode: full HUD */}
         {mode === 'design' && currentStreet && (

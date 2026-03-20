@@ -42,6 +42,7 @@ function ensureLoaded(apiKey: string): Promise<void> {
     importLibrary('places'),
     importLibrary('marker'),
     importLibrary('visualization'),
+    importLibrary('geometry'),
   ]).then(() => undefined);
 
   return loadPromise;
