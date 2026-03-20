@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { useMapStore } from './map-store';
-import { useMapLibre } from './useMapLibre';
+import { useMapLibre, isProgrammaticMove } from './useMapLibre';
 import { MapControls } from './MapControls';
 import { EarthView } from './EarthView';
 import { PinDesignFlow } from './PinDesignFlow';
@@ -36,6 +36,9 @@ export function MapView() {
     if (!map) return;
 
     const onMoveEnd = () => {
+      // Skip writeback during programmatic moves to avoid
+      // overwriting pending store values (e.g. search result center)
+      if (isProgrammaticMove) return;
       const c = map.getCenter();
       const z = map.getZoom();
       setCenter({ lat: c.lat, lng: c.lng });

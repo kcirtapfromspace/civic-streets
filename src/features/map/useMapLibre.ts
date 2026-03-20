@@ -70,6 +70,12 @@ interface UseMapLibreReturn {
   error: string | null;
 }
 
+/**
+ * Flag to suppress moveend → store writeback during programmatic moves.
+ * Exported so MapView can check it in its moveend handler.
+ */
+export let isProgrammaticMove = false;
+
 export function useMapLibre({
   mapElement,
   center,
@@ -117,30 +123,29 @@ export function useMapLibre({
     };
   }, [mapElement]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync center
-  const syncCenter = useCallback(() => {
+  // Sync center + zoom together via jumpTo to avoid race conditions.
+  // When setCenter and setZoom are called in sequence, React batches
+  // the state updates, so this effect fires once with both new values.
+  useEffect(() => {
     if (!mapRef.current) return;
     const cur = mapRef.current.getCenter();
-    if (
-      Math.abs(cur.lat - center.lat) > 0.0001 ||
-      Math.abs(cur.lng - center.lng) > 0.0001
-    ) {
-      mapRef.current.panTo([center.lng, center.lat]);
-    }
-  }, [center]);
-
-  useEffect(() => {
-    syncCenter();
-  }, [syncCenter]);
-
-  // Sync zoom
-  useEffect(() => {
-    if (!mapRef.current) return;
     const curZoom = mapRef.current.getZoom();
-    if (Math.abs(curZoom - zoom) > 0.1) {
-      mapRef.current.setZoom(zoom);
+
+    const centerChanged =
+      Math.abs(cur.lat - center.lat) > 0.0001 ||
+      Math.abs(cur.lng - center.lng) > 0.0001;
+    const zoomChanged = Math.abs(curZoom - zoom) > 0.1;
+
+    if (centerChanged || zoomChanged) {
+      isProgrammaticMove = true;
+      mapRef.current.jumpTo({
+        center: [center.lng, center.lat],
+        zoom,
+      });
+      // Clear flag after the moveend event fires (next microtask)
+      setTimeout(() => { isProgrammaticMove = false; }, 0);
     }
-  }, [zoom]);
+  }, [center, zoom]);
 
   // Sync map type / style
   useEffect(() => {
