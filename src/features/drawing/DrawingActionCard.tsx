@@ -1,50 +1,64 @@
 import { useDrawingStore } from '@/stores/drawing-store';
 
+/**
+ * Appears inline above the build bar when a road stretch is selected.
+ * Shows road info + "Design this stretch" / Clear actions.
+ */
 export function DrawingActionCard() {
-  const drawnGeometries = useDrawingStore((s) => s.drawnGeometries);
+  const selectedPath = useDrawingStore((s) => s.selectedPath);
+  const activeTool = useDrawingStore((s) => s.activeTool);
   const isSnapping = useDrawingStore((s) => s.isSnapping);
   const commitToProposal = useDrawingStore((s) => s.commitToProposal);
-  const clearGeometries = useDrawingStore((s) => s.clearGeometries);
-  const activeMode = useDrawingStore((s) => s.activeMode);
+  const clear = useDrawingStore((s) => s.clear);
 
-  const latest = drawnGeometries[drawnGeometries.length - 1];
-  if (!latest || activeMode === 'cursor') return null;
+  if (!selectedPath || selectedPath.length < 2 || activeTool === 'select') return null;
 
-  const hasSnapped = latest.snappedCoords !== null;
-  const isFreehand = latest.mode === 'freehand';
-  const isReady = isFreehand || hasSnapped;
+  // Approximate distance in meters
+  const distance = selectedPath.reduce((sum, p, i) => {
+    if (i === 0) return 0;
+    const prev = selectedPath[i - 1];
+    const dLat = (p.lat - prev.lat) * 111320;
+    const dLng = (p.lng - prev.lng) * 111320 * Math.cos((p.lat * Math.PI) / 180);
+    return sum + Math.sqrt(dLat * dLat + dLng * dLng);
+  }, 0);
+
+  const distanceLabel =
+    distance >= 1000
+      ? `${(distance / 1000).toFixed(1)} km`
+      : `${Math.round(distance)} m`;
+
+  const toolLabel =
+    activeTool === 'intersection'
+      ? 'Intersection'
+      : activeTool === 'newroad'
+        ? 'New road'
+        : 'Road stretch';
+
+  const color = activeTool === 'newroad' ? 'purple' : 'blue';
 
   return (
-    <div className="absolute bottom-40 left-1/2 -translate-x-1/2 z-10 animate-fade-up">
-      <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.1)] ring-1 ring-black/[0.06] p-4 flex flex-col gap-3 min-w-[260px]">
-        <div className="flex items-center gap-2">
-          <div className={`w-2.5 h-2.5 rounded-full ${isReady ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`} />
-          <span className="text-sm font-semibold text-gray-900">
-            {isSnapping
-              ? 'Snapping to road...'
-              : isReady
-                ? latest.mode === 'circle'
-                  ? 'Intersection selected'
-                  : latest.mode === 'freehand'
-                    ? 'Freehand path drawn'
-                    : 'Road stretch selected'
-                : 'Processing...'}
-          </span>
+    <div className="absolute bottom-44 left-1/2 -translate-x-1/2 z-10 animate-fade-up">
+      <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.06] overflow-hidden">
+        {/* Info strip */}
+        <div className="px-4 pt-3 pb-2 flex items-center gap-3">
+          <div className={`w-2.5 h-2.5 rounded-full ${isSnapping ? 'bg-amber-500 animate-pulse' : 'bg-green-500'}`} />
+          <div className="flex flex-col">
+            <span className="text-[13px] font-semibold text-gray-900">{toolLabel} selected</span>
+            <span className="text-[11px] text-gray-500">
+              {selectedPath.length} points &middot; {distanceLabel}
+            </span>
+          </div>
         </div>
 
-        {latest.mode !== 'freehand' && (
-          <p className="text-xs text-gray-500">
-            {hasSnapped
-              ? `${latest.snappedCoords!.length} road points snapped`
-              : `${latest.rawCoords.length} points drawn`}
-          </p>
-        )}
-
-        <div className="flex gap-2">
+        {/* Actions */}
+        <div className="px-3 pb-3 flex gap-2">
           <button
             onClick={commitToProposal}
-            disabled={!isReady}
-            className="flex-1 flex items-center justify-center gap-2 text-[12px] font-bold text-white bg-blue-600 hover:bg-blue-500 disabled:bg-gray-300 disabled:cursor-not-allowed px-4 py-2.5 rounded-full transition-all duration-300 ease-spring active:scale-[0.98] shadow-[0_1px_3px_rgba(37,99,235,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]"
+            className={`flex-1 flex items-center justify-center gap-2 text-[12px] font-bold text-white px-4 py-2.5 rounded-full transition-all duration-300 ease-spring active:scale-[0.97] ${
+              color === 'purple'
+                ? 'bg-purple-600 hover:bg-purple-500 shadow-[0_1px_3px_rgba(139,92,246,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]'
+                : 'bg-blue-600 hover:bg-blue-500 shadow-[0_1px_3px_rgba(37,99,235,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]'
+            }`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
               <path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z" />
@@ -54,13 +68,13 @@ export function DrawingActionCard() {
           </button>
 
           <button
-            onClick={clearGeometries}
-            className="flex items-center justify-center gap-1.5 text-[12px] font-semibold text-gray-500 hover:text-red-600 hover:bg-red-50 px-3 py-2.5 rounded-full transition-all duration-200"
+            onClick={clear}
+            className="flex items-center justify-center text-[12px] font-semibold text-gray-400 hover:text-red-500 px-3 py-2.5 rounded-full transition-all duration-200 hover:bg-red-50"
+            title="Clear selection"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
-              <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022 1.005 11.36c.076.862.774 1.53 1.638 1.53h6.686c.864 0 1.562-.668 1.638-1.53l1.005-11.36.15.022a.75.75 0 10.228-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
             </svg>
-            Clear
           </button>
         </div>
       </div>

@@ -25,7 +25,7 @@ export function PinDesignFlow({ map }: PinDesignFlowProps) {
 
     const onClick = (e: maplibregl.MapMouseEvent) => {
       // Don't open context menu when drawing tools are active
-      if (useDrawingStore.getState().activeMode !== 'cursor') return;
+      if (useDrawingStore.getState().activeTool !== 'select') return;
       if (useMapStore.getState().lockedToLocation) return;
 
       const { lat, lng } = e.lngLat;

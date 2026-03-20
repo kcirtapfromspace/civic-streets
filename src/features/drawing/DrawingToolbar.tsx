@@ -1,81 +1,133 @@
-import type { ReactNode } from 'react';
-import { useDrawingStore, type DrawingMode } from '@/stores/drawing-store';
+import { useDrawingStore, type DrawingTool } from '@/stores/drawing-store';
 
-const MODES: Array<{ mode: DrawingMode; label: string; icon: ReactNode }> = [
+interface ToolConfig {
+  tool: DrawingTool;
+  label: string;
+  hint: string;
+  icon: React.ReactNode;
+}
+
+const TOOLS: ToolConfig[] = [
   {
-    mode: 'cursor',
-    label: 'Select',
+    tool: 'road',
+    label: 'Redesign Road',
+    hint: 'drag along street',
     icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-        <path fillRule="evenodd" d="M6.672 1.911a1 1 0 10-1.932.518l.259.966a1 1 0 001.932-.518l-.26-.966zM2.429 4.74a1 1 0 10-.517 1.932l.966.259a1 1 0 00.517-1.932l-.966-.26zm8.814-.569a1 1 0 00-1.415-1.414l-.707.707a1 1 0 101.414 1.415l.708-.708zm-7.071 7.072l.707-.708A1 1 0 003.465 9.12l-.708.707a1 1 0 001.415 1.415zm3.2-5.171a1 1 0 00-1.3 1.3l4 10a1 1 0 001.823.075l1.38-2.759 3.018 3.02a1 1 0 001.414-1.415l-3.019-3.02 2.76-1.379a1 1 0 00-.076-1.822l-10-4z" clipRule="evenodd" />
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" className="w-7 h-7">
+        <path d="M6 26L10 6h2l-3 18M20 26l3-18h2L22 26" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M15 8v3M15 14v3M15 20v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="0.5 3" />
+        <path d="M9 16l4-3v6l4-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
       </svg>
     ),
   },
   {
-    mode: 'line',
-    label: 'Line',
+    tool: 'intersection',
+    label: 'Intersection',
+    hint: 'click to mark',
     icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-        <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0v2.43l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clipRule="evenodd" />
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" className="w-7 h-7">
+        <circle cx="16" cy="16" r="9" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M16 4v6M16 22v6M4 16h6M22 16h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <circle cx="16" cy="16" r="2.5" fill="currentColor" opacity="0.5" />
       </svg>
     ),
   },
   {
-    mode: 'circle',
-    label: 'Circle',
+    tool: 'newroad',
+    label: 'New Road',
+    hint: 'draw freely',
     icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" clipRule="evenodd" />
-      </svg>
-    ),
-  },
-  {
-    mode: 'freehand',
-    label: 'Draw',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-        <path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192zM6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.898l-2.051-.683a1 1 0 01-.633-.633L6.95 5.684zM13.949 13.684a1 1 0 00-1.898 0l-.184.551a1 1 0 01-.632.633l-.551.183a1 1 0 000 1.898l.551.183a1 1 0 01.633.633l.183.551a1 1 0 001.898 0l.184-.551a1 1 0 01.632-.633l.551-.183a1 1 0 000-1.898l-.551-.184a1 1 0 01-.633-.632l-.183-.551z" />
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" className="w-7 h-7">
+        <path d="M7 25c3-2 5-10 9-12s6 4 9-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <circle cx="7" cy="25" r="2" fill="currentColor" opacity="0.5" />
+        <path d="M24 6l2 1-1 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
 ];
 
+function getStatusText(tool: DrawingTool, isDragging: boolean, isSnapping: boolean, hasSelection: boolean): string {
+  if (isSnapping) return 'Snapping to road...';
+  if (isDragging) return 'Release to finish';
+  if (hasSelection) return 'Road selected — design it or clear';
+  switch (tool) {
+    case 'road': return 'Click and drag along a road';
+    case 'intersection': return 'Click on an intersection';
+    case 'newroad': return 'Click and drag to draw a new road';
+    default: return 'Select a tool to start building';
+  }
+}
+
 export function DrawingToolbar() {
-  const activeMode = useDrawingStore((s) => s.activeMode);
-  const setActiveMode = useDrawingStore((s) => s.setActiveMode);
-  const clearGeometries = useDrawingStore((s) => s.clearGeometries);
+  const activeTool = useDrawingStore((s) => s.activeTool);
+  const setActiveTool = useDrawingStore((s) => s.setActiveTool);
+  const isDragging = useDrawingStore((s) => s.isDragging);
   const isSnapping = useDrawingStore((s) => s.isSnapping);
+  const selectedPath = useDrawingStore((s) => s.selectedPath);
+  const clear = useDrawingStore((s) => s.clear);
+
+  const isActive = activeTool !== 'select';
+  const statusText = isActive
+    ? getStatusText(activeTool, isDragging, isSnapping, !!selectedPath)
+    : null;
 
   return (
-    <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10">
-      <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.1)] ring-1 ring-black/[0.06] p-1.5 flex items-center gap-1">
-        {MODES.map(({ mode, label, icon }) => (
-          <button
-            key={mode}
-            onClick={() => {
-              if (mode === 'cursor' && activeMode !== 'cursor') {
-                clearGeometries();
-              }
-              setActiveMode(mode);
-            }}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-all duration-300 ease-spring ${
-              activeMode === mode
-                ? 'bg-blue-600 text-white shadow-[0_1px_3px_rgba(37,99,235,0.3)]'
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'
-            }`}
-            title={label}
-          >
-            {icon}
-            <span className="hidden sm:inline">{label}</span>
-          </button>
-        ))}
-
-        {isSnapping && (
-          <div className="flex items-center gap-1.5 px-3 py-2 text-[11px] text-blue-600 font-medium">
-            <div className="w-3 h-3 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-            Snapping...
+    <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10">
+      <div className="bg-gray-900/92 backdrop-blur-xl rounded-2xl shadow-[0_8px_48px_rgba(0,0,0,0.3)] ring-1 ring-white/[0.08] flex flex-col items-center overflow-hidden">
+        {/* Status bar */}
+        {statusText && (
+          <div className="w-full px-4 pt-2.5 pb-1.5 flex items-center justify-center gap-2">
+            {isSnapping ? (
+              <div className="w-3 h-3 border-2 border-blue-400/40 border-t-blue-400 rounded-full animate-spin" />
+            ) : isDragging ? (
+              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            ) : null}
+            <span className="text-[11px] text-gray-400 font-medium">{statusText}</span>
           </div>
         )}
+
+        {/* Tool buttons */}
+        <div className="flex items-stretch gap-0.5 p-1.5">
+          {TOOLS.map(({ tool, label, hint, icon }) => {
+            const selected = activeTool === tool;
+
+            return (
+              <button
+                key={tool}
+                onClick={() => setActiveTool(selected ? 'select' : tool)}
+                className={`group flex flex-col items-center gap-1 px-4 py-2.5 rounded-xl transition-all duration-200 min-w-[100px] ${
+                  selected
+                    ? 'bg-blue-500 text-white shadow-[0_2px_12px_rgba(59,130,246,0.4)]'
+                    : 'text-gray-400 hover:text-white hover:bg-white/[0.06]'
+                }`}
+              >
+                <div className={`transition-transform duration-200 ${selected ? 'scale-110' : 'group-hover:scale-105'}`}>
+                  {icon}
+                </div>
+                <span className="text-[11px] font-bold leading-tight">{label}</span>
+                <span className={`text-[9px] leading-tight ${selected ? 'text-blue-100' : 'text-gray-500'}`}>
+                  {hint}
+                </span>
+              </button>
+            );
+          })}
+
+          {/* Close / back to explore */}
+          {isActive && (
+            <button
+              onClick={() => {
+                clear();
+                setActiveTool('select');
+              }}
+              className="flex items-center justify-center px-2 ml-0.5 rounded-xl text-gray-500 hover:text-red-400 hover:bg-white/[0.06] transition-all duration-200"
+              title="Exit build mode (Esc)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
