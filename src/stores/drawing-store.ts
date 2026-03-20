@@ -11,11 +11,13 @@ export interface DrawingState {
   isDragging: boolean;
   selectedPath: LatLng[] | null;
   isSnapping: boolean;
+  streetName: string | null;
 
   setActiveTool: (tool: DrawingTool) => void;
   setIsDragging: (d: boolean) => void;
   setSelectedPath: (path: LatLng[] | null) => void;
   setIsSnapping: (s: boolean) => void;
+  setStreetName: (name: string | null) => void;
   clear: () => void;
   commitToProposal: () => void;
 }
@@ -36,9 +38,10 @@ export const useDrawingStore = create<DrawingState>()((set, get) => ({
   isDragging: false,
   selectedPath: null,
   isSnapping: false,
+  streetName: null,
 
   setActiveTool: (tool) =>
-    set({ activeTool: tool, selectedPath: null, isDragging: false, isSnapping: false }),
+    set({ activeTool: tool, selectedPath: null, isDragging: false, isSnapping: false, streetName: null }),
 
   setIsDragging: (d) => set({ isDragging: d }),
 
@@ -46,10 +49,12 @@ export const useDrawingStore = create<DrawingState>()((set, get) => ({
 
   setIsSnapping: (s) => set({ isSnapping: s }),
 
-  clear: () => set({ selectedPath: null, isDragging: false, isSnapping: false }),
+  setStreetName: (name) => set({ streetName: name }),
+
+  clear: () => set({ selectedPath: null, isDragging: false, isSnapping: false, streetName: null }),
 
   commitToProposal: () => {
-    const { selectedPath, activeTool } = get();
+    const { selectedPath, activeTool, streetName } = get();
     if (!selectedPath || selectedPath.length < 2) return;
 
     const { initProposal, setRoadPath } = useProposalStore.getState();
@@ -60,13 +65,15 @@ export const useDrawingStore = create<DrawingState>()((set, get) => ({
     const bearing = bearingBetween(first, last);
 
     const mid = selectedPath[Math.floor(selectedPath.length / 2)];
-    const label = activeTool === 'newroad' ? 'New Road' : 'Selected Road';
+    const label = activeTool === 'newroad'
+      ? 'New Road'
+      : streetName ?? 'Selected Road';
     const location = { lat: mid.lat, lng: mid.lng, address: label };
 
     initProposal(label, location);
     setRoadPath(selectedPath, bearing);
     enterProposeMode(location);
 
-    set({ activeTool: 'select', selectedPath: null });
+    set({ activeTool: 'select', selectedPath: null, streetName: null });
   },
 }));

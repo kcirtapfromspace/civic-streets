@@ -5,31 +5,34 @@
 type LatLng = { lat: number; lng: number };
 
 /**
- * Sample key waypoints from a drag trail.
- * Extracts start, end, and evenly-spaced midpoints to capture
- * the user's intended path while keeping the waypoint count low.
+ * Pick routing waypoints from a drag trail: just start + end.
+ * Intermediate trail points are mouse noise — OSRM finds the
+ * road-following path between the endpoints.
+ *
+ * For very long trails (>100 points), include one midpoint to
+ * preserve the user's intended shape on L-shaped / corner drags.
  */
-function sampleWaypoints(trail: LatLng[], count: number): LatLng[] {
-  if (trail.length <= count) return trail;
-  const step = (trail.length - 1) / (count - 1);
-  return Array.from({ length: count }, (_, i) => trail[Math.round(i * step)]);
+function pickWaypoints(trail: LatLng[]): LatLng[] {
+  const start = trail[0];
+  const end = trail[trail.length - 1];
+  if (trail.length > 100) {
+    const mid = trail[Math.floor(trail.length / 2)];
+    return [start, mid, end];
+  }
+  return [start, end];
 }
 
 /**
  * Snap a user-drawn drag trail to roads using OSRM Route API.
- * Samples ~5 waypoints from the trail and routes between them,
- * producing a path that follows the road network.
- * Falls back to the raw input if OSRM fails.
+ * Routes between start and end of the trail so OSRM follows the
+ * main road. Falls back to the raw input if OSRM fails.
  */
 export async function snapToRoad(
   points: LatLng[],
 ): Promise<LatLng[]> {
   if (points.length < 2) return points;
 
-  // Sample 5 waypoints: start, 3 midpoints, end.
-  // This captures the general shape of the drag while letting
-  // OSRM fill in the actual road geometry between them.
-  const waypoints = sampleWaypoints(points, 5);
+  const waypoints = pickWaypoints(points);
   const coords = waypoints.map((p) => `${p.lng},${p.lat}`).join(';');
   const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
 

@@ -16,11 +16,18 @@ const SELECTED_LINE_LAYER = 'road-painter-selected-line';
 
 const MIN_POINT_DISTANCE = 0.00008; // ~9m — filters jitter while painting
 
-/** Sample a trail down to at most N evenly-spaced points for OSRM. */
-function sampleTrail(trail: LatLng[], max: number): LatLng[] {
-  if (trail.length <= max) return trail;
-  const step = (trail.length - 1) / (max - 1);
-  return Array.from({ length: max }, (_, i) => trail[Math.round(i * step)]);
+/** Reverse-geocode a point via Nominatim to get the street name. */
+async function reverseGeocodeStreetName(point: LatLng): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${point.lat}&lon=${point.lng}&zoom=17&addressdetails=1`,
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.address?.road ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function removeLayerSafe(map: maplibregl.Map, id: string) {
@@ -169,9 +176,14 @@ export function useRoadPainter(map: maplibregl.Map | null) {
       if (activeTool === 'road') {
         store.getState().setIsSnapping(true);
         try {
-          const sampled = sampleTrail(trail, 50);
-          const snapped = await snapToRoad(sampled);
+          const snapped = await snapToRoad(trail);
           store.getState().setSelectedPath(snapped);
+
+          // Reverse-geocode the midpoint to get the street name
+          const mid = snapped[Math.floor(snapped.length / 2)];
+          reverseGeocodeStreetName(mid).then((name) => {
+            if (name) store.getState().setStreetName(name);
+          });
         } catch {
           store.getState().setSelectedPath(trail);
         } finally {

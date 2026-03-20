@@ -1,7 +1,8 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { useProposalStore } from '@/stores/proposal-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useStreetStore } from '@/stores/street-store';
+import { generatePDF } from '@/features/export';
 
 const CrossSectionSVG = lazy(() =>
   import('@/features/renderer/CrossSectionSVG').then((m) => ({
@@ -17,18 +18,44 @@ export function ProposalReview() {
   const goBack = useProposalStore((s) => s.goBack);
   const streetName = useProposalStore((s) => s.streetName);
 
+  const reset = useProposalStore((s) => s.reset);
+
   const enterDesignMode = useWorkspaceStore((s) => s.enterDesignMode);
   const designLocation = useWorkspaceStore((s) => s.designLocation);
+  const exitToExplore = useWorkspaceStore((s) => s.exitToExplore);
   const setStreet = useStreetStore((s) => s.setStreet);
   const setBeforeStreet = useStreetStore((s) => s.setBeforeStreet);
+
+  const [isSavingPDF, setIsSavingPDF] = useState(false);
 
   if (!beforeStreet || !afterStreet) return null;
 
   const handleEditDetails = () => {
-    // Load after-street into the design editor
     setStreet(afterStreet);
     setBeforeStreet(beforeStreet);
     enterDesignMode(designLocation ?? undefined);
+  };
+
+  const handleSavePDF = async () => {
+    setIsSavingPDF(true);
+    try {
+      const blob = await generatePDF(afterStreet, beforeStreet, []);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${streetName || 'proposal'}-report.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsSavingPDF(false);
+    }
+  };
+
+  const handleDone = () => {
+    reset();
+    exitToExplore();
   };
 
   return (
@@ -114,17 +141,30 @@ export function ProposalReview() {
       <div className="flex gap-2 mt-1">
         <button
           onClick={handleEditDetails}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors"
+          className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium py-2 px-3 rounded-lg transition-colors"
         >
           Edit Details
         </button>
         <button
-          onClick={() => {
-            // TODO: Phase 2 — shareable URLs / export
-          }}
-          className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium py-2 px-3 rounded-lg transition-colors"
+          onClick={handleSavePDF}
+          disabled={isSavingPDF}
+          className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium py-2 px-3 rounded-lg transition-colors disabled:opacity-50"
         >
-          Share
+          {isSavingPDF ? (
+            <span className="flex items-center gap-1.5">
+              <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Saving…
+            </span>
+          ) : 'Save PDF'}
+        </button>
+        <button
+          onClick={handleDone}
+          className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold py-2 px-3 rounded-lg transition-colors"
+        >
+          Done
         </button>
       </div>
     </div>

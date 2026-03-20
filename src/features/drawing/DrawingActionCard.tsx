@@ -8,6 +8,7 @@ export function DrawingActionCard() {
   const selectedPath = useDrawingStore((s) => s.selectedPath);
   const activeTool = useDrawingStore((s) => s.activeTool);
   const isSnapping = useDrawingStore((s) => s.isSnapping);
+  const streetName = useDrawingStore((s) => s.streetName);
   const commitToProposal = useDrawingStore((s) => s.commitToProposal);
   const clear = useDrawingStore((s) => s.clear);
 
@@ -28,11 +29,13 @@ export function DrawingActionCard() {
       : `${Math.round(distance)} m`;
 
   const toolLabel =
-    activeTool === 'intersection'
-      ? 'Intersection'
-      : activeTool === 'newroad'
-        ? 'New road'
-        : 'Road stretch';
+    streetName
+      ? streetName
+      : activeTool === 'intersection'
+        ? 'Intersection'
+        : activeTool === 'newroad'
+          ? 'New road'
+          : 'Road stretch';
 
   const color = activeTool === 'newroad' ? 'purple' : 'blue';
 
@@ -43,9 +46,11 @@ export function DrawingActionCard() {
         <div className="px-4 pt-3 pb-2 flex items-center gap-3">
           <div className={`w-2.5 h-2.5 rounded-full ${isSnapping ? 'bg-amber-500 animate-pulse' : 'bg-green-500'}`} />
           <div className="flex flex-col">
-            <span className="text-[13px] font-semibold text-gray-900">{toolLabel} selected</span>
+            <span className="text-[13px] font-semibold text-gray-900">
+              {streetName ? toolLabel : `${toolLabel} selected`}
+            </span>
             <span className="text-[11px] text-gray-500">
-              {selectedPath.length} points &middot; {distanceLabel}
+              {streetName ? distanceLabel : `${selectedPath.length} points \u00b7 ${distanceLabel}`}
             </span>
           </div>
         </div>
