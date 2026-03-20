@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { Layout } from '@/components/nav';
 import { ToastProvider } from '@/components/ui/Toast';
+import { convexAvailable } from '@/lib/api/convex-provider';
+import { useAuth } from '@/lib/api/auth';
 
 // Lazy-load all pages for code splitting
 const LandingPage = lazy(() => import('@/pages/LandingPage'));
@@ -20,10 +22,17 @@ function PageLoader() {
   );
 }
 
+/** Bootstraps anonymous session when Convex is available. Must be inside ConvexProvider. */
+function AuthBootstrap() {
+  useAuth(); // creates anonymous user + stores session token on first visit
+  return null;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <ToastProvider>
+        {convexAvailable && <AuthBootstrap />}
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Marketing landing page — no nav chrome */}
