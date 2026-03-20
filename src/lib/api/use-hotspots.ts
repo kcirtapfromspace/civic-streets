@@ -1,4 +1,6 @@
 import { useMemo, useCallback } from 'react';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { convexAvailable } from './convex-provider';
 import { MOCK_HOTSPOTS as COMMUNITY_MOCK_HOTSPOTS } from '@/features/community/mock-data';
 import { MOCK_HOTSPOTS as MAP_MOCK_HOTSPOTS } from '@/features/map/mock-data';
@@ -6,33 +8,50 @@ import { useLocalHotspotsStore } from '@/stores/local-hotspots-store';
 import type { MockHotspot } from '@/features/community/mock-data';
 import type { HotspotPin, HotspotCategory, HotspotSeverity, HotspotStatus, IssueGroup, IssueType } from '@/lib/types/community';
 
-// Convex imports — only used when convexAvailable
-// import { useQuery, useMutation } from 'convex/react';
-// import { api } from '../../../convex/_generated/api';
+const SESSION_KEY = 'curbwise-session';
+function getSessionToken(): string {
+  try { return localStorage.getItem(SESSION_KEY) ?? ''; } catch { return ''; }
+}
 
-/** Adapt a map HotspotPin to the full MockHotspot shape used by community components. */
-function mapPinToMockHotspot(pin: HotspotPin): MockHotspot {
+// ── Shape adapters ──────────────────────────────────────────────────────
+
+/** Adapt a Convex hotspot doc to MockHotspot shape (used by all UI components). */
+function convexDocToMockHotspot(doc: Record<string, any>): MockHotspot {
   return {
-    id: pin.id,
-    title: pin.title,
-    description: '',
-    category: pin.category,
-    severity: pin.severity,
-    status: pin.status,
-    address: '',
-    lat: pin.lat,
-    lng: pin.lng,
-    upvotes: pin.upvotes,
+    id: doc._id,
+    title: doc.title,
+    description: doc.description ?? '',
+    category: doc.category as HotspotCategory,
+    severity: doc.severity as HotspotSeverity,
+    status: (doc.status ?? 'open') as HotspotStatus,
+    address: doc.address ?? '',
+    lat: doc.lat,
+    lng: doc.lng,
+    upvotes: doc.upvotes ?? 0,
     downvotes: 0,
-    commentCount: pin.commentCount,
-    photoUrls: [],
-    authorId: 'unknown',
-    createdAt: Date.now(),
-    linkedDesignIds: [],
+    commentCount: doc.commentCount ?? 0,
+    photoUrls: doc.photoUrls ?? [],
+    authorId: doc.userId ?? 'unknown',
+    createdAt: doc.createdAt ?? doc._creationTime ?? Date.now(),
+    linkedDesignIds: doc.designId ? [doc.designId] : [],
   };
 }
 
-/** Adapt a MockHotspot to the HotspotPin shape used by map layers. */
+function convexDocToPin(doc: Record<string, any>): HotspotPin {
+  return {
+    id: doc._id,
+    title: doc.title,
+    category: doc.category as HotspotCategory,
+    severity: doc.severity as HotspotSeverity,
+    status: (doc.status ?? 'open') as HotspotStatus,
+    lat: doc.lat,
+    lng: doc.lng,
+    upvotes: doc.upvotes ?? 0,
+    commentCount: doc.commentCount ?? 0,
+  };
+}
+
+/** Adapt a MockHotspot to HotspotPin shape used by map layers. */
 export function mockHotspotToPin(h: MockHotspot): HotspotPin {
   return {
     id: h.id,
@@ -47,13 +66,157 @@ export function mockHotspotToPin(h: MockHotspot): HotspotPin {
   };
 }
 
+// ── Filter interface ────────────────────────────────────────────────────
+
 interface HotspotFilters {
   category?: HotspotCategory;
   status?: HotspotStatus;
   sort?: 'votes' | 'newest' | 'nearest';
 }
 
-/** All community hotspots (merged static mock + user-created local). */
+// ══════════════════════════════════════════════════════════════════════════
+// CONVEX IMPLEMENTATIONS — used when VITE_CONVEX_URL is set
+// ══════════════════════════════════════════════════════════════════════════
+
+function useHotspotsListConvex(filters?: HotspotFilters) {
+  const convexResult = useQuery(api.hotspots.list, {
+    category: filters?.category,
+    status: filters?.status,
+    paginationOpts: { numItems: 200, cursor: null },
+  });
+
+  const hotspots = useMemo(() => {
+    if (!convexResult) return []; // loading
+    let items = convexResult.page.map(convexDocToMockHotspot);
+
+    switch (filters?.sort) {
+      case 'newest':
+        items.sort((a, b) => b.createdAt - a.createdAt);
+        break;
+      case 'nearest':
+        items.sort((a, b) => b.createdAt - a.createdAt);
+        break;
+      case 'votes':
+      default:
+        items.sort((a, b) => b.upvotes - a.upvotes);
+        break;
+    }
+    return items;
+  }, [convexResult, filters?.sort]);
+
+  return { hotspots, isLoading: convexResult === undefined };
+}
+
+function useHotspotByIdConvex(id: string | undefined) {
+  // Convex IDs are longer strings; mock IDs are short like "h1"
+  const isConvexId = !!id && id.length > 10;
+
+  const convexDoc = useQuery(
+    api.hotspots.getById,
+    isConvexId ? { hotspotId: id as any } : 'skip',
+  );
+
+  const hotspot = useMemo(() => {
+    if (!id) return null;
+    if (isConvexId) {
+      return convexDoc ? convexDocToMockHotspot(convexDoc) : null;
+    }
+    // Fall back to mock data for legacy IDs
+    const mock = COMMUNITY_MOCK_HOTSPOTS.find((h) => h.id === id);
+    if (mock) return mock;
+    const mapPin = MAP_MOCK_HOTSPOTS.find((h) => h.id === id);
+    if (mapPin) return {
+      id: mapPin.id, title: mapPin.title, description: '',
+      category: mapPin.category, severity: mapPin.severity, status: mapPin.status,
+      address: '', lat: mapPin.lat, lng: mapPin.lng, upvotes: mapPin.upvotes,
+      downvotes: 0, commentCount: mapPin.commentCount, photoUrls: [],
+      authorId: 'unknown', createdAt: Date.now(), linkedDesignIds: [],
+    } as MockHotspot;
+    return null;
+  }, [id, isConvexId, convexDoc]);
+
+  return { hotspot, isLoading: isConvexId && convexDoc === undefined };
+}
+
+function useHotspotsByBoundsConvex(bounds?: {
+  minLat: number; maxLat: number; minLng: number; maxLng: number;
+}) {
+  const convexDocs = useQuery(
+    api.hotspots.getByBounds,
+    bounds ? bounds : 'skip',
+  );
+
+  const pins = useMemo(() => {
+    const convexPins: HotspotPin[] = convexDocs
+      ? convexDocs.map(convexDocToPin)
+      : [];
+    return convexPins;
+  }, [convexDocs]);
+
+  return { hotspots: pins, isLoading: convexDocs === undefined };
+}
+
+function useCreateHotspotConvex() {
+  const createMutation = useMutation(api.hotspots.create);
+
+  return useCallback(
+    async (data: {
+      title: string;
+      description: string;
+      category: HotspotCategory;
+      severity: HotspotSeverity;
+      lat: number;
+      lng: number;
+      address: string;
+      photoUrls: string[];
+      issueGroup?: IssueGroup;
+      issueType?: IssueType;
+      isBlocking?: boolean;
+    }) => {
+      const sessionToken = getSessionToken();
+      if (!sessionToken) {
+        console.error('[useCreateHotspot] No session token');
+        return;
+      }
+      return createMutation({
+        sessionToken,
+        title: data.title,
+        description: data.description || data.title,
+        category: data.category,
+        severity: data.severity,
+        lat: data.lat,
+        lng: data.lng,
+        address: data.address,
+        photoUrls: data.photoUrls,
+      });
+    },
+    [createMutation],
+  );
+}
+
+function useVoteOnHotspotConvex() {
+  const voteMutation = useMutation(api.hotspots.vote);
+
+  return useCallback(
+    async (hotspotId: string, value: 1 | -1) => {
+      const sessionToken = getSessionToken();
+      if (!sessionToken) return;
+      // Only vote on Convex hotspots (long IDs)
+      if (hotspotId.length <= 10) return;
+      return voteMutation({
+        sessionToken,
+        hotspotId: hotspotId as any,
+        value,
+      });
+    },
+    [voteMutation],
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// MOCK IMPLEMENTATIONS — used when no Convex backend
+// ══════════════════════════════════════════════════════════════════════════
+
 function useMergedMockHotspots(): MockHotspot[] {
   const localHotspots = useLocalHotspotsStore((s) => s.hotspots);
   return useMemo(
@@ -62,19 +225,13 @@ function useMergedMockHotspots(): MockHotspot[] {
   );
 }
 
-/** Hotspot list with filtering. Uses mock data when Convex is unavailable. */
-export function useHotspotsList(filters?: HotspotFilters) {
+function useHotspotsListMock(filters?: HotspotFilters) {
   const allHotspots = useMergedMockHotspots();
 
   const filtered = useMemo(() => {
     let items = [...allHotspots];
-
-    if (filters?.category) {
-      items = items.filter((h) => h.category === filters.category);
-    }
-    if (filters?.status) {
-      items = items.filter((h) => h.status === filters.status);
-    }
+    if (filters?.category) items = items.filter((h) => h.category === filters.category);
+    if (filters?.status) items = items.filter((h) => h.status === filters.status);
 
     switch (filters?.sort) {
       case 'newest':
@@ -88,104 +245,80 @@ export function useHotspotsList(filters?: HotspotFilters) {
         items.sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
         break;
     }
-
     return items;
   }, [allHotspots, filters?.category, filters?.status, filters?.sort]);
 
   return { hotspots: filtered, isLoading: false };
 }
 
-/** Single hotspot by ID. Searches both community and map mock data. */
-export function useHotspotById(id: string | undefined) {
+function useHotspotByIdMock(id: string | undefined) {
   const allHotspots = useMergedMockHotspots();
 
   const hotspot = useMemo(() => {
     if (!id) return null;
-    // Check community mock data first (has full shape)
     const community = allHotspots.find((h) => h.id === id);
     if (community) return community;
-    // Fall back to map mock data (converted to full shape)
     const mapPin = MAP_MOCK_HOTSPOTS.find((h) => h.id === id);
-    if (mapPin) return mapPinToMockHotspot(mapPin);
+    if (mapPin) return {
+      id: mapPin.id, title: mapPin.title, description: '',
+      category: mapPin.category, severity: mapPin.severity, status: mapPin.status,
+      address: '', lat: mapPin.lat, lng: mapPin.lng, upvotes: mapPin.upvotes,
+      downvotes: 0, commentCount: mapPin.commentCount, photoUrls: [],
+      authorId: 'unknown', createdAt: Date.now(), linkedDesignIds: [],
+    } as MockHotspot;
     return null;
   }, [id, allHotspots]);
 
   return { hotspot, isLoading: false };
 }
 
-/** Hotspot pins for map rendering within bounds. Merges all data sources. */
-export function useHotspotsByBounds(bounds?: {
-  minLat: number;
-  maxLat: number;
-  minLng: number;
-  maxLng: number;
+function useHotspotsByBoundsMock(bounds?: {
+  minLat: number; maxLat: number; minLng: number; maxLng: number;
 }) {
   const localHotspots = useLocalHotspotsStore((s) => s.hotspots);
 
   const pins = useMemo(() => {
-    // Combine map mock pins with local user-created hotspots converted to pins
     const allPins: HotspotPin[] = [
       ...MAP_MOCK_HOTSPOTS,
       ...localHotspots.map(mockHotspotToPin),
     ];
-
     if (!bounds) return allPins;
-
     return allPins.filter(
-      (p) =>
-        p.lat >= bounds.minLat &&
-        p.lat <= bounds.maxLat &&
-        p.lng >= bounds.minLng &&
-        p.lng <= bounds.maxLng,
+      (p) => p.lat >= bounds.minLat && p.lat <= bounds.maxLat &&
+             p.lng >= bounds.minLng && p.lng <= bounds.maxLng,
     );
   }, [localHotspots, bounds]);
 
   return { hotspots: pins, isLoading: false };
 }
 
-/** Create a new hotspot. Returns mutation function. */
-export function useCreateHotspot() {
+function useCreateHotspotMock() {
   const addHotspot = useLocalHotspotsStore((s) => s.addHotspot);
-
-  const createHotspot = useCallback(
+  return useCallback(
     (data: {
-      title: string;
-      description: string;
-      category: HotspotCategory;
-      severity: HotspotSeverity;
-      lat: number;
-      lng: number;
-      address: string;
-      photoUrls: string[];
-      issueGroup?: IssueGroup;
-      issueType?: IssueType;
-      isBlocking?: boolean;
-    }) => {
-      if (convexAvailable) {
-        // TODO: Call Convex mutation when backend is connected
-        // return useMutation(api.hotspots.create)(data);
-      }
-      return addHotspot(data);
-    },
+      title: string; description: string;
+      category: HotspotCategory; severity: HotspotSeverity;
+      lat: number; lng: number; address: string; photoUrls: string[];
+      issueGroup?: IssueGroup; issueType?: IssueType; isBlocking?: boolean;
+    }) => addHotspot(data),
     [addHotspot],
   );
-
-  return createHotspot;
 }
 
-/** Vote on a hotspot. Returns mutation function. */
-export function useVoteOnHotspot() {
+function useVoteOnHotspotMock() {
   const voteLocal = useLocalHotspotsStore((s) => s.voteOnHotspot);
-
-  const vote = useCallback(
-    (hotspotId: string, value: 1 | -1) => {
-      if (convexAvailable) {
-        // TODO: Call Convex mutation when backend is connected
-      }
-      voteLocal(hotspotId, value);
-    },
+  return useCallback(
+    (hotspotId: string, value: 1 | -1) => voteLocal(hotspotId, value),
     [voteLocal],
   );
-
-  return vote;
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// EXPORTS — select implementation based on convexAvailable
+// ══════════════════════════════════════════════════════════════════════════
+
+export const useHotspotsList = convexAvailable ? useHotspotsListConvex : useHotspotsListMock;
+export const useHotspotById = convexAvailable ? useHotspotByIdConvex : useHotspotByIdMock;
+export const useHotspotsByBounds = convexAvailable ? useHotspotsByBoundsConvex : useHotspotsByBoundsMock;
+export const useCreateHotspot = convexAvailable ? useCreateHotspotConvex : useCreateHotspotMock;
+export const useVoteOnHotspot = convexAvailable ? useVoteOnHotspotConvex : useVoteOnHotspotMock;

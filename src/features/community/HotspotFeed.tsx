@@ -8,8 +8,7 @@ import {
 import type { HotspotCategory, HotspotStatus, HotspotSeverity } from '@/lib/types/community';
 import { useCommunityStore } from './community-store';
 import type { MockHotspot } from './mock-data';
-import { MOCK_HOTSPOTS } from './mock-data';
-import { useLocalHotspotsStore } from '@/stores/local-hotspots-store';
+import { useHotspotsList } from '@/lib/api/use-hotspots';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -173,48 +172,23 @@ export function HotspotFeed({
 
   const [visibleCount, setVisibleCount] = useState(10);
 
-  const localHotspots = useLocalHotspotsStore((s) => s.hotspots);
+  // Use the data hook (Convex when available, mock when not)
+  const { hotspots: allHotspots, isLoading } = useHotspotsList({
+    category: feedFilter.category as HotspotCategory | undefined,
+    status: feedFilter.status as HotspotStatus | undefined,
+    sort: feedFilter.sort,
+  });
 
-  // Filter + sort
+  // Apply local search filter on top
   const filtered = useMemo(() => {
-    let items = [...localHotspots, ...MOCK_HOTSPOTS];
-
-    // Category filter
-    if (feedFilter.category) {
-      items = items.filter((h) => h.category === feedFilter.category);
-    }
-
-    // Status filter
-    if (feedFilter.status) {
-      items = items.filter((h) => h.status === feedFilter.status);
-    }
-
-    // Search
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      items = items.filter(
-        (h) =>
-          h.title.toLowerCase().includes(q) ||
-          h.address.toLowerCase().includes(q),
-      );
-    }
-
-    // Sort
-    switch (feedFilter.sort) {
-      case 'votes':
-        items.sort((a, b) => b.upvotes - b.downvotes - (a.upvotes - a.downvotes));
-        break;
-      case 'newest':
-        items.sort((a, b) => b.createdAt - a.createdAt);
-        break;
-      case 'nearest':
-        // Without real geolocation, fall back to newest
-        items.sort((a, b) => b.createdAt - a.createdAt);
-        break;
-    }
-
-    return items;
-  }, [feedFilter, searchQuery, localHotspots]);
+    if (!searchQuery.trim()) return allHotspots;
+    const q = searchQuery.toLowerCase();
+    return allHotspots.filter(
+      (h) =>
+        h.title.toLowerCase().includes(q) ||
+        h.address.toLowerCase().includes(q),
+    );
+  }, [allHotspots, searchQuery]);
 
   const visible = filtered.slice(0, visibleCount);
   const hasMore = visibleCount < filtered.length;

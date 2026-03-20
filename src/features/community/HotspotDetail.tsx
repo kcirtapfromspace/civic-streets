@@ -13,6 +13,7 @@ import type { MockHotspot } from './mock-data';
 import { MOCK_COMMENTS, MOCK_DESIGNS, MOCK_USERS } from './mock-data';
 import type { MockUser } from './mock-data';
 import { detectCivicService, submitCivicReport } from '@/lib/api/civic-report';
+import { useVoteOnHotspot } from '@/lib/api/use-hotspots';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -139,6 +140,7 @@ export function HotspotDetail({
 }: HotspotDetailProps) {
   const categoryColor = HOTSPOT_CATEGORY_COLORS[hotspot.category];
   const comments = MOCK_COMMENTS.filter((c) => c.hotspotId === hotspot.id);
+  const voteOnHotspot = useVoteOnHotspot();
   const linkedDesigns = MOCK_DESIGNS.filter((d) =>
     hotspot.linkedDesignIds.includes(d.id),
   );
@@ -213,6 +215,7 @@ export function HotspotDetail({
                 upvotes={hotspot.upvotes}
                 downvotes={hotspot.downvotes}
                 className="shrink-0 pt-1"
+                onVote={(value) => voteOnHotspot(hotspot.id, value)}
               />
 
               <div className="flex-1 min-w-0">
