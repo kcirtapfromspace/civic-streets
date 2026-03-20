@@ -1,4 +1,6 @@
 export { HotspotReportForm } from './HotspotReportForm';
+export { IssueReportForm } from './IssueReportForm';
+export type { IssueReportFormData } from './IssueReportForm';
 export { HotspotDetail } from './HotspotDetail';
 export { HotspotFeed } from './HotspotFeed';
 export { CommentThread } from './CommentThread';

@@ -4,6 +4,8 @@ import type {
   HotspotCategory,
   HotspotSeverity,
   HotspotStatus,
+  IssueGroup,
+  IssueType,
 } from '@/lib/types/community';
 
 // ── Local interfaces (mirrors future Convex schema) ───────────────────────
@@ -31,6 +33,9 @@ export interface MockHotspot {
   authorId: string;
   createdAt: number; // epoch ms
   linkedDesignIds: string[];
+  issueGroup?: IssueGroup;
+  issueType?: IssueType;
+  isBlocking?: boolean;
 }
 
 export interface MockDesign {

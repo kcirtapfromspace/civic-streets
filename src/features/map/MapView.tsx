@@ -12,6 +12,9 @@ import { DrawingLayer } from '@/features/drawing/DrawingLayer';
 import { DrawingToolbar } from '@/features/drawing/DrawingToolbar';
 import { DrawingActionCard } from '@/features/drawing/DrawingActionCard';
 import { CrashDataLayer } from '@/features/safety-data/CrashDataLayer';
+import { IssueReportForm } from '@/features/community/IssueReportForm';
+import { useCreateHotspot } from '@/lib/api/use-hotspots';
+import { issueGroupToLegacyCategory } from '@/lib/types/community';
 
 /**
  * MapView — full-viewport MapLibre GL wrapper.
@@ -26,6 +29,10 @@ export function MapView() {
   const setCenter = useMapStore((s) => s.setCenter);
   const setZoom = useMapStore((s) => s.setZoom);
   const closeContextMenu = useMapStore((s) => s.closeContextMenu);
+  const reportFormOpen = useMapStore((s) => s.reportFormOpen);
+  const reportFormLocation = useMapStore((s) => s.reportFormLocation);
+  const closeReportForm = useMapStore((s) => s.closeReportForm);
+  const createHotspot = useCreateHotspot();
 
   const [mapElement, setMapElement] = useRefCallback();
 
@@ -133,6 +140,36 @@ export function MapView() {
           <CrashDataLayer map={map} />
           <EditorHUD />
         </>
+      )}
+
+      {/* Floating issue report form */}
+      {reportFormOpen && reportFormLocation && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/20">
+          <div className="max-h-[90vh] overflow-y-auto">
+            <IssueReportForm
+              initialAddress={reportFormLocation.address}
+              initialLat={reportFormLocation.lat}
+              initialLng={reportFormLocation.lng}
+              onSubmit={(data) => {
+                createHotspot({
+                  title: data.title,
+                  description: data.description,
+                  category: issueGroupToLegacyCategory(data.group),
+                  severity: data.severity,
+                  lat: data.location.lat,
+                  lng: data.location.lng,
+                  address: data.location.address,
+                  photoUrls: data.photoDataUrls,
+                  issueGroup: data.group,
+                  issueType: data.issueType,
+                  isBlocking: data.isBlocking,
+                });
+                closeReportForm();
+              }}
+              onCancel={closeReportForm}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

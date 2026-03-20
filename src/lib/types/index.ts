@@ -19,6 +19,9 @@ export type {
 } from './street';
 
 export type {
+  IssueGroup,
+  IssueType,
+  IssueTypeConfig,
   HotspotCategory,
   HotspotSeverity,
   HotspotStatus,
@@ -27,12 +30,17 @@ export type {
   HotspotPin,
   DesignPin,
   RepInfo,
+  AccessibilitySubtype,
 } from './community';
 
 export {
+  ISSUE_GROUP_LABELS,
+  ISSUE_GROUP_COLORS,
+  issueGroupToLegacyCategory,
   HOTSPOT_CATEGORY_LABELS,
   HOTSPOT_CATEGORY_COLORS,
   SEVERITY_LABELS,
+  ACCESSIBILITY_SUBTYPE_LABELS,
 } from './community';
 
 export type {
