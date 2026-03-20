@@ -1,0 +1,17 @@
+services:
+  - type: web
+    runtime: static
+    name: street-copilot
+    buildCommand: npm install --legacy-peer-deps && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: VITE_GOOGLE_MAPS_MAP_ID
+        sync: false
+      - key: VITE_CONVEX_URL
+        sync: false
