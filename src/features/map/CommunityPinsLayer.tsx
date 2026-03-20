@@ -1,5 +1,5 @@
-import { useEffect, useRef, useCallback } from 'react';
-import { MarkerClusterer } from '@googlemaps/markerclusterer';
+import { useEffect, useRef } from 'react';
+import maplibregl from 'maplibre-gl';
 import type { HotspotPin, DesignPin } from '@/lib/types';
 import {
   HOTSPOT_CATEGORY_COLORS,
@@ -10,8 +10,7 @@ import { useMapStore } from './map-store';
 import { MOCK_HOTSPOTS, MOCK_DESIGNS } from './mock-data';
 
 interface CommunityPinsLayerProps {
-  map: google.maps.Map | null;
-  googleApi: typeof google | null;
+  map: maplibregl.Map | null;
 }
 
 /** Scale marker size based on upvote count. */
@@ -23,10 +22,7 @@ function upvoteScale(upvotes: number): number {
 }
 
 /** Create a colored circle SVG element for hotspot markers using DOM API. */
-function createHotspotSvg(
-  color: string,
-  size: number,
-): HTMLDivElement {
+function createHotspotSvg(color: string, size: number): HTMLDivElement {
   const wrapper = document.createElement('div');
   wrapper.style.cursor = 'pointer';
 
@@ -54,7 +50,6 @@ function createHotspotSvg(
   svg.appendChild(outerCircle);
   svg.appendChild(innerCircle);
   wrapper.appendChild(svg);
-
   return wrapper;
 }
 
@@ -92,12 +87,11 @@ function createDesignSvg(): HTMLDivElement {
   svg.appendChild(circle);
   svg.appendChild(iconPath);
   wrapper.appendChild(svg);
-
   return wrapper;
 }
 
-/** Build the info window content element for a hotspot. */
-function buildHotspotInfoElement(pin: HotspotPin): HTMLDivElement {
+/** Build popup DOM element for a hotspot. */
+function buildHotspotPopupElement(pin: HotspotPin): HTMLDivElement {
   const color = HOTSPOT_CATEGORY_COLORS[pin.category];
   const categoryLabel = HOTSPOT_CATEGORY_LABELS[pin.category];
   const severityLabel = SEVERITY_LABELS[pin.severity];
@@ -106,7 +100,6 @@ function buildHotspotInfoElement(pin: HotspotPin): HTMLDivElement {
   container.style.maxWidth = '280px';
   container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
 
-  // Category header
   const header = document.createElement('div');
   header.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
   const dot = document.createElement('span');
@@ -118,17 +111,15 @@ function buildHotspotInfoElement(pin: HotspotPin): HTMLDivElement {
   header.appendChild(catText);
   container.appendChild(header);
 
-  // Title
   const title = document.createElement('h3');
   title.style.cssText = 'margin:0 0 6px;font-size:15px;font-weight:600;color:#1a1a1a;line-height:1.3;';
   title.textContent = pin.title;
   container.appendChild(title);
 
-  // Stats row
   const stats = document.createElement('div');
   stats.style.cssText = 'display:flex;gap:12px;margin-top:10px;font-size:12px;color:#666;';
   const sevSpan = document.createElement('span');
-  sevSpan.textContent = `Severity: `;
+  sevSpan.textContent = 'Severity: ';
   const sevStrong = document.createElement('strong');
   sevStrong.textContent = severityLabel;
   sevSpan.appendChild(sevStrong);
@@ -141,7 +132,6 @@ function buildHotspotInfoElement(pin: HotspotPin): HTMLDivElement {
   stats.appendChild(cmtSpan);
   container.appendChild(stats);
 
-  // Link
   const linkWrapper = document.createElement('div');
   linkWrapper.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid #eee;';
   const link = document.createElement('a');
@@ -154,8 +144,8 @@ function buildHotspotInfoElement(pin: HotspotPin): HTMLDivElement {
   return container;
 }
 
-/** Build the info window content element for a design. */
-function buildDesignInfoElement(pin: DesignPin): HTMLDivElement {
+/** Build popup DOM element for a design. */
+function buildDesignPopupElement(pin: DesignPin): HTMLDivElement {
   const complianceColor = pin.prowagPass ? '#16A34A' : '#DC2626';
   const complianceLabel = pin.prowagPass ? 'PROWAG Compliant' : 'Needs Review';
 
@@ -163,7 +153,6 @@ function buildDesignInfoElement(pin: DesignPin): HTMLDivElement {
   container.style.maxWidth = '280px';
   container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
 
-  // Category header
   const header = document.createElement('div');
   header.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
   const dot = document.createElement('span');
@@ -175,13 +164,11 @@ function buildDesignInfoElement(pin: DesignPin): HTMLDivElement {
   header.appendChild(catText);
   container.appendChild(header);
 
-  // Title
   const title = document.createElement('h3');
   title.style.cssText = 'margin:0 0 6px;font-size:15px;font-weight:600;color:#1a1a1a;line-height:1.3;';
   title.textContent = pin.title;
   container.appendChild(title);
 
-  // Stats row
   const stats = document.createElement('div');
   stats.style.cssText = 'display:flex;gap:12px;margin-top:10px;font-size:12px;color:#666;';
   const compSpan = document.createElement('span');
@@ -193,7 +180,6 @@ function buildDesignInfoElement(pin: DesignPin): HTMLDivElement {
   stats.appendChild(upvSpan);
   container.appendChild(stats);
 
-  // Link
   const linkWrapper = document.createElement('div');
   linkWrapper.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid #eee;';
   const link = document.createElement('a');
@@ -206,44 +192,31 @@ function buildDesignInfoElement(pin: DesignPin): HTMLDivElement {
   return container;
 }
 
-export function CommunityPinsLayer({
-  map,
-  googleApi,
-}: CommunityPinsLayerProps) {
+export function CommunityPinsLayer({ map }: CommunityPinsLayerProps) {
   const showHotspots = useMapStore((s) => s.showHotspots);
   const showDesigns = useMapStore((s) => s.showDesigns);
   const showHeatmap = useMapStore((s) => s.showHeatmap);
 
-  // Refs to track created objects for cleanup
-  const hotspotMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>(
-    [],
-  );
-  const designMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>(
-    [],
-  );
-  const hotspotClustererRef = useRef<MarkerClusterer | null>(null);
-  const designClustererRef = useRef<MarkerClusterer | null>(null);
-  const heatmapRef = useRef<google.maps.visualization.HeatmapLayer | null>(
-    null,
-  );
-  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  const hotspotMarkersRef = useRef<maplibregl.Marker[]>([]);
+  const designMarkersRef = useRef<maplibregl.Marker[]>([]);
+  const popupRef = useRef<maplibregl.Popup | null>(null);
 
-  // Lazily create a shared InfoWindow
-  const getInfoWindow = useCallback(() => {
-    if (!googleApi) return null;
-    if (!infoWindowRef.current) {
-      infoWindowRef.current = new googleApi.maps.InfoWindow();
+  const getPopup = () => {
+    if (!popupRef.current) {
+      popupRef.current = new maplibregl.Popup({
+        closeButton: true,
+        closeOnClick: true,
+        maxWidth: '320px',
+      });
     }
-    return infoWindowRef.current;
-  }, [googleApi]);
+    return popupRef.current;
+  };
 
-  // ─── Hotspot markers ───────────────────────────────────
+  // Hotspot markers
   useEffect(() => {
-    if (!map || !googleApi) return;
+    if (!map) return;
 
-    // Clean up previous markers
-    hotspotClustererRef.current?.clearMarkers();
-    hotspotMarkersRef.current.forEach((m) => (m.map = null));
+    hotspotMarkersRef.current.forEach((m) => m.remove());
     hotspotMarkersRef.current = [];
 
     if (!showHotspots) return;
@@ -251,20 +224,18 @@ export function CommunityPinsLayer({
     const markers = MOCK_HOTSPOTS.map((pin: HotspotPin) => {
       const color = HOTSPOT_CATEGORY_COLORS[pin.category];
       const size = upvoteScale(pin.upvotes);
-      const content = createHotspotSvg(color, size);
+      const el = createHotspotSvg(color, size);
 
-      const marker = new googleApi.maps.marker.AdvancedMarkerElement({
-        position: { lat: pin.lat, lng: pin.lng },
-        content,
-        title: pin.title,
-      });
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([pin.lng, pin.lat])
+        .addTo(map);
 
-      marker.addListener('click', () => {
-        const iw = getInfoWindow();
-        if (iw) {
-          iw.setContent(buildHotspotInfoElement(pin));
-          iw.open({ anchor: marker, map });
-        }
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        getPopup()
+          .setLngLat([pin.lng, pin.lat])
+          .setDOMContent(buildHotspotPopupElement(pin))
+          .addTo(map);
       });
 
       return marker;
@@ -272,44 +243,33 @@ export function CommunityPinsLayer({
 
     hotspotMarkersRef.current = markers;
 
-    // Create clusterer
-    hotspotClustererRef.current = new MarkerClusterer({
-      map,
-      markers,
-    });
-
     return () => {
-      hotspotClustererRef.current?.clearMarkers();
-      hotspotMarkersRef.current.forEach((m) => (m.map = null));
-      hotspotMarkersRef.current = [];
+      markers.forEach((m) => m.remove());
     };
-  }, [map, googleApi, showHotspots, getInfoWindow]);
+  }, [map, showHotspots]);
 
-  // ─── Design markers ────────────────────────────────────
+  // Design markers
   useEffect(() => {
-    if (!map || !googleApi) return;
+    if (!map) return;
 
-    designClustererRef.current?.clearMarkers();
-    designMarkersRef.current.forEach((m) => (m.map = null));
+    designMarkersRef.current.forEach((m) => m.remove());
     designMarkersRef.current = [];
 
     if (!showDesigns) return;
 
     const markers = MOCK_DESIGNS.map((pin: DesignPin) => {
-      const content = createDesignSvg();
+      const el = createDesignSvg();
 
-      const marker = new googleApi.maps.marker.AdvancedMarkerElement({
-        position: { lat: pin.lat, lng: pin.lng },
-        content,
-        title: pin.title,
-      });
+      const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+        .setLngLat([pin.lng, pin.lat])
+        .addTo(map);
 
-      marker.addListener('click', () => {
-        const iw = getInfoWindow();
-        if (iw) {
-          iw.setContent(buildDesignInfoElement(pin));
-          iw.open({ anchor: marker, map });
-        }
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        getPopup()
+          .setLngLat([pin.lng, pin.lat])
+          .setDOMContent(buildDesignPopupElement(pin))
+          .addTo(map);
       });
 
       return marker;
@@ -317,51 +277,69 @@ export function CommunityPinsLayer({
 
     designMarkersRef.current = markers;
 
-    designClustererRef.current = new MarkerClusterer({
-      map,
-      markers,
-    });
-
     return () => {
-      designClustererRef.current?.clearMarkers();
-      designMarkersRef.current.forEach((m) => (m.map = null));
-      designMarkersRef.current = [];
+      markers.forEach((m) => m.remove());
     };
-  }, [map, googleApi, showDesigns, getInfoWindow]);
+  }, [map, showDesigns]);
 
-  // ─── Heatmap layer ─────────────────────────────────────
+  // Heatmap layer via MapLibre heatmap layer
   useEffect(() => {
-    if (!map || !googleApi) return;
+    if (!map) return;
 
-    // Remove existing heatmap
-    if (heatmapRef.current) {
-      heatmapRef.current.setMap(null);
-      heatmapRef.current = null;
-    }
+    const sourceId = 'heatmap-source';
+    const layerId = 'heatmap-layer';
+
+    const cleanup = () => {
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+    };
+
+    cleanup();
 
     if (!showHeatmap) return;
 
-    const heatmapData = MOCK_HOTSPOTS.map((pin) => ({
-      location: new googleApi.maps.LatLng(pin.lat, pin.lng),
-      weight: pin.upvotes,
-    }));
-
-    heatmapRef.current =
-      new googleApi.maps.visualization.HeatmapLayer({
-        data: heatmapData,
-        map,
-        radius: 40,
-        opacity: 0.6,
-      });
-
-    return () => {
-      if (heatmapRef.current) {
-        heatmapRef.current.setMap(null);
-        heatmapRef.current = null;
-      }
+    const geojson: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: MOCK_HOTSPOTS.map((pin) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [pin.lng, pin.lat] },
+        properties: { weight: pin.upvotes },
+      })),
     };
-  }, [map, googleApi, showHeatmap]);
 
-  // This is a behavior-only component, no visual output
+    const addHeatmap = () => {
+      if (map.getSource(sourceId)) return;
+      map.addSource(sourceId, { type: 'geojson', data: geojson });
+      map.addLayer({
+        id: layerId,
+        type: 'heatmap',
+        source: sourceId,
+        paint: {
+          'heatmap-weight': ['interpolate', ['linear'], ['get', 'weight'], 0, 0, 200, 1],
+          'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1, 15, 3],
+          'heatmap-color': [
+            'interpolate', ['linear'], ['heatmap-density'],
+            0, 'rgba(0,0,0,0)',
+            0.2, '#fef3c7',
+            0.4, '#fbbf24',
+            0.6, '#f97316',
+            0.8, '#ef4444',
+            1, '#b91c1c',
+          ],
+          'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 2, 15, 30],
+          'heatmap-opacity': 0.6,
+        },
+      });
+    };
+
+    if (map.isStyleLoaded()) {
+      addHeatmap();
+    } else {
+      map.once('styledata', addHeatmap);
+    }
+
+    return cleanup;
+  }, [map, showHeatmap]);
+
   return null;
 }

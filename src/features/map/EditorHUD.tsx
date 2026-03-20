@@ -30,22 +30,16 @@ const ProposalFlow = lazy(() =>
   import('@/features/proposal/ProposalFlow').then((m) => ({ default: m.ProposalFlow })),
 );
 
-interface EditorHUDProps {
-  googleApi: typeof google | null;
-}
-
 /**
  * Orchestrator component: renders floating editor panels on top of the map.
  * Manages which panels are visible based on workspace mode.
  */
-export function EditorHUD({ googleApi }: EditorHUDProps) {
+export function EditorHUD() {
   const mode = useWorkspaceStore((s) => s.mode);
   const showElementPanel = useWorkspaceStore((s) => s.showElementPanel);
   const showValidationPanel = useWorkspaceStore((s) => s.showValidationPanel);
-  const showStreetViewPip = useWorkspaceStore((s) => s.showStreetViewPip);
   const toggleElementPanel = useWorkspaceStore((s) => s.toggleElementPanel);
   const toggleValidationPanel = useWorkspaceStore((s) => s.toggleValidationPanel);
-  const toggleStreetViewPip = useWorkspaceStore((s) => s.toggleStreetViewPip);
   const exitToExplore = useWorkspaceStore((s) => s.exitToExplore);
   const designLocation = useWorkspaceStore((s) => s.designLocation);
 
@@ -139,11 +133,6 @@ export function EditorHUD({ googleApi }: EditorHUDProps) {
               <ValidationPanel />
             </EditorSidePanel>
 
-            {/* Street View PiP */}
-            {showStreetViewPip && googleApi && (
-              <StreetViewPipLazy googleApi={googleApi} />
-            )}
-
             {/* Bottom dock: Toolbar + Cross-section */}
             <div className="pointer-events-auto">
               <EditorDock />
@@ -172,35 +161,10 @@ export function EditorHUD({ googleApi }: EditorHUDProps) {
                   Validation
                 </button>
               )}
-              <button
-                onClick={toggleStreetViewPip}
-                className={`backdrop-blur-md text-xs font-medium px-3 py-1.5 rounded-full shadow-md border transition-colors ${
-                  showStreetViewPip
-                    ? 'bg-blue-500 text-white border-blue-400'
-                    : 'bg-white/90 text-gray-600 hover:text-gray-900 border-gray-200'
-                }`}
-              >
-                Street View
-              </button>
             </div>
           </>
         )}
       </Suspense>
     </div>
-  );
-}
-
-// Separate lazy wrapper for StreetViewPip
-const StreetViewPipComponent = lazy(() =>
-  import('./StreetViewPip').then((m) => ({ default: m.StreetViewPip })),
-);
-
-function StreetViewPipLazy({ googleApi }: { googleApi: typeof google }) {
-  return (
-    <Suspense fallback={null}>
-      <div className="pointer-events-auto">
-        <StreetViewPipComponent googleApi={googleApi} />
-      </div>
-    </Suspense>
   );
 }

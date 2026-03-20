@@ -1,106 +1,83 @@
 import { useEffect, useCallback } from 'react';
+import type maplibregl from 'maplibre-gl';
 import { useMapStore } from './map-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 
 interface PinDesignFlowProps {
-  map: google.maps.Map | null;
-  googleApi: typeof google | null;
+  map: maplibregl.Map | null;
 }
 
 /**
  * Handles map click events to show a context menu with
  * "Design a Street Here" and "Report a Hotspot" options.
- * Reverse-geocodes the clicked location to get a street address.
+ * Reverse-geocodes the clicked location via Nominatim.
  */
-export function PinDesignFlow({ map, googleApi }: PinDesignFlowProps) {
+export function PinDesignFlow({ map }: PinDesignFlowProps) {
   const openContextMenu = useMapStore((s) => s.openContextMenu);
   const closeContextMenu = useMapStore((s) => s.closeContextMenu);
   const contextMenuPosition = useMapStore((s) => s.contextMenuPosition);
   const setSelectedLocation = useMapStore((s) => s.setSelectedLocation);
-  const lockedToLocation = useMapStore((s) => s.lockedToLocation);
 
   // Handle map clicks
   useEffect(() => {
-    if (!map || !googleApi) return;
+    if (!map) return;
 
-    const listener = map.addListener(
-      'click',
-      (e: google.maps.MapMouseEvent) => {
-        if (!e.latLng) return;
-        // Don't show context menu when locked in design mode
-        if (useMapStore.getState().lockedToLocation) return;
+    const onClick = (e: maplibregl.MapMouseEvent) => {
+      if (useMapStore.getState().lockedToLocation) return;
 
-        const lat = e.latLng.lat();
-        const lng = e.latLng.lng();
+      const { lat, lng } = e.lngLat;
+      const point = map.project(e.lngLat);
+      const mapContainer = map.getContainer();
+      const rect = mapContainer.getBoundingClientRect();
 
-        // Convert lat/lng to pixel position for the context menu
-        const projection = map.getProjection();
-        if (!projection) return;
-
-        const bounds = map.getBounds();
-        const topRight = projection.fromLatLngToPoint(
-          bounds!.getNorthEast(),
-        )!;
-        const bottomLeft = projection.fromLatLngToPoint(
-          bounds!.getSouthWest(),
-        )!;
-        const scale = Math.pow(2, map.getZoom()!);
-        const point = projection.fromLatLngToPoint(e.latLng)!;
-
-        const mapDiv = map.getDiv();
-        const mapRect = mapDiv.getBoundingClientRect();
-
-        const x =
-          (point.x - bottomLeft.x) * scale + mapRect.left;
-        const y =
-          (point.y - topRight.y) * scale + mapRect.top;
-
-        openContextMenu({ lat, lng, x, y });
-      },
-    );
-
-    return () => {
-      google.maps.event.removeListener(listener);
+      openContextMenu({
+        lat,
+        lng,
+        x: point.x + rect.left,
+        y: point.y + rect.top,
+      });
     };
-  }, [map, googleApi, openContextMenu]);
+
+    map.on('click', onClick);
+    return () => {
+      map.off('click', onClick);
+    };
+  }, [map, openContextMenu]);
 
   // Close context menu on map drag or zoom
   useEffect(() => {
     if (!map) return;
 
-    const dragListener = map.addListener('dragstart', () => {
-      closeContextMenu();
-    });
-    const zoomListener = map.addListener('zoom_changed', () => {
-      closeContextMenu();
-    });
+    const onDragStart = () => closeContextMenu();
+    const onZoom = () => closeContextMenu();
+
+    map.on('dragstart', onDragStart);
+    map.on('zoom', onZoom);
 
     return () => {
-      google.maps.event.removeListener(dragListener);
-      google.maps.event.removeListener(zoomListener);
+      map.off('dragstart', onDragStart);
+      map.off('zoom', onZoom);
     };
   }, [map, closeContextMenu]);
 
   const reverseGeocode = useCallback(
     async (lat: number, lng: number): Promise<string> => {
-      if (!googleApi) return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-
       try {
-        const geocoder = new googleApi.maps.Geocoder();
-        const result = await geocoder.geocode({
-          location: { lat, lng },
-        });
-
-        if (result.results[0]) {
-          return result.results[0].formatted_address;
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+          { headers: { 'Accept-Language': 'en' } },
+        );
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        if (data.display_name) {
+          return data.display_name;
         }
       } catch {
         // Fall back to coordinates
       }
-
       return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     },
-    [googleApi],
+    [],
   );
 
   const enterConfigureMode = useWorkspaceStore((s) => s.enterConfigureMode);
@@ -124,8 +101,6 @@ export function PinDesignFlow({ map, googleApi }: PinDesignFlowProps) {
     setSelectedLocation({ lat, lng, address });
     closeContextMenu();
 
-    // TODO: Open hotspot creation form
-    // This will be wired up by the community agent
     console.info('[Curbwise] Report a Hotspot:', { lat, lng, address });
   }, [contextMenuPosition, reverseGeocode, setSelectedLocation, closeContextMenu]);
 

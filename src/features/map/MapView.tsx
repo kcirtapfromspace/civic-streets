@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { useMapStore } from './map-store';
-import { useGoogleMaps } from './useGoogleMaps';
+import { useMapLibre } from './useMapLibre';
 import { MapControls } from './MapControls';
 import { EarthView } from './EarthView';
 import { PinDesignFlow } from './PinDesignFlow';
@@ -9,10 +9,8 @@ import { EditorHUD } from './EditorHUD';
 import { MapOverlay as ProposalMapOverlay } from '@/features/proposal/MapOverlay';
 
 /**
- * MapView — full-viewport Google Maps wrapper.
+ * MapView — full-viewport MapLibre GL wrapper.
  * The primary navigation experience for Curbwise.
- *
- * If VITE_GOOGLE_MAPS_API_KEY is not set, shows a helpful setup message.
  */
 export function MapView() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -26,31 +24,27 @@ export function MapView() {
 
   const [mapElement, setMapElement] = useRefCallback();
 
-  const { map, isLoaded, error, google: googleApi } = useGoogleMaps({
+  const { map, isLoaded, error } = useMapLibre({
     mapElement,
     center,
     zoom,
     mapType,
-    mapId: import.meta.env.VITE_GOOGLE_MAPS_MAP_ID,
   });
 
   // Sync map movements back to store
   useEffect(() => {
     if (!map) return;
 
-    const idleListener = map.addListener('idle', () => {
+    const onMoveEnd = () => {
       const c = map.getCenter();
       const z = map.getZoom();
-      if (c) {
-        setCenter({ lat: c.lat(), lng: c.lng() });
-      }
-      if (z !== undefined) {
-        setZoom(z);
-      }
-    });
+      setCenter({ lat: c.lat, lng: c.lng });
+      setZoom(z);
+    };
 
+    map.on('moveend', onMoveEnd);
     return () => {
-      google.maps.event.removeListener(idleListener);
+      map.off('moveend', onMoveEnd);
     };
   }, [map, setCenter, setZoom]);
 
@@ -64,65 +58,6 @@ export function MapView() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [closeContextMenu]);
-
-  // Missing API key fallback
-  if (error === 'VITE_GOOGLE_MAPS_API_KEY') {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-50">
-        <div className="max-w-md mx-auto text-center p-8">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-blue-100 flex items-center justify-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.5}
-              className="w-8 h-8 text-blue-600"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z"
-              />
-            </svg>
-          </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            Map Setup Required
-          </h2>
-          <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-            Set{' '}
-            <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs font-mono text-blue-700">
-              VITE_GOOGLE_MAPS_API_KEY
-            </code>{' '}
-            in your{' '}
-            <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs font-mono">
-              .env
-            </code>{' '}
-            file to enable the map.
-          </p>
-          <div className="bg-gray-900 rounded-lg p-4 text-left">
-            <code className="text-sm text-gray-300 block">
-              <span className="text-gray-500"># .env</span>
-              <br />
-              <span className="text-green-400">
-                VITE_GOOGLE_MAPS_API_KEY
-              </span>
-              =your_api_key_here
-              <br />
-              <span className="text-green-400">
-                VITE_GOOGLE_MAPS_MAP_ID
-              </span>
-              =optional_map_id
-            </code>
-          </div>
-          <p className="text-xs text-gray-400 mt-4">
-            Enable Maps JavaScript API, Places API, and Geocoding API in the
-            Google Cloud Console.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   // Generic error fallback
   if (error) {
@@ -176,14 +111,14 @@ export function MapView() {
       />
 
       {/* Map overlay components — only render when loaded */}
-      {isLoaded && (
+      {isLoaded && map && (
         <>
-          <MapControls map={map} googleApi={googleApi} />
+          <MapControls map={map} />
           <EarthView map={map} enabled={is3D} />
-          <PinDesignFlow map={map} googleApi={googleApi} />
-          <CommunityPinsLayer map={map} googleApi={googleApi} />
+          <PinDesignFlow map={map} />
+          <CommunityPinsLayer map={map} />
           <ProposalMapOverlay map={map} />
-          <EditorHUD googleApi={googleApi} />
+          <EditorHUD />
         </>
       )}
     </div>

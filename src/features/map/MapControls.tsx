@@ -1,15 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import type maplibregl from 'maplibre-gl';
 import { useMapStore } from './map-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useProposalStore } from '@/stores/proposal-store';
 import { fetchRoadPath } from '@/features/proposal/utils/road-geometry';
 
 interface MapControlsProps {
-  map: google.maps.Map | null;
-  googleApi: typeof google | null;
+  map: maplibregl.Map | null;
 }
 
-export function MapControls({ map, googleApi }: MapControlsProps) {
+interface NominatimResult {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+}
+
+export function MapControls({ map }: MapControlsProps) {
   const {
     showHotspots,
     showDesigns,
@@ -28,40 +35,68 @@ export function MapControls({ map, googleApi }: MapControlsProps) {
   } = useMapStore();
 
   const [searchText, setSearchText] = useState('');
+  const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLayersPanelOpen, setIsLayersPanelOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  // Initialize Places Autocomplete
-  useEffect(() => {
-    if (!googleApi || !searchInputRef.current || autocompleteRef.current)
+  // Nominatim search with debounce
+  const searchNominatim = useCallback(async (query: string) => {
+    if (query.length < 3) {
+      setSuggestions([]);
       return;
+    }
 
-    const autocomplete = new googleApi.maps.places.Autocomplete(
-      searchInputRef.current,
-      {
-        types: ['address', 'establishment', 'geocode'],
-        fields: ['geometry', 'formatted_address', 'name'],
-      },
-    );
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`,
+        { headers: { 'Accept-Language': 'en' } },
+      );
+      if (!res.ok) return;
+      const results: NominatimResult[] = await res.json();
+      setSuggestions(results);
+      setShowSuggestions(results.length > 0);
+    } catch {
+      // Nominatim unavailable
+    }
+  }, []);
 
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-      if (!place.geometry?.location) return;
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchText(value);
+      clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => searchNominatim(value), 350);
+    },
+    [searchNominatim],
+  );
 
-      const lat = place.geometry.location.lat();
-      const lng = place.geometry.location.lng();
-      const address =
-        place.formatted_address || place.name || '';
+  const handleSelectSuggestion = useCallback(
+    (result: NominatimResult) => {
+      const lat = parseFloat(result.lat);
+      const lng = parseFloat(result.lon);
+      const address = result.display_name;
 
       setCenter({ lat, lng });
-      setZoom(17); // Street level
+      setZoom(17);
       setSelectedLocation({ lat, lng, address });
       setSearchText(address);
-    });
+      setSuggestions([]);
+      setShowSuggestions(false);
+    },
+    [setCenter, setZoom, setSelectedLocation],
+  );
 
-    autocompleteRef.current = autocomplete;
-  }, [googleApi, setCenter, setZoom, setSelectedLocation]);
+  // Close suggestions on click outside
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('[data-search-container]')) {
+        setShowSuggestions(false);
+      }
+    };
+    window.addEventListener('click', handleClick);
+    return () => window.removeEventListener('click', handleClick);
+  }, []);
 
   const handleViewModeChange = useCallback(
     (mode: 'roadmap' | 'satellite' | 'earth') => {
@@ -84,9 +119,12 @@ export function MapControls({ map, googleApi }: MapControlsProps) {
   return (
     <>
       {/* Search bar */}
-      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2" style={{ maxWidth: '400px', width: 'calc(100% - 32px)' }}>
+      <div
+        className="absolute top-4 left-4 z-10 flex flex-col gap-2"
+        style={{ maxWidth: '400px', width: 'calc(100% - 32px)' }}
+        data-search-container
+      >
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 flex items-center px-3 py-2 gap-2">
-          {/* Search icon */}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 20 20"
@@ -104,7 +142,8 @@ export function MapControls({ map, googleApi }: MapControlsProps) {
             ref={searchInputRef}
             type="text"
             value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
             placeholder="Search address or place..."
             className="flex-1 bg-transparent text-sm text-gray-900 placeholder-gray-400 outline-none"
           />
@@ -114,9 +153,8 @@ export function MapControls({ map, googleApi }: MapControlsProps) {
               onClick={() => {
                 setSearchText('');
                 setSelectedLocation(null);
-                if (searchInputRef.current) {
-                  searchInputRef.current.value = '';
-                }
+                setSuggestions([]);
+                setShowSuggestions(false);
               }}
               className="text-gray-400 hover:text-gray-600 transition-colors"
             >
@@ -131,6 +169,21 @@ export function MapControls({ map, googleApi }: MapControlsProps) {
             </button>
           )}
         </div>
+
+        {/* Autocomplete suggestions */}
+        {showSuggestions && suggestions.length > 0 && (
+          <div className="bg-white rounded-lg shadow-lg border border-gray-200 py-1 max-h-60 overflow-y-auto">
+            {suggestions.map((result) => (
+              <button
+                key={result.place_id}
+                onClick={() => handleSelectSuggestion(result)}
+                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors truncate"
+              >
+                {result.display_name}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Selected location info bar */}
         {selectedLocation && (
@@ -166,24 +219,19 @@ export function MapControls({ map, googleApi }: MapControlsProps) {
                   const setRoadPath = useProposalStore.getState().setRoadPath;
                   const enterProposeMode = useWorkspaceStore.getState().enterProposeMode;
 
-                  // Extract street name from address (first part before comma)
                   const streetName = selectedLocation.address.split(',')[0].trim();
 
                   initProposal(streetName, location);
                   enterProposeMode(location);
 
-                  // Fetch road geometry in background
-                  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-                  if (apiKey) {
-                    try {
-                      const { path, bearing } = await fetchRoadPath(
-                        { lat: selectedLocation.lat, lng: selectedLocation.lng },
-                        apiKey,
-                      );
-                      setRoadPath(path, bearing);
-                    } catch {
-                      // Road geometry is optional — overlay won't render but flow works
-                    }
+                  // Fetch road geometry in background (no API key needed)
+                  try {
+                    const { path, bearing } = await fetchRoadPath(
+                      { lat: selectedLocation.lat, lng: selectedLocation.lng },
+                    );
+                    setRoadPath(path, bearing);
+                  } catch {
+                    // Road geometry is optional
                   }
                 }}
                 className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-md transition-colors"
@@ -331,7 +379,7 @@ export function MapControls({ map, googleApi }: MapControlsProps) {
           <div className="bg-black/60 text-white text-[10px] px-2 py-1 rounded font-mono">
             {useMapStore.getState().center.lat.toFixed(4)},{' '}
             {useMapStore.getState().center.lng.toFixed(4)} | z
-            {useMapStore.getState().zoom}
+            {useMapStore.getState().zoom.toFixed(0)}
           </div>
         </div>
       )}

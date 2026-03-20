@@ -1,13 +1,14 @@
 import { useEffect, useRef } from 'react';
+import type maplibregl from 'maplibre-gl';
 
 interface EarthViewProps {
-  map: google.maps.Map | null;
+  map: maplibregl.Map | null;
   enabled: boolean;
 }
 
 /**
- * Manages 3D / Google Earth-like view on the map.
- * Enables tilt + heading for a photorealistic tilted experience
+ * Manages 3D / tilted view on the map.
+ * Enables pitch + bearing for a tilted perspective
  * when the user switches to "Earth" mode.
  */
 export function EarthView({ map, enabled }: EarthViewProps) {
@@ -18,24 +19,28 @@ export function EarthView({ map, enabled }: EarthViewProps) {
 
     if (enabled && !prevEnabledRef.current) {
       // Entering 3D mode
-      map.setMapTypeId('hybrid');
-      map.setTilt(45);
-      map.setHeading(0);
+      map.easeTo({
+        pitch: 60,
+        bearing: 0,
+        duration: 800,
+      });
 
       // If zoomed out too far, zoom in for a better 3D effect
       const currentZoom = map.getZoom();
-      if (currentZoom !== undefined && currentZoom < 15) {
+      if (currentZoom < 15) {
         map.setZoom(15);
       }
     } else if (!enabled && prevEnabledRef.current) {
       // Exiting 3D mode
-      map.setTilt(0);
-      map.setHeading(0);
+      map.easeTo({
+        pitch: 0,
+        bearing: 0,
+        duration: 800,
+      });
     }
 
     prevEnabledRef.current = enabled;
   }, [map, enabled]);
 
-  // This is a behavior-only component, no visual output
   return null;
 }

@@ -1,36 +1,34 @@
-// Road geometry utilities: fetch road polyline via Directions API,
-// decode encoded polylines, and compute bearing.
+// Road geometry utilities: fetch road polyline via OSRM (free, no API key),
+// decode polylines, and compute bearing.
 
 type LatLng = { lat: number; lng: number };
 
 /**
- * Fetch the road centerline through a point using the Directions API.
+ * Fetch the road centerline through a point using OSRM's nearest + route API.
  * Generates a short route through the point to capture the road's actual path.
  * Falls back to a synthetic straight line if the API fails.
  */
 export async function fetchRoadPath(
   location: LatLng,
-  apiKey: string,
 ): Promise<{ path: LatLng[]; bearing: number }> {
-  // Create two waypoints offset ~200m in a north-south line through the point.
-  // The Directions API will snap to the nearest road.
-  const offset = 0.002; // ~200m in latitude
+  // Create two waypoints offset ~150m in a north-south line through the point.
+  // OSRM will snap to the nearest road and return detailed geometry.
+  const offset = 0.0015; // ~150m in latitude
   const origin = { lat: location.lat - offset, lng: location.lng };
   const destination = { lat: location.lat + offset, lng: location.lng };
 
   try {
-    const directionsService = new google.maps.DirectionsService();
-    const result = await directionsService.route({
-      origin,
-      destination,
-      travelMode: google.maps.TravelMode.DRIVING,
-    });
+    const coords = `${origin.lng},${origin.lat};${destination.lng},${destination.lat}`;
+    const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
 
-    if (result.routes.length > 0 && result.routes[0].overview_path) {
-      const path = result.routes[0].overview_path.map((p) => ({
-        lat: p.lat(),
-        lng: p.lng(),
-      }));
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`OSRM ${res.status}`);
+
+    const data = await res.json();
+
+    if (data.routes?.length > 0) {
+      const geojsonCoords = data.routes[0].geometry.coordinates as [number, number][];
+      const path = geojsonCoords.map(([lng, lat]) => ({ lat, lng }));
 
       if (path.length >= 2) {
         const bearing = computeBearing(path[0], path[path.length - 1]);
@@ -41,7 +39,6 @@ export async function fetchRoadPath(
     // Fall through to fallback
   }
 
-  // Fallback: straight line through the point
   return createFallbackPath(location);
 }
 
