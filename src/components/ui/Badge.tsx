@@ -3,10 +3,11 @@ import React from 'react';
 
 type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'info';
 
-interface BadgeProps {
+export interface BadgeProps {
   children: React.ReactNode;
   variant?: BadgeVariant;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
@@ -21,10 +22,12 @@ export function Badge({
   children,
   variant = 'default',
   className = '',
+  style,
 }: BadgeProps) {
   return (
     <span
       className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${variantClasses[variant]} ${className}`}
+      style={style}
     >
       {children}
     </span>

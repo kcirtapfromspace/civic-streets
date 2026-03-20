@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { loadStandards, validateStreet } from '../validator';
 import type { StandardsData } from '../validator';
 import type {

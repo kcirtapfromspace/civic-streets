@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { solveConstraints } from '../constraint-solver';
 import { solveConstraintsDetailed } from '../constraint-solver';
 import { loadStandards } from '../validator';
