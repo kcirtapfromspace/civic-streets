@@ -4,6 +4,7 @@ import { Layout } from '@/components/nav';
 import { ToastProvider } from '@/components/ui/Toast';
 
 // Lazy-load all pages for code splitting
+const LandingPage = lazy(() => import('@/pages/LandingPage'));
 const MapPage = lazy(() => import('@/pages/MapPage'));
 const EditorPage = lazy(() => import('@/pages/EditorPage'));
 const HotspotFeedPage = lazy(() => import('@/pages/HotspotFeedPage'));
@@ -25,23 +26,18 @@ export default function App() {
       <ToastProvider>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            <Route element={<Layout />}>
-              {/* Map is the home / primary experience */}
-              <Route path="/" element={<MapPage />} />
+            {/* Landing page — no nav chrome */}
+            <Route path="/" element={<LandingPage />} />
 
-              {/* Editor — new street or load by ID */}
+            {/* App pages — with nav layout */}
+            <Route element={<Layout />}>
+              <Route path="/map" element={<MapPage />} />
               <Route path="/editor" element={<EditorPage />} />
               <Route path="/editor/:id" element={<EditorPage />} />
-
-              {/* Hotspots — feed and detail */}
               <Route path="/hotspots" element={<HotspotFeedPage />} />
               <Route path="/hotspot/:id" element={<HotspotDetailPage />} />
-
-              {/* Report builder — standalone or for a specific design */}
               <Route path="/report" element={<ReportPage />} />
               <Route path="/report/:designId" element={<ReportPage />} />
-
-              {/* 404 catch-all */}
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>

@@ -3,7 +3,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useState } from 'react';
 
 const navLinks = [
-  { to: '/', label: 'Map', icon: MapPinIcon },
+  { to: '/map', label: 'Map', icon: MapPinIcon },
   { to: '/editor', label: 'Editor', icon: PencilRulerIcon },
   { to: '/hotspots', label: 'Hotspots', icon: FlameIcon },
 ] as const;
@@ -30,7 +30,7 @@ export function NavBar() {
           <NavLink
             key={to}
             to={to}
-            end={to === '/'}
+            end={to === '/map'}
             className={({ isActive }) =>
               `flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition-all duration-300 ease-spring ${
                 isActive
@@ -93,7 +93,7 @@ export function NavBar() {
               <NavLink
                 key={to}
                 to={to}
-                end={to === '/'}
+                end={to === '/map'}
                 onClick={() => setMobileMenuOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ease-spring animate-fade-up stagger-${i + 1} ${

@@ -6,7 +6,7 @@ export function Layout() {
   const location = useLocation();
 
   // Map page is full-viewport — no extra bottom padding for the tab bar
-  const isMapPage = location.pathname === '/';
+  const isMapPage = location.pathname === '/map';
 
   return (
     <div className="flex flex-col h-screen">
