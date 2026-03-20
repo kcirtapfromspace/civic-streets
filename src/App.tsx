@@ -27,11 +27,11 @@ export default function App() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Marketing landing page — no nav chrome */}
-            <Route path="/welcome" element={<LandingPage />} />
+            <Route path="/" element={<LandingPage />} />
 
             {/* App pages — with nav layout */}
             <Route element={<Layout />}>
-              <Route path="/" element={<MapPage />} />
+              <Route path="/map" element={<MapPage />} />
               <Route path="/editor" element={<EditorPage />} />
               <Route path="/editor/:id" element={<EditorPage />} />
               <Route path="/hotspots" element={<HotspotFeedPage />} />
