@@ -5,6 +5,7 @@ import { MapControls } from './MapControls';
 import { EarthView } from './EarthView';
 import { PinDesignFlow } from './PinDesignFlow';
 import { CommunityPinsLayer } from './CommunityPinsLayer';
+import { EditorHUD } from './EditorHUD';
 
 /**
  * MapView — full-viewport Google Maps wrapper.
@@ -180,6 +181,7 @@ export function MapView() {
           <EarthView map={map} enabled={is3D} />
           <PinDesignFlow map={map} googleApi={googleApi} />
           <CommunityPinsLayer map={map} googleApi={googleApi} />
+          <EditorHUD googleApi={googleApi} />
         </>
       )}
     </div>

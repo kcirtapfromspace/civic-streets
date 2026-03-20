@@ -9,6 +9,9 @@ export const DISPLAY_HEIGHT = 300;
 /** SVG height for export mode (taller for PDF clarity) */
 export const EXPORT_HEIGHT = 320;
 
+/** SVG height for compact bottom dock on map */
+export const COMPACT_DISPLAY_HEIGHT = 220;
+
 /** Height of the element rectangles (the colored "road surface" area) */
 export const ELEMENT_RECT_HEIGHT = 160;
 

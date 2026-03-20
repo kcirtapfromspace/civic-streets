@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { useWorkspaceStore } from '@/stores/workspace-store';
 
 const tabs = [
   { to: '/', label: 'Map', icon: MapPinIcon, end: true },
@@ -12,6 +13,11 @@ interface BottomTabBarProps {
 }
 
 export function BottomTabBar({ className = '' }: BottomTabBarProps) {
+  const mode = useWorkspaceStore((s) => s.mode);
+
+  // Hide tab bar when in design or configure mode (panels occupy bottom)
+  if (mode !== 'explore') return null;
+
   return (
     <nav
       className={`h-14 bg-white border-t border-gray-200 flex items-stretch z-50 shrink-0 ${className}`}

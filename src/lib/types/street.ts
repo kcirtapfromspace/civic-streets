@@ -64,6 +64,12 @@ export interface StreetMetadata {
   templateId?: string;
 }
 
+export interface StreetLocation {
+  lat: number;
+  lng: number;
+  address: string;
+}
+
 export interface StreetSegment {
   id: string;
   name: string;
@@ -73,6 +79,7 @@ export interface StreetSegment {
   functionalClass: FunctionalClass;
   elements: CrossSectionElement[];
   metadata: StreetMetadata;
+  location?: StreetLocation;
 }
 
 export interface ValidationResult {

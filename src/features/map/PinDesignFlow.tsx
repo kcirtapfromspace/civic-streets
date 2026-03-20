@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { useMapStore } from './map-store';
+import { useWorkspaceStore } from '@/stores/workspace-store';
 
 interface PinDesignFlowProps {
   map: google.maps.Map | null;
@@ -16,6 +17,7 @@ export function PinDesignFlow({ map, googleApi }: PinDesignFlowProps) {
   const closeContextMenu = useMapStore((s) => s.closeContextMenu);
   const contextMenuPosition = useMapStore((s) => s.contextMenuPosition);
   const setSelectedLocation = useMapStore((s) => s.setSelectedLocation);
+  const lockedToLocation = useMapStore((s) => s.lockedToLocation);
 
   // Handle map clicks
   useEffect(() => {
@@ -25,6 +27,8 @@ export function PinDesignFlow({ map, googleApi }: PinDesignFlowProps) {
       'click',
       (e: google.maps.MapMouseEvent) => {
         if (!e.latLng) return;
+        // Don't show context menu when locked in design mode
+        if (useMapStore.getState().lockedToLocation) return;
 
         const lat = e.latLng.lat();
         const lng = e.latLng.lng();
@@ -99,18 +103,18 @@ export function PinDesignFlow({ map, googleApi }: PinDesignFlowProps) {
     [googleApi],
   );
 
+  const enterConfigureMode = useWorkspaceStore((s) => s.enterConfigureMode);
+
   const handleDesignHere = useCallback(async () => {
     if (!contextMenuPosition) return;
 
     const { lat, lng } = contextMenuPosition;
     const address = await reverseGeocode(lat, lng);
-    setSelectedLocation({ lat, lng, address });
+    const location = { lat, lng, address };
+    setSelectedLocation(location);
     closeContextMenu();
-
-    // TODO: Navigate to editor with location pre-filled
-    // This will be wired up by the routing agent
-    console.info('[Curbwise] Design a Street Here:', { lat, lng, address });
-  }, [contextMenuPosition, reverseGeocode, setSelectedLocation, closeContextMenu]);
+    enterConfigureMode(location);
+  }, [contextMenuPosition, reverseGeocode, setSelectedLocation, closeContextMenu, enterConfigureMode]);
 
   const handleReportHotspot = useCallback(async () => {
     if (!contextMenuPosition) return;

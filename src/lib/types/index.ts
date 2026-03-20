@@ -10,6 +10,7 @@ export type {
   DimensionalConstraint,
   CrossSectionElement,
   StreetMetadata,
+  StreetLocation,
   StreetSegment,
   ValidationResult,
   TemplateDefinition,

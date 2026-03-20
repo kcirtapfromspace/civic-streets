@@ -18,6 +18,8 @@ export interface MapState {
     x: number;
     y: number;
   } | null;
+  // Lock map interaction during design mode
+  lockedToLocation: boolean;
   // Actions
   setCenter: (center: { lat: number; lng: number }) => void;
   setZoom: (zoom: number) => void;
@@ -27,6 +29,7 @@ export interface MapState {
   toggleDesigns: () => void;
   toggleHeatmap: () => void;
   setSelectedLocation: (location: MapState['selectedLocation']) => void;
+  setLockedToLocation: (locked: boolean) => void;
   openContextMenu: (position: MapState['contextMenuPosition']) => void;
   closeContextMenu: () => void;
 }
@@ -44,6 +47,7 @@ export const useMapStore = create<MapState>()((set) => ({
 
   selectedLocation: null,
   contextMenuPosition: null,
+  lockedToLocation: false,
 
   setCenter: (center) => set({ center }),
   setZoom: (zoom) => set({ zoom }),
@@ -68,6 +72,7 @@ export const useMapStore = create<MapState>()((set) => ({
 
   setSelectedLocation: (location) => set({ selectedLocation: location }),
 
+  setLockedToLocation: (locked) => set({ lockedToLocation: locked }),
   openContextMenu: (position) => set({ contextMenuPosition: position }),
   closeContextMenu: () => set({ contextMenuPosition: null }),
 }));

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { temporal } from 'zundo';
 import type {
   StreetSegment,
+  StreetLocation,
   CrossSectionElement,
   ValidationResult,
   TemplateDefinition,
@@ -63,6 +64,7 @@ export interface StreetState {
     rowWidth: number,
     functionalClass: FunctionalClass,
     direction: StreetDirection,
+    location?: StreetLocation,
   ) => void;
 
   // Element actions
@@ -150,7 +152,7 @@ export const useStreetStore = create<StreetState>()(
         });
       },
 
-      createNewStreet: (name, rowWidth, functionalClass, direction) => {
+      createNewStreet: (name, rowWidth, functionalClass, direction, location) => {
         const now = new Date().toISOString();
         const elements: CrossSectionElement[] = [
           {
@@ -209,6 +211,7 @@ export const useStreetStore = create<StreetState>()(
           functionalClass,
           elements,
           metadata: { createdAt: now, updatedAt: now },
+          ...(location ? { location } : {}),
         };
         set({
           currentStreet: street,
