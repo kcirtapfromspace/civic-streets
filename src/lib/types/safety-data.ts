@@ -19,6 +19,14 @@ export interface DataSourceConfig {
   /** Bounding box: [south, west, north, east] */
   bounds: [number, number, number, number];
   fetch: (bounds: { south: number; west: number; north: number; east: number }) => Promise<NormalizedCrash[]>;
+  /** City or region name for display */
+  city: string;
+  /** Reporting agency / publisher */
+  citation: string;
+  /** Date range of available data */
+  dateRange: string;
+  /** URL to the source data portal */
+  url: string;
 }
 
 export interface CrashFilters {

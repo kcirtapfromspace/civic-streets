@@ -84,4 +84,8 @@ export const nycSource: DataSourceConfig = {
   name: 'NYC Motor Vehicle Collisions',
   bounds: [40.4961, -74.2557, 40.9176, -73.7004], // [south, west, north, east]
   fetch: fetchNYCCrashes,
+  city: 'New York City',
+  citation: 'NYC OpenData, NYPD Motor Vehicle Collisions',
+  dateRange: '2012–present',
+  url: 'https://data.cityofnewyork.us/Public-Safety/Motor-Vehicle-Collisions-Crashes/h9gi-nx95',
 };

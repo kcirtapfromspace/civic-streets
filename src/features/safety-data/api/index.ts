@@ -1,9 +1,13 @@
 import type { NormalizedCrash, DataSourceConfig } from '@/lib/types/safety-data';
 import { nycSource } from './nyc-crashes';
+import { chicagoSource } from './chicago-crashes';
 import { farsSource } from './nhtsa-fars';
 import { tileCache } from './cache';
 
-const SOURCES: DataSourceConfig[] = [nycSource, farsSource];
+const SOURCES: DataSourceConfig[] = [nycSource, chicagoSource, farsSource];
+
+/** Expose sources for UI attribution display */
+export { SOURCES as DATA_SOURCES };
 
 function boundsIntersect(
   a: [number, number, number, number],

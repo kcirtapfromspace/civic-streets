@@ -5,6 +5,7 @@ import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useProposalStore } from '@/stores/proposal-store';
 import { fetchRoadPath } from '@/features/proposal/utils/road-geometry';
 import { useSafetyDataStore } from '@/features/safety-data/safety-data-store';
+import { DATA_SOURCES } from '@/features/safety-data/api';
 import {
   MODE_LABELS,
   SEVERITY_LABELS,
@@ -500,6 +501,21 @@ export function MapControls({ map }: MapControlsProps) {
                           {SEVERITY_LABELS[sev]}
                         </span>
                       </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Data sources & citations */}
+                <div className="border-t border-gray-100 pt-2">
+                  <div className="text-[9px] font-bold text-gray-300 uppercase tracking-[0.12em] mb-1.5">Sources</div>
+                  <div className="flex flex-col gap-1.5">
+                    {DATA_SOURCES.map((src) => (
+                      <div key={src.id} className="text-[10px] text-gray-400 leading-tight">
+                        <span className="font-medium text-gray-600">{src.city}</span>
+                        {' — '}{src.citation}
+                        <br />
+                        <span className="text-gray-300">{src.dateRange}</span>
+                      </div>
                     ))}
                   </div>
                 </div>

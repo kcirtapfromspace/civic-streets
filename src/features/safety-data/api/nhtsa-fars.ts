@@ -85,4 +85,8 @@ export const farsSource: DataSourceConfig = {
   name: 'NHTSA FARS (Fatal Crashes)',
   bounds: [24.396, -125.0, 49.384, -66.934], // Continental US
   fetch: fetchFARSCrashes,
+  city: 'Nationwide (US)',
+  citation: 'NHTSA Fatality Analysis Reporting System (FARS)',
+  dateRange: '2020–2023',
+  url: 'https://www.nhtsa.gov/research-data/fatality-analysis-reporting-system-fars',
 };
