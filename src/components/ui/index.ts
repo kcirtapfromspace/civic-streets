@@ -5,3 +5,4 @@ export { Modal } from './Modal';
 export { Badge } from './Badge';
 export { Tooltip } from './Tooltip';
 export { ErrorBoundary } from './ErrorBoundary';
+export { ToastProvider, useToast } from './Toast';

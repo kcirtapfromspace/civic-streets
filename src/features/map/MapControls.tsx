@@ -1,0 +1,292 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useMapStore } from './map-store';
+
+interface MapControlsProps {
+  map: google.maps.Map | null;
+  googleApi: typeof google | null;
+}
+
+export function MapControls({ map, googleApi }: MapControlsProps) {
+  const {
+    showHotspots,
+    showDesigns,
+    showHeatmap,
+    is3D,
+    mapType,
+    selectedLocation,
+    toggleHotspots,
+    toggleDesigns,
+    toggleHeatmap,
+    toggle3D,
+    setMapType,
+    setCenter,
+    setZoom,
+    setSelectedLocation,
+  } = useMapStore();
+
+  const [searchText, setSearchText] = useState('');
+  const [isLayersPanelOpen, setIsLayersPanelOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+
+  // Initialize Places Autocomplete
+  useEffect(() => {
+    if (!googleApi || !searchInputRef.current || autocompleteRef.current)
+      return;
+
+    const autocomplete = new googleApi.maps.places.Autocomplete(
+      searchInputRef.current,
+      {
+        types: ['address', 'establishment', 'geocode'],
+        fields: ['geometry', 'formatted_address', 'name'],
+      },
+    );
+
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (!place.geometry?.location) return;
+
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      const address =
+        place.formatted_address || place.name || '';
+
+      setCenter({ lat, lng });
+      setZoom(17); // Street level
+      setSelectedLocation({ lat, lng, address });
+      setSearchText(address);
+    });
+
+    autocompleteRef.current = autocomplete;
+  }, [googleApi, setCenter, setZoom, setSelectedLocation]);
+
+  const handleViewModeChange = useCallback(
+    (mode: 'roadmap' | 'satellite' | 'earth') => {
+      if (mode === 'earth') {
+        if (!is3D) toggle3D();
+      } else {
+        if (is3D) toggle3D();
+        setMapType(mode);
+      }
+    },
+    [is3D, toggle3D, setMapType],
+  );
+
+  const currentViewMode = is3D
+    ? 'earth'
+    : mapType === 'satellite' || mapType === 'hybrid'
+      ? 'satellite'
+      : 'roadmap';
+
+  return (
+    <>
+      {/* Search bar */}
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2" style={{ maxWidth: '400px', width: 'calc(100% - 32px)' }}>
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 flex items-center px-3 py-2 gap-2">
+          {/* Search icon */}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="w-5 h-5 text-gray-400 flex-shrink-0"
+          >
+            <path
+              fillRule="evenodd"
+              d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
+              clipRule="evenodd"
+            />
+          </svg>
+
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Search address or place..."
+            className="flex-1 bg-transparent text-sm text-gray-900 placeholder-gray-400 outline-none"
+          />
+
+          {searchText && (
+            <button
+              onClick={() => {
+                setSearchText('');
+                setSelectedLocation(null);
+                if (searchInputRef.current) {
+                  searchInputRef.current.value = '';
+                }
+              }}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="w-4 h-4"
+              >
+                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {/* Selected location info bar */}
+        {selectedLocation && (
+          <div className="bg-white/95 backdrop-blur rounded-lg shadow-md border border-gray-200 px-3 py-2 flex items-center gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="w-4 h-4 text-blue-500 flex-shrink-0"
+            >
+              <path
+                fillRule="evenodd"
+                d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C15.302 14.988 17 12.493 17 9A7 7 0 103 9c0 3.492 1.698 5.988 3.355 7.584a13.731 13.731 0 002.273 1.765 11.842 11.842 0 00.976.544l.062.029.018.008.006.003zM10 11.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <span className="text-xs text-gray-700 truncate">
+              {selectedLocation.address}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Control buttons — right side */}
+      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+        {/* View mode toggle */}
+        <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-1 flex flex-col gap-0.5">
+          {(['roadmap', 'satellite', 'earth'] as const).map((mode) => {
+            const labels = {
+              roadmap: 'Map',
+              satellite: 'Satellite',
+              earth: 'Earth',
+            };
+            const icons = {
+              roadmap: (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path fillRule="evenodd" d="M8.157 2.175a1.5 1.5 0 00-1.147 0l-4.084 1.69A1.5 1.5 0 002 5.251v10.877a1.5 1.5 0 002.074 1.386l3.51-1.453 4.26 1.763a1.5 1.5 0 001.146 0l4.084-1.69A1.5 1.5 0 0018 14.748V3.873a1.5 1.5 0 00-2.074-1.386l-3.51 1.453-4.26-1.765zM7.58 5a.75.75 0 01.75.75v6.5a.75.75 0 01-1.5 0v-6.5A.75.75 0 017.58 5zm5.59 2.75a.75.75 0 00-1.5 0v6.5a.75.75 0 001.5 0v-6.5z" clipRule="evenodd" />
+                </svg>
+              ),
+              satellite: (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM6.75 9.25a.75.75 0 000 1.5h4.59l-2.1 1.95a.75.75 0 001.02 1.1l3.5-3.25a.75.75 0 000-1.1l-3.5-3.25a.75.75 0 10-1.02 1.1l2.1 1.95H6.75z" />
+                </svg>
+              ),
+              earth: (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-1.503.204A6.5 6.5 0 117.95 3.83L6.927 5.62a1.453 1.453 0 001.91 2.02l.175-.087a.75.75 0 011.088.478l.14.701a.75.75 0 01-.46.849l-.39.156a.75.75 0 00-.326 1.148l.556.741a.75.75 0 01-.094 1.004l-.396.363a.75.75 0 00-.21.727l.19.76a.75.75 0 01-.2.722l-.264.264a.75.75 0 00-.12.884l.383.67z" clipRule="evenodd" />
+                </svg>
+              ),
+            };
+
+            return (
+              <button
+                key={mode}
+                onClick={() => handleViewModeChange(mode)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                  currentViewMode === mode
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {icons[mode]}
+                {labels[mode]}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Layers toggle button */}
+        <button
+          onClick={() => setIsLayersPanelOpen(!isLayersPanelOpen)}
+          className={`bg-white rounded-lg shadow-lg border border-gray-200 p-2.5 flex items-center gap-2 text-xs font-medium transition-colors ${
+            isLayersPanelOpen
+              ? 'text-blue-700 bg-blue-50'
+              : 'text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="w-4 h-4"
+          >
+            <path d="M1 12.5A4.5 4.5 0 005.5 17H15a4 4 0 001.866-7.539 3.504 3.504 0 00-4.504-4.272A4.5 4.5 0 004.06 8.235 4.502 4.502 0 001 12.5z" />
+          </svg>
+          Layers
+        </button>
+
+        {/* Layers panel */}
+        {isLayersPanelOpen && (
+          <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3 flex flex-col gap-2.5 min-w-[180px]">
+            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+              Map Layers
+            </div>
+
+            <label className="flex items-center gap-2.5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={showHotspots}
+                onChange={toggleHotspots}
+                className="w-4 h-4 rounded border-gray-300 text-red-500 focus:ring-red-500 cursor-pointer"
+              />
+              <span className="flex items-center gap-1.5 text-xs text-gray-700 group-hover:text-gray-900">
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: '#DC2626' }}
+                />
+                Community Hotspots
+              </span>
+            </label>
+
+            <label className="flex items-center gap-2.5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={showDesigns}
+                onChange={toggleDesigns}
+                className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
+              />
+              <span className="flex items-center gap-1.5 text-xs text-gray-700 group-hover:text-gray-900">
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: '#2563EB' }}
+                />
+                Community Designs
+              </span>
+            </label>
+
+            <label className="flex items-center gap-2.5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={showHeatmap}
+                onChange={toggleHeatmap}
+                className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500 cursor-pointer"
+              />
+              <span className="flex items-center gap-1.5 text-xs text-gray-700 group-hover:text-gray-900">
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{
+                    background:
+                      'radial-gradient(circle, #FF6B00, #FF6B0040)',
+                  }}
+                />
+                Heatmap
+              </span>
+            </label>
+          </div>
+        )}
+      </div>
+
+      {/* Map attribution / zoom level indicator */}
+      {map && (
+        <div className="absolute bottom-4 left-4 z-10">
+          <div className="bg-black/60 text-white text-[10px] px-2 py-1 rounded font-mono">
+            {useMapStore.getState().center.lat.toFixed(4)},{' '}
+            {useMapStore.getState().center.lng.toFixed(4)} | z
+            {useMapStore.getState().zoom}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

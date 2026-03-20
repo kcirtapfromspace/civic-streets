@@ -1,0 +1,73 @@
+import { create } from 'zustand';
+
+export interface MapState {
+  center: { lat: number; lng: number };
+  zoom: number;
+  mapType: 'roadmap' | 'satellite' | 'hybrid';
+  is3D: boolean;
+  // Layers
+  showHotspots: boolean;
+  showDesigns: boolean;
+  showHeatmap: boolean;
+  // Selected location
+  selectedLocation: { lat: number; lng: number; address: string } | null;
+  // Context menu
+  contextMenuPosition: {
+    lat: number;
+    lng: number;
+    x: number;
+    y: number;
+  } | null;
+  // Actions
+  setCenter: (center: { lat: number; lng: number }) => void;
+  setZoom: (zoom: number) => void;
+  setMapType: (type: 'roadmap' | 'satellite' | 'hybrid') => void;
+  toggle3D: () => void;
+  toggleHotspots: () => void;
+  toggleDesigns: () => void;
+  toggleHeatmap: () => void;
+  setSelectedLocation: (location: MapState['selectedLocation']) => void;
+  openContextMenu: (position: MapState['contextMenuPosition']) => void;
+  closeContextMenu: () => void;
+}
+
+export const useMapStore = create<MapState>()((set) => ({
+  // Default center: US center
+  center: { lat: 39.8283, lng: -98.5795 },
+  zoom: 4,
+  mapType: 'roadmap',
+  is3D: false,
+
+  showHotspots: true,
+  showDesigns: true,
+  showHeatmap: false,
+
+  selectedLocation: null,
+  contextMenuPosition: null,
+
+  setCenter: (center) => set({ center }),
+  setZoom: (zoom) => set({ zoom }),
+  setMapType: (type) => set({ mapType: type }),
+
+  toggle3D: () =>
+    set((state) => {
+      if (state.is3D) {
+        // Exiting 3D: revert to roadmap
+        return { is3D: false, mapType: 'roadmap' };
+      }
+      // Entering 3D: switch to hybrid
+      return { is3D: true, mapType: 'hybrid' };
+    }),
+
+  toggleHotspots: () =>
+    set((state) => ({ showHotspots: !state.showHotspots })),
+  toggleDesigns: () =>
+    set((state) => ({ showDesigns: !state.showDesigns })),
+  toggleHeatmap: () =>
+    set((state) => ({ showHeatmap: !state.showHeatmap })),
+
+  setSelectedLocation: (location) => set({ selectedLocation: location }),
+
+  openContextMenu: (position) => set({ contextMenuPosition: position }),
+  closeContextMenu: () => set({ contextMenuPosition: null }),
+}));
