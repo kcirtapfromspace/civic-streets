@@ -1,4 +1,4 @@
-# Street Copilot: Team Review Synthesis
+# Curbwise: Team Review Synthesis
 
 > Five-perspective analysis conducted 2026-03-19.
 > Agents: Product Strategist, Devil's Advocate, Accessibility Advocate, Competition Analyst, Technical Architect.
@@ -157,7 +157,7 @@ The PRD covers "generate a concept" but ignores everything after:
                     NON-EXPERT USER
                          |
     UrbanistAI           |
-                         |      *** STREET COPILOT ***
+                         |      *** CURBWISE ***
     Transform            |         (target position)
     Your City            |
                          |
@@ -188,10 +188,10 @@ SIMPLE -------------------+------------------- COMPLEX
 
 ### Strategic Recommendations from Competitive Analysis
 
-1. **Lead with credibility, not beauty.** UrbanistAI and Transform Your City already make pretty pictures. Street Copilot's wedge is standards-cited, dimensioned, feasible output.
+1. **Lead with credibility, not beauty.** UrbanistAI and Transform Your City already make pretty pictures. Curbwise's wedge is standards-cited, dimensioned, feasible output.
 2. **Build Streetmix import immediately.** Position as "the next step after Streetmix" not a replacement.
 3. **Prioritize grant-application use case.** SS4A/RAISE grants require concept feasibility docs. No competitor serves this.
-4. **Pursue 3DStreet partnership** before they build upstream. Street Copilot does AI redesign, 3DStreet does 3D/AR visualization.
+4. **Pursue 3DStreet partnership** before they build upstream. Curbwise does AI redesign, 3DStreet does 3D/AR visualization.
 5. **Build the standards compliance engine as the moat.** This is what Maket did with zoning codes (1M+ users, $30/mo). Hard to replicate, durable advantage.
 
 ### Pricing Intelligence

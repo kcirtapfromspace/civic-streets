@@ -18,7 +18,7 @@ export function NavBar() {
       <Link to="/" className="flex items-center gap-2 mr-6 shrink-0">
         <StreetIcon className="w-6 h-6 text-blue-600" />
         <span className="font-semibold text-gray-900 text-sm hidden sm:inline">
-          Street Copilot
+          Curbwise
         </span>
       </Link>
 

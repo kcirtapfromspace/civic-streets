@@ -109,7 +109,7 @@ export function PinDesignFlow({ map, googleApi }: PinDesignFlowProps) {
 
     // TODO: Navigate to editor with location pre-filled
     // This will be wired up by the routing agent
-    console.info('[Street Copilot] Design a Street Here:', { lat, lng, address });
+    console.info('[Curbwise] Design a Street Here:', { lat, lng, address });
   }, [contextMenuPosition, reverseGeocode, setSelectedLocation, closeContextMenu]);
 
   const handleReportHotspot = useCallback(async () => {
@@ -122,7 +122,7 @@ export function PinDesignFlow({ map, googleApi }: PinDesignFlowProps) {
 
     // TODO: Open hotspot creation form
     // This will be wired up by the community agent
-    console.info('[Street Copilot] Report a Hotspot:', { lat, lng, address });
+    console.info('[Curbwise] Report a Hotspot:', { lat, lng, address });
   }, [contextMenuPosition, reverseGeocode, setSelectedLocation, closeContextMenu]);
 
   if (!contextMenuPosition) return null;

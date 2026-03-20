@@ -1,8 +1,8 @@
-# Street Copilot Phase 0: Parallel Build Plan
+# Curbwise Phase 0: Parallel Build Plan
 
 ## Context
 
-Street Copilot is an AI street-design copilot for civic users. The team review (5 agents: product, devil's advocate, accessibility, competition, technical) converged on a revised roadmap where **Phase 0 ships in 4-6 weeks** as "Streetmix with Standards" -- manual width input, template gallery, NACTO/PROWAG feasibility checking, SVG cross-sections, and professional PDF export. No photos, no CV, no AI, no map.
+Curbwise is an AI street-design copilot for civic users. The team review (5 agents: product, devil's advocate, accessibility, competition, technical) converged on a revised roadmap where **Phase 0 ships in 4-6 weeks** as "Streetmix with Standards" -- manual width input, template gallery, NACTO/PROWAG feasibility checking, SVG cross-sections, and professional PDF export. No photos, no CV, no AI, no map.
 
 The goal: validate that advocates and planners find standards-grounded street concept reports valuable enough to use and pay for.
 

@@ -25,7 +25,7 @@ export function ReportSuccess({
 
   const repNames = reps.map((r) => r.name).join(', ');
 
-  const shareText = `I just contacted my local representative about street safety at ${address} using Street Copilot.`;
+  const shareText = `I just contacted my local representative about street safety at ${address} using Curbwise.`;
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
 
   const handleCopyLink = async () => {

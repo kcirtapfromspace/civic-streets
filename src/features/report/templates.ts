@@ -71,7 +71,7 @@ export function generateReportBody(input: ReportTemplateInput): string {
         : 'community members';
 
     lines.push(
-      `This location has been identified as a ${categoryLabel} concern by ${voterPhrase} on Street Copilot, a civic engagement platform for street safety.`,
+      `This location has been identified as a ${categoryLabel} concern by ${voterPhrase} on Curbwise, a civic engagement platform for street safety.`,
     );
 
     if (input.hotspotDescription) {

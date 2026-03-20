@@ -87,7 +87,7 @@ function EditorPageInner() {
 
       {/* Visually hidden h1 for heading hierarchy */}
       <h1 className="sr-only">
-        Street Copilot — Editing {currentStreet.name}
+        Curbwise — Editing {currentStreet.name}
       </h1>
 
       {/* Toolbar */}

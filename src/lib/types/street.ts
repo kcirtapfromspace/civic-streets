@@ -1,4 +1,4 @@
-// Core data model for Street Copilot
+// Core data model for Curbwise
 // Frozen after Round 0 — all workstreams depend on these types
 
 export type ElementType =

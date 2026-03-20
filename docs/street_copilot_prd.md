@@ -1,8 +1,8 @@
-# Street Copilot -- Founder PRD
+# Curbwise -- Founder PRD
 
 ## 1. Product Overview
 
-Street Copilot is an AI-assisted street design tool that converts
+Curbwise is an AI-assisted street design tool that converts
 real-world inputs (photos + location) into feasible, standards-aware
 street redesign concepts for transit, walking, and biking.
 

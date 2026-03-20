@@ -8,7 +8,7 @@ import { CommunityPinsLayer } from './CommunityPinsLayer';
 
 /**
  * MapView — full-viewport Google Maps wrapper.
- * The primary navigation experience for Street Copilot.
+ * The primary navigation experience for Curbwise.
  *
  * If VITE_GOOGLE_MAPS_API_KEY is not set, shows a helpful setup message.
  */

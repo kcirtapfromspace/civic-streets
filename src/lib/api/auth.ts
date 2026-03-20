@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 
-const SESSION_KEY = 'street-copilot-session';
+const SESSION_KEY = 'curbwise-session';
 
 function getStoredToken(): string | null {
   try {
