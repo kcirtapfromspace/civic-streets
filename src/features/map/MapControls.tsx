@@ -124,7 +124,7 @@ export function MapControls({ map }: MapControlsProps) {
         style={{ maxWidth: '400px', width: 'calc(100% - 32px)' }}
         data-search-container
       >
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 flex items-center px-3 py-2 gap-2">
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] ring-1 ring-black/[0.04] flex items-center px-4 py-2.5 gap-2.5">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 20 20"
@@ -145,7 +145,7 @@ export function MapControls({ map }: MapControlsProps) {
             onChange={(e) => handleSearchChange(e.target.value)}
             onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
             placeholder="Search address or place..."
-            className="flex-1 bg-transparent text-sm text-gray-900 placeholder-gray-400 outline-none"
+            className="flex-1 bg-transparent text-[13px] font-medium text-gray-900 placeholder-gray-300 outline-none"
           />
 
           {searchText && (
@@ -172,12 +172,12 @@ export function MapControls({ map }: MapControlsProps) {
 
         {/* Autocomplete suggestions */}
         {showSuggestions && suggestions.length > 0 && (
-          <div className="bg-white rounded-lg shadow-lg border border-gray-200 py-1 max-h-60 overflow-y-auto">
+          <div className="bg-white/95 backdrop-blur-xl rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.04] py-1.5 max-h-60 overflow-y-auto animate-fade-up">
             {suggestions.map((result) => (
               <button
                 key={result.place_id}
                 onClick={() => handleSelectSuggestion(result)}
-                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors truncate"
+                className="w-full text-left px-4 py-2 text-[13px] text-gray-600 hover:bg-blue-50/60 hover:text-gray-900 transition-all duration-200 ease-spring truncate"
               >
                 {result.display_name}
               </button>
@@ -187,7 +187,7 @@ export function MapControls({ map }: MapControlsProps) {
 
         {/* Selected location info bar */}
         {selectedLocation && (
-          <div className="bg-white/95 backdrop-blur rounded-lg shadow-md border border-gray-200 px-3 py-2 flex flex-col gap-2">
+          <div className="bg-white/90 backdrop-blur-xl rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] ring-1 ring-black/[0.04] px-4 py-2.5 flex flex-col gap-2.5 animate-fade-up">
             <div className="flex items-center gap-2">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -234,7 +234,7 @@ export function MapControls({ map }: MapControlsProps) {
                     // Road geometry is optional
                   }
                 }}
-                className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-md transition-colors"
+                className="flex items-center gap-2 text-[12px] font-bold text-white bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-full transition-all duration-300 ease-spring active:scale-[0.98] shadow-[0_1px_3px_rgba(37,99,235,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
                   <path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z" />
@@ -250,7 +250,7 @@ export function MapControls({ map }: MapControlsProps) {
       {/* Control buttons — right side */}
       <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
         {/* View mode toggle */}
-        <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-1 flex flex-col gap-0.5">
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] ring-1 ring-black/[0.04] p-1.5 flex flex-col gap-0.5">
           {(['roadmap', 'satellite', 'earth'] as const).map((mode) => {
             const labels = {
               roadmap: 'Map',
@@ -279,10 +279,10 @@ export function MapControls({ map }: MapControlsProps) {
               <button
                 key={mode}
                 onClick={() => handleViewModeChange(mode)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[12px] font-semibold transition-all duration-300 ease-spring ${
                   currentViewMode === mode
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-600 hover:bg-gray-50'
+                    ? 'bg-blue-600 text-white shadow-[0_1px_3px_rgba(37,99,235,0.3)]'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100/60'
                 }`}
               >
                 {icons[mode]}
@@ -295,10 +295,10 @@ export function MapControls({ map }: MapControlsProps) {
         {/* Layers toggle button */}
         <button
           onClick={() => setIsLayersPanelOpen(!isLayersPanelOpen)}
-          className={`bg-white rounded-lg shadow-lg border border-gray-200 p-2.5 flex items-center gap-2 text-xs font-medium transition-colors ${
+          className={`bg-white/90 backdrop-blur-xl rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] ring-1 ring-black/[0.04] p-2.5 flex items-center gap-2 text-[12px] font-semibold transition-all duration-300 ease-spring ${
             isLayersPanelOpen
-              ? 'text-blue-700 bg-blue-50'
-              : 'text-gray-600 hover:bg-gray-50'
+              ? 'text-blue-600 bg-blue-50/80'
+              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50/80'
           }`}
         >
           <svg
@@ -314,8 +314,8 @@ export function MapControls({ map }: MapControlsProps) {
 
         {/* Layers panel */}
         {isLayersPanelOpen && (
-          <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3 flex flex-col gap-2.5 min-w-[180px]">
-            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.04] p-3.5 flex flex-col gap-3 min-w-[180px] animate-fade-up">
+            <div className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.15em]">
               Map Layers
             </div>
 

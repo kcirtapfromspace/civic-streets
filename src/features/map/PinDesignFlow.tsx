@@ -114,7 +114,7 @@ export function PinDesignFlow({ map }: PinDesignFlowProps) {
         top: contextMenuPosition.y,
       }}
     >
-      <div className="bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[220px] animate-in fade-in-0 zoom-in-95">
+      <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.1)] ring-1 ring-black/[0.06] py-2 min-w-[230px] animate-scale-in">
         <button
           onClick={handleDesignHere}
           className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors flex items-center gap-3 group"
