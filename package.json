@@ -11,9 +11,12 @@
         "test:watch": "vitest"
     },
     "dependencies": {
+        "@googlemaps/js-api-loader": "^2.0.2",
         "@react-pdf/renderer": "^4.3.2",
+        "convex": "^1.34.0",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
+        "react-router-dom": "^7.13.1",
         "zundo": "^2.3.0",
         "zustand": "^5.0.12"
     },
