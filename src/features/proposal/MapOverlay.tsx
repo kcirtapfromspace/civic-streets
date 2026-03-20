@@ -4,6 +4,7 @@ import { useProposalStore } from '@/stores/proposal-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { ELEMENT_COLORS } from '@/lib/constants/colors';
 import { offsetPolyline, computeElementOffsets } from './utils/offset-polyline';
+import { useStyleReload } from '@/features/map/useStyleReload';
 import type { CrossSectionElement, ElementType } from '@/lib/types';
 
 interface MapOverlayProps {
@@ -27,6 +28,7 @@ export function MapOverlay({ map }: MapOverlayProps) {
   const afterStreet = useProposalStore((s) => s.afterStreet);
   const showBeforeOnMap = useProposalStore((s) => s.showBeforeOnMap);
   const step = useProposalStore((s) => s.step);
+  const styleVersion = useStyleReload(map);
 
   const layerIdsRef = useRef<string[]>([]);
 
@@ -181,7 +183,7 @@ export function MapOverlay({ map }: MapOverlayProps) {
       cleanupSource(map, ELEMENTS_SOURCE);
       layerIdsRef.current = [];
     };
-  }, [map, roadPath, beforeStreet, afterStreet, showBeforeOnMap, step, mode]);
+  }, [map, roadPath, beforeStreet, afterStreet, showBeforeOnMap, step, mode, styleVersion]);
 
   return null;
 }

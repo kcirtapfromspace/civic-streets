@@ -7,6 +7,7 @@ import {
   SEVERITY_LABELS,
 } from '@/lib/types';
 import { useMapStore } from './map-store';
+import { useStyleReload } from './useStyleReload';
 import { MOCK_HOTSPOTS, MOCK_DESIGNS } from './mock-data';
 
 interface CommunityPinsLayerProps {
@@ -196,6 +197,7 @@ export function CommunityPinsLayer({ map }: CommunityPinsLayerProps) {
   const showHotspots = useMapStore((s) => s.showHotspots);
   const showDesigns = useMapStore((s) => s.showDesigns);
   const showHeatmap = useMapStore((s) => s.showHeatmap);
+  const styleVersion = useStyleReload(map);
 
   const hotspotMarkersRef = useRef<maplibregl.Marker[]>([]);
   const designMarkersRef = useRef<maplibregl.Marker[]>([]);
@@ -339,7 +341,7 @@ export function CommunityPinsLayer({ map }: CommunityPinsLayerProps) {
     }
 
     return cleanup;
-  }, [map, showHeatmap]);
+  }, [map, showHeatmap, styleVersion]);
 
   return null;
 }

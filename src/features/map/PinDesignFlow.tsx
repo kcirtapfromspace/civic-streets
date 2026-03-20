@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react';
 import type maplibregl from 'maplibre-gl';
 import { useMapStore } from './map-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
+import { useDrawingStore } from '@/stores/drawing-store';
 
 interface PinDesignFlowProps {
   map: maplibregl.Map | null;
@@ -23,6 +24,8 @@ export function PinDesignFlow({ map }: PinDesignFlowProps) {
     if (!map) return;
 
     const onClick = (e: maplibregl.MapMouseEvent) => {
+      // Don't open context menu when drawing tools are active
+      if (useDrawingStore.getState().activeMode !== 'cursor') return;
       if (useMapStore.getState().lockedToLocation) return;
 
       const { lat, lng } = e.lngLat;

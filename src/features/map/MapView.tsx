@@ -7,6 +7,10 @@ import { PinDesignFlow } from './PinDesignFlow';
 import { CommunityPinsLayer } from './CommunityPinsLayer';
 import { EditorHUD } from './EditorHUD';
 import { MapOverlay as ProposalMapOverlay } from '@/features/proposal/MapOverlay';
+import { DrawingLayer } from '@/features/drawing/DrawingLayer';
+import { DrawingToolbar } from '@/features/drawing/DrawingToolbar';
+import { DrawingActionCard } from '@/features/drawing/DrawingActionCard';
+import { CrashDataLayer } from '@/features/safety-data/CrashDataLayer';
 
 /**
  * MapView — full-viewport MapLibre GL wrapper.
@@ -121,6 +125,10 @@ export function MapView() {
           <PinDesignFlow map={map} />
           <CommunityPinsLayer map={map} />
           <ProposalMapOverlay map={map} />
+          <DrawingLayer map={map} />
+          <DrawingToolbar />
+          <DrawingActionCard />
+          <CrashDataLayer map={map} />
           <EditorHUD />
         </>
       )}

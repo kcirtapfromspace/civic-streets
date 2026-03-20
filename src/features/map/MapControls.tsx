@@ -4,6 +4,8 @@ import { useMapStore } from './map-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useProposalStore } from '@/stores/proposal-store';
 import { fetchRoadPath } from '@/features/proposal/utils/road-geometry';
+import { useSafetyDataStore } from '@/features/safety-data/safety-data-store';
+import { CrashFilterPanel } from '@/features/safety-data/CrashFilterPanel';
 
 interface MapControlsProps {
   map: maplibregl.Map | null;
@@ -369,6 +371,33 @@ export function MapControls({ map }: MapControlsProps) {
                 Heatmap
               </span>
             </label>
+
+            <div className="border-t border-gray-100 pt-2 mt-1">
+              <div className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.15em] mb-2">
+                Safety Data
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2.5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={useSafetyDataStore.getState().enabled}
+                onChange={() => {
+                  const store = useSafetyDataStore.getState();
+                  store.setEnabled(!store.enabled);
+                }}
+                className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+              />
+              <span className="flex items-center gap-1.5 text-xs text-gray-700 group-hover:text-gray-900">
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{
+                    background: 'radial-gradient(circle, #DC2626, #DC262640)',
+                  }}
+                />
+                Crash Heatmap
+              </span>
+            </label>
           </div>
         )}
       </div>
@@ -383,6 +412,8 @@ export function MapControls({ map }: MapControlsProps) {
           </div>
         </div>
       )}
+
+      <CrashFilterPanel />
     </>
   );
 }
