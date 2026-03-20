@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 
-// Demo screenshots captured from Humboldt Park, Chicago flow
-const HERO_IMAGE = '/demo-screenshots/08-satellite-with-proposal.png';
+// Demo video + screenshots captured from Humboldt Park, Chicago flow
+const HERO_VIDEO = '/demo-videos/curbwise-demo.webm';
+const HERO_POSTER = '/demo-screenshots/08-satellite-with-proposal.png';
 const SCREENSHOT_CRASH = '/demo-screenshots/03-crash-heatmap-layers.png';
 const SCREENSHOT_PROPOSAL = '/demo-screenshots/06-proposal-review.png';
 const SCREENSHOT_INTERSECTION = '/demo-screenshots/12-intersection-review.png';
@@ -39,13 +40,18 @@ export default function LandingPage() {
     <div className="min-h-screen bg-white">
       {/* ── Hero ────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden">
-        {/* Background image with overlay */}
+        {/* Background video with overlay */}
         <div className="absolute inset-0">
-          <img
-            src={HERO_IMAGE}
-            alt="Curbwise satellite view of Humboldt Park, Chicago with crash heatmap"
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            poster={HERO_POSTER}
             className="w-full h-full object-cover"
-          />
+          >
+            <source src={HERO_VIDEO} type="video/webm" />
+          </video>
           <div className="absolute inset-0 bg-gradient-to-b from-gray-900/70 via-gray-900/50 to-gray-900/80" />
         </div>
 
