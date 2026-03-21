@@ -280,9 +280,16 @@ export function HotspotFeed({
         </div>
 
         {/* Results count */}
-        <p className="text-xs text-gray-400 mb-3">
-          {filtered.length} hotspot{filtered.length !== 1 ? 's' : ''} found
-        </p>
+        {isLoading ? (
+          <div className="flex items-center gap-2 py-4">
+            <div className="w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+            <span className="text-xs text-gray-400">Loading hotspots...</span>
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400 mb-3">
+            {filtered.length} hotspot{filtered.length !== 1 ? 's' : ''} found
+          </p>
+        )}
 
         {/* Card list */}
         <div className="space-y-3">
@@ -296,7 +303,7 @@ export function HotspotFeed({
         </div>
 
         {/* Empty state */}
-        {filtered.length === 0 && (
+        {!isLoading && filtered.length === 0 && (
           <div className="text-center py-12">
             <p className="text-sm text-gray-400">
               No hotspots match your filters.

@@ -79,11 +79,17 @@ interface HotspotFilters {
 // ══════════════════════════════════════════════════════════════════════════
 
 function useHotspotsListConvex(filters?: HotspotFilters) {
-  const queryArgs: Record<string, unknown> = {
-    paginationOpts: { numItems: 200, cursor: null },
-  };
-  if (filters?.category) queryArgs.category = filters.category;
-  if (filters?.status) queryArgs.status = filters.status;
+  const category = filters?.category;
+  const status = filters?.status;
+
+  const queryArgs = useMemo(() => {
+    const args: Record<string, unknown> = {
+      paginationOpts: { numItems: 200, cursor: null },
+    };
+    if (category) args.category = category;
+    if (status) args.status = status;
+    return args;
+  }, [category, status]);
 
   const convexResult = useQuery(api.hotspots.list, queryArgs as any);
 
