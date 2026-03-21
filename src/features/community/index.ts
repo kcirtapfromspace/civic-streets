@@ -3,6 +3,7 @@ export { IssueReportForm } from './IssueReportForm';
 export type { IssueReportFormData } from './IssueReportForm';
 export { HotspotDetail } from './HotspotDetail';
 export { HotspotFeed } from './HotspotFeed';
+export { HotspotCardList } from './HotspotCardList';
 export { CommentThread } from './CommentThread';
 export { VoteButton } from './VoteButton';
 export { DesignCard } from './DesignCard';

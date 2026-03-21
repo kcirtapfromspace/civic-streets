@@ -19,6 +19,9 @@ export interface CommunityState {
   // Active hotspot/design being viewed
   activeHotspotId: string | null;
   activeDesignId: string | null;
+  // Cross-highlighting state (card ↔ map pin)
+  hoveredHotspotId: string | null;
+  selectedHotspotId: string | null;
   // Save design modal
   isSaveDesignOpen: boolean;
   saveDesignData: SaveDesignData | null;
@@ -27,6 +30,8 @@ export interface CommunityState {
   setSearchQuery: (query: string) => void;
   setActiveHotspot: (id: string | null) => void;
   setActiveDesign: (id: string | null) => void;
+  setHoveredHotspot: (id: string | null) => void;
+  setSelectedHotspot: (id: string | null) => void;
   openSaveDesign: (data?: SaveDesignData) => void;
   closeSaveDesign: () => void;
 }
@@ -36,6 +41,8 @@ export const useCommunityStore = create<CommunityState>()((set) => ({
   searchQuery: '',
   activeHotspotId: null,
   activeDesignId: null,
+  hoveredHotspotId: null,
+  selectedHotspotId: null,
   isSaveDesignOpen: false,
   saveDesignData: null,
 
@@ -47,6 +54,10 @@ export const useCommunityStore = create<CommunityState>()((set) => ({
   setActiveHotspot: (id) => set({ activeHotspotId: id }),
 
   setActiveDesign: (id) => set({ activeDesignId: id }),
+
+  setHoveredHotspot: (id) => set({ hoveredHotspotId: id }),
+
+  setSelectedHotspot: (id) => set({ selectedHotspotId: id }),
 
   openSaveDesign: (data) =>
     set({ isSaveDesignOpen: true, saveDesignData: data ?? null }),

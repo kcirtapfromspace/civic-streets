@@ -1,5 +1,5 @@
-import { useMemo, useCallback } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useMemo, useCallback, useState, useRef, useEffect } from 'react';
+import { useQuery, useMutation, usePaginatedQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { convexAvailable } from './convex-provider';
 import { MOCK_HOTSPOTS as COMMUNITY_MOCK_HOTSPOTS } from '@/features/community/mock-data';
@@ -321,6 +321,99 @@ function useVoteOnHotspotMock() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+// PAGINATED HOOK IMPLEMENTATIONS
+// ══════════════════════════════════════════════════════════════════════════
+
+const PAGE_SIZE = 20;
+
+function useHotspotsListPaginatedConvex(filters?: HotspotFilters) {
+  const category = filters?.category;
+  const status = filters?.status;
+
+  const queryArgs = useMemo(() => {
+    const args: Record<string, unknown> = {};
+    if (category) args.category = category;
+    if (status) args.status = status;
+    return args;
+  }, [category, status]);
+
+  const { results, status: paginationStatus, loadMore } = usePaginatedQuery(
+    api.hotspots.list,
+    queryArgs as any,
+    { initialNumItems: PAGE_SIZE },
+  );
+
+  const hotspots = useMemo(() => {
+    let items = results.map(convexDocToMockHotspot);
+
+    switch (filters?.sort) {
+      case 'newest':
+        items.sort((a, b) => b.createdAt - a.createdAt);
+        break;
+      case 'nearest':
+        items.sort((a, b) => b.createdAt - a.createdAt);
+        break;
+      case 'votes':
+      default:
+        items.sort((a, b) => b.upvotes - a.upvotes);
+        break;
+    }
+    return items;
+  }, [results, filters?.sort]);
+
+  return {
+    hotspots,
+    isLoading: paginationStatus === 'LoadingFirstPage',
+    hasMore: paginationStatus === 'CanLoadMore',
+    loadMore: () => loadMore(PAGE_SIZE),
+  };
+}
+
+function useHotspotsListPaginatedMock(filters?: HotspotFilters) {
+  const allHotspots = useMergedMockHotspots();
+  const [page, setPage] = useState(1);
+
+  // Reset page when filters change
+  const filterKey = `${filters?.category}-${filters?.status}-${filters?.sort}`;
+  const prevFilterKey = useRef(filterKey);
+  useEffect(() => {
+    if (prevFilterKey.current !== filterKey) {
+      setPage(1);
+      prevFilterKey.current = filterKey;
+    }
+  }, [filterKey]);
+
+  const filtered = useMemo(() => {
+    let items = [...allHotspots];
+    if (filters?.category) items = items.filter((h) => h.category === filters.category);
+    if (filters?.status) items = items.filter((h) => h.status === filters.status);
+
+    switch (filters?.sort) {
+      case 'newest':
+        items.sort((a, b) => b.createdAt - a.createdAt);
+        break;
+      case 'nearest':
+        items.sort((a, b) => b.createdAt - a.createdAt);
+        break;
+      case 'votes':
+      default:
+        items.sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
+        break;
+    }
+    return items;
+  }, [allHotspots, filters?.category, filters?.status, filters?.sort]);
+
+  const paginated = useMemo(() => filtered.slice(0, page * PAGE_SIZE), [filtered, page]);
+
+  return {
+    hotspots: paginated,
+    isLoading: false,
+    hasMore: paginated.length < filtered.length,
+    loadMore: () => setPage((p) => p + 1),
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 // EXPORTS — select implementation based on convexAvailable
 // ══════════════════════════════════════════════════════════════════════════
 
@@ -329,3 +422,4 @@ export const useHotspotById = convexAvailable ? useHotspotByIdConvex : useHotspo
 export const useHotspotsByBounds = convexAvailable ? useHotspotsByBoundsConvex : useHotspotsByBoundsMock;
 export const useCreateHotspot = convexAvailable ? useCreateHotspotConvex : useCreateHotspotMock;
 export const useVoteOnHotspot = convexAvailable ? useVoteOnHotspotConvex : useVoteOnHotspotMock;
+export const useHotspotsListPaginated = convexAvailable ? useHotspotsListPaginatedConvex : useHotspotsListPaginatedMock;
