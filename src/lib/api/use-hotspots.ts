@@ -141,10 +141,9 @@ function useHotspotByIdConvex(id: string | undefined) {
 function useHotspotsByBoundsConvex(bounds?: {
   minLat: number; maxLat: number; minLng: number; maxLng: number;
 }) {
-  const convexDocs = useQuery(
-    api.hotspots.getByBounds,
-    bounds ? bounds : 'skip',
-  );
+  // When no bounds specified, use a world-encompassing bounds to fetch all
+  const queryBounds = bounds ?? { minLat: -90, maxLat: 90, minLng: -180, maxLng: 180 };
+  const convexDocs = useQuery(api.hotspots.getByBounds, queryBounds);
 
   const pins = useMemo(() => {
     const convexPins: HotspotPin[] = convexDocs

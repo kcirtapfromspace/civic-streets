@@ -150,20 +150,24 @@ export function MapView() {
               initialAddress={reportFormLocation.address}
               initialLat={reportFormLocation.lat}
               initialLng={reportFormLocation.lng}
-              onSubmit={(data) => {
-                createHotspot({
-                  title: data.title,
-                  description: data.description,
-                  category: issueGroupToLegacyCategory(data.group),
-                  severity: data.severity,
-                  lat: data.location.lat,
-                  lng: data.location.lng,
-                  address: data.location.address,
-                  photoUrls: data.photoDataUrls,
-                  issueGroup: data.group,
-                  issueType: data.issueType,
-                  isBlocking: data.isBlocking,
-                });
+              onSubmit={async (data) => {
+                try {
+                  await createHotspot({
+                    title: data.title,
+                    description: data.description,
+                    category: issueGroupToLegacyCategory(data.group),
+                    severity: data.severity,
+                    lat: data.location.lat,
+                    lng: data.location.lng,
+                    address: data.location.address,
+                    photoUrls: data.photoDataUrls,
+                    issueGroup: data.group,
+                    issueType: data.issueType,
+                    isBlocking: data.isBlocking,
+                  });
+                } catch (err) {
+                  console.error('[MapView] Failed to create hotspot:', err);
+                }
                 closeReportForm();
               }}
               onCancel={closeReportForm}

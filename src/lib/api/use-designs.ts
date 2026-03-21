@@ -21,10 +21,8 @@ function convexDesignToPin(doc: Record<string, any>): DesignPin {
 function useDesignsByBoundsConvex(bounds?: {
   minLat: number; maxLat: number; minLng: number; maxLng: number;
 }) {
-  const convexDocs = useQuery(
-    api.designs.getByBounds,
-    bounds ? bounds : 'skip',
-  );
+  const queryBounds = bounds ?? { minLat: -90, maxLat: 90, minLng: -180, maxLng: 180 };
+  const convexDocs = useQuery(api.designs.getByBounds, queryBounds);
 
   const pins = useMemo(() => {
     if (!convexDocs) return [];

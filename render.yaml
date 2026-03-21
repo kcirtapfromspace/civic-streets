@@ -2,7 +2,7 @@ services:
   - type: web
     runtime: static
     name: curbwise
-    buildCommand: npm install --legacy-peer-deps && npm run build
+    buildCommand: npm install --legacy-peer-deps && npm run build && cp dist/index.html dist/200.html
     staticPublishPath: ./dist
     headers:
       - path: /assets/*
