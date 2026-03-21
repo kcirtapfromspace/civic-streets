@@ -12,17 +12,24 @@ const MAX_AREAS = 10;
 
 // Simple external store for localStorage so React re-renders on changes
 let listeners: Array<() => void> = [];
-function emitChange() {
-  for (const l of listeners) l();
-}
+let cachedAreas: SavedArea[] = readAreas();
 
-function getAreas(): SavedArea[] {
+function readAreas(): SavedArea[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
+}
+
+function emitChange() {
+  cachedAreas = readAreas();
+  for (const l of listeners) l();
+}
+
+function getAreas(): SavedArea[] {
+  return cachedAreas;
 }
 
 function setAreas(areas: SavedArea[]) {
@@ -38,7 +45,7 @@ function subscribe(listener: () => void) {
 }
 
 function getSnapshot(): SavedArea[] {
-  return getAreas();
+  return cachedAreas;
 }
 
 interface SavedAreasProps {
