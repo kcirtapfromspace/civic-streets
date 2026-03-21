@@ -368,16 +368,16 @@ export function HotspotExplorer({ onSelectHotspot }: HotspotExplorerProps) {
 
   return (
     <>
-      {/* Desktop: split-panel grid */}
-      <div className="hidden md:grid md:grid-cols-[45fr_55fr] h-full">
-        {/* Left panel — scrollable card list */}
-        <div className="overflow-y-auto bg-gray-50 border-r border-gray-200">
-          {leftPanel}
-        </div>
-
-        {/* Right panel — sticky map */}
+      {/* Desktop: split-panel grid — map left, cards right */}
+      <div className="hidden md:grid md:grid-cols-[55fr_45fr] h-full">
+        {/* Left panel — sticky map */}
         <div className="sticky top-0 h-screen">
           {mapContent}
+        </div>
+
+        {/* Right panel — scrollable card list */}
+        <div className="overflow-y-auto bg-gray-50 border-l border-gray-200">
+          {leftPanel}
         </div>
       </div>
 
