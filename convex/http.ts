@@ -40,7 +40,11 @@ http.route({
     let event: Stripe.Event;
     try {
       const stripe = new Stripe(getStripeSecretKey());
-      event = stripe.webhooks.constructEvent(body, signature, getStripeWebhookSecret());
+      event = await stripe.webhooks.constructEventAsync(
+        body,
+        signature,
+        getStripeWebhookSecret(),
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Invalid Stripe webhook';
       return new Response(message, { status: 400 });

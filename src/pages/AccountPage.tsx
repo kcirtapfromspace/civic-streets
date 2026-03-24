@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Button, Badge } from '@/components/ui';
 import { useBilling } from '@/lib/api/billing';
 import { useToast } from '@/components/ui/Toast';
+import { hasActiveBillingStatus } from '@/lib/billing/access';
 import { BILLING_PLANS, getPlanByKey } from '@/lib/billing/plans';
 
 function formatDate(value: string | null): string {
@@ -27,14 +28,15 @@ export default function AccountPage() {
   } = useBilling();
 
   const currentPlan = getPlanByKey(billingState.planKey);
-  const isPaidPlan =
-    billingState.planKey === 'pro' ||
-    billingState.planKey === 'team' ||
-    billingState.planKey === 'enterprise';
+  const hasLivePaidPlan =
+    billingState.planKey === 'enterprise' ||
+    ((billingState.planKey === 'pro' || billingState.planKey === 'team') &&
+      hasActiveBillingStatus(billingState.status));
   const currentPlanName =
     billingState.planKey === 'enterprise'
       ? 'Enterprise'
       : currentPlan?.name ?? 'Free';
+  const billingStatusCopy = getBillingStatusCopy(billingState.status);
 
   const handleManageBilling = async () => {
     try {
@@ -77,7 +79,7 @@ export default function AccountPage() {
             <Link to="/pricing">
               <Button variant="secondary">View Pricing</Button>
             </Link>
-            {isPaidPlan ? (
+            {billingState.customerPortalEnabled ? (
               <Button variant="primary" onClick={() => void handleManageBilling()}>
                 Manage Billing
               </Button>
@@ -100,12 +102,10 @@ export default function AccountPage() {
                   {billingStateLoading ? 'Loading...' : currentPlanName}
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  {billingState.status === 'active'
-                    ? 'Subscription active'
-                    : 'No active paid subscription yet'}
+                  {billingStatusCopy}
                 </p>
               </div>
-              <Badge variant={isPaidPlan ? 'success' : 'default'}>
+              <Badge variant={hasLivePaidPlan ? 'success' : 'default'}>
                 {billingState.status}
               </Badge>
             </div>
@@ -211,4 +211,20 @@ export default function AccountPage() {
       </div>
     </div>
   );
+}
+
+function getBillingStatusCopy(status: ReturnType<typeof useBilling>['billingState']['status']): string {
+  if (status === 'active' || status === 'trialing') {
+    return 'Subscription active';
+  }
+  if (status === 'pending') {
+    return 'Checkout started. Waiting for Stripe to confirm the subscription.';
+  }
+  if (status === 'past_due') {
+    return 'Payment issue detected. Update billing details in Stripe.';
+  }
+  if (status === 'canceled') {
+    return 'Subscription canceled';
+  }
+  return 'No active paid subscription yet';
 }

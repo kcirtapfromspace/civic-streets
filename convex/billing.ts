@@ -90,6 +90,10 @@ function normalizeBillingStatus(status: string | undefined): BillingStatus {
   return 'inactive';
 }
 
+function isActiveBillingStatus(status: BillingStatus): boolean {
+  return status === 'active' || status === 'trialing';
+}
+
 function planKeyFromLookupKey(lookupKey?: string): BillingPlanKey {
   if (!lookupKey) return 'free';
   return PLAN_KEY_BY_PRICE_LOOKUP_KEY.get(lookupKey) ?? 'free';
@@ -419,19 +423,24 @@ export const getBillingState = query({
     }
 
     const subscription = await findBillingSubscriptionByAccount(ctx, account._id);
-    const mergedEntitlements = mergeEntitlements(
-      getDefaultEntitlements(normalizePlanKey(account.planKey)),
-      account.entitlementSummary,
-      subscription?.entitlementSummary,
-    );
     const billingStatus = normalizeBillingStatus(
       subscription?.billingStatus ?? account.billingStatus,
     );
+    const effectivePlanKey = isActiveBillingStatus(billingStatus)
+      ? normalizePlanKey(subscription?.planKey ?? account.planKey)
+      : 'free';
+    const mergedEntitlements = isActiveBillingStatus(billingStatus)
+      ? mergeEntitlements(
+          getDefaultEntitlements(effectivePlanKey),
+          account.entitlementSummary,
+          subscription?.entitlementSummary,
+        )
+      : getDefaultEntitlements('free');
 
     return {
       userId: user._id,
       billingAccountId: account._id,
-      planKey: normalizePlanKey(account.planKey),
+      planKey: effectivePlanKey,
       billingStatus,
       stripeCustomerId: account.stripeCustomerId ?? null,
       billingEmail: account.billingEmail ?? user.email ?? null,
@@ -439,7 +448,7 @@ export const getBillingState = query({
       cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? account.cancelAtPeriodEnd ?? false,
       entitlementSummary: mergedEntitlements,
       canManageBilling: Boolean(account.stripeCustomerId),
-      isActive: billingStatus === 'active' || billingStatus === 'trialing',
+      isActive: isActiveBillingStatus(billingStatus),
       subscription: subscription
         ? {
             billingSubscriptionId: subscription._id,
@@ -584,7 +593,6 @@ export const handleStripeEvent = internalMutation({
         const metadata = safeObject(object?.metadata);
         const billingAccountId = safeString(metadata?.billingAccountId);
         const ownerUserId = safeString(metadata?.userId);
-        const planKey = normalizePlanKey(safeString(metadata?.planKey));
         const stripeCustomerId =
           safeString(object?.customer) ??
           safeString(object?.customer_id) ??
@@ -600,7 +608,6 @@ export const handleStripeEvent = internalMutation({
           ownerUserId: ownerUserId as Id<'users'> | undefined,
           stripeCustomerId,
           billingEmail,
-          planKey,
           billingStatus: 'pending',
           lastCheckoutSessionId: safeString(object?.id),
           currentPeriodEnd,

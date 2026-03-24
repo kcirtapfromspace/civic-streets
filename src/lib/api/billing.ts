@@ -135,6 +135,8 @@ function normalizeBillingState(value: unknown): BillingState {
         : 'free',
     interval,
     status:
+      rawStatus === 'inactive' ||
+      rawStatus === 'pending' ||
       rawStatus === 'trialing' ||
       rawStatus === 'active' ||
       rawStatus === 'past_due' ||

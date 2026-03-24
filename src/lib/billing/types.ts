@@ -3,6 +3,8 @@ export type BillingInterval = 'monthly' | 'annual';
 
 export type BillingStatus =
   | 'none'
+  | 'inactive'
+  | 'pending'
   | 'trialing'
   | 'active'
   | 'past_due'

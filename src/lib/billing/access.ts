@@ -70,6 +70,10 @@ function hasEntitlement(
   return entitlements[entitlement] === true;
 }
 
+export function hasActiveBillingStatus(status: BillingState['status']): boolean {
+  return status === 'active' || status === 'trialing';
+}
+
 export function getPricingHref(feature?: BillingFeatureKey): string {
   if (!feature) return '/pricing';
   return `/pricing?feature=${encodeURIComponent(feature)}`;
@@ -82,6 +86,9 @@ export function canAccessBillingFeature(
   const requirement = BILLING_ACCESS_REQUIREMENTS[feature];
   if (billingState.planKey === 'enterprise') return true;
   if (!hasPlanAccess(billingState.planKey, requirement.minimumPlan)) {
+    return false;
+  }
+  if (!hasActiveBillingStatus(billingState.status)) {
     return false;
   }
   return hasEntitlement(billingState.entitlements, requirement.entitlement);

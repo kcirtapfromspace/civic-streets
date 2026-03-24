@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui';
 import { useBilling } from '@/lib/api/billing';
+import { hasActiveBillingStatus } from '@/lib/billing/access';
 
 export default function BillingSuccessPage() {
   const navigate = useNavigate();
@@ -17,14 +18,17 @@ export default function BillingSuccessPage() {
 
   useEffect(() => {
     if (billingStateLoading) return;
-    if (billingState.planKey !== 'free') {
+    if (
+      billingState.planKey !== 'free' &&
+      hasActiveBillingStatus(billingState.status)
+    ) {
       const timer = window.setTimeout(() => {
         navigate('/account');
       }, 1200);
       return () => window.clearTimeout(timer);
     }
     return undefined;
-  }, [billingStateLoading, billingState.planKey, navigate]);
+  }, [billingStateLoading, billingState.planKey, billingState.status, navigate]);
 
   return (
     <div className="flex h-full items-center justify-center bg-slate-50 px-4">
@@ -33,12 +37,12 @@ export default function BillingSuccessPage() {
           ✓
         </div>
         <h1 className="text-2xl font-semibold text-slate-950">
-          Payment received
+          Subscription processing
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          We are syncing your subscription and entitlements now. This page
-          will automatically forward you to your account once Stripe webhooks
-          finish updating Convex.
+          Stripe checkout completed. We are waiting for the subscription and
+          entitlement webhooks to finish syncing into Convex before unlocking
+          paid features.
         </p>
 
         <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-left">
@@ -46,7 +50,9 @@ export default function BillingSuccessPage() {
             Current status
           </p>
           <p className="mt-2 text-sm font-medium text-slate-900">
-            {billingStateLoading ? 'Refreshing billing state...' : billingState.planKey}
+            {billingStateLoading
+              ? 'Refreshing billing state...'
+              : `${billingState.status} · ${billingState.planKey}`}
           </p>
         </div>
 

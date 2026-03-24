@@ -157,7 +157,6 @@ export const createCheckoutSession = action({
         billingAccountId: billingAccount._id,
         stripeCustomerId,
         billingEmail: user.email ?? undefined,
-        planKey: args.planKey,
         billingStatus: 'pending',
         lastCheckoutSessionId: checkoutSession.id,
       },
