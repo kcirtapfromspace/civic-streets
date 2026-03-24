@@ -7,6 +7,9 @@ import { Badge, Button } from '@/components/ui';
 interface TemplateCardProps {
   template: TemplateDefinition;
   onApply: (template: TemplateDefinition) => void;
+  locked?: boolean;
+  lockLabel?: string;
+  onLockedClick?: (template: TemplateDefinition) => void;
 }
 
 const CATEGORY_BADGE: Record<
@@ -20,7 +23,13 @@ const CATEGORY_BADGE: Record<
   'shared-street': { label: 'Shared Street', variant: 'default' },
 };
 
-export function TemplateCard({ template, onApply }: TemplateCardProps) {
+export function TemplateCard({
+  template,
+  onApply,
+  locked = false,
+  lockLabel = 'Unlock with Pro',
+  onLockedClick,
+}: TemplateCardProps) {
   const cat = CATEGORY_BADGE[template.category];
   const rowRange = template.applicableROWWidths;
   const minROW = Math.min(...rowRange);
@@ -36,7 +45,10 @@ export function TemplateCard({ template, onApply }: TemplateCardProps) {
         <h3 className="text-sm font-semibold text-gray-800 leading-tight">
           {template.name}
         </h3>
-        <Badge variant={cat.variant}>{cat.label}</Badge>
+        <div className="flex flex-col items-end gap-1">
+          <Badge variant={cat.variant}>{cat.label}</Badge>
+          {locked && <Badge variant="warning">Pro</Badge>}
+        </div>
       </div>
 
       <p className="text-xs text-gray-600 leading-relaxed mb-3 flex-1 line-clamp-3">
@@ -57,11 +69,17 @@ export function TemplateCard({ template, onApply }: TemplateCardProps) {
       <div className="flex items-center justify-between mt-auto">
         <span className="text-xs text-gray-500">ROW: {rowLabel}</span>
         <Button
-          variant="primary"
-          onClick={() => onApply(template)}
-          aria-label={`Apply ${template.name} template`}
+          variant={locked ? 'secondary' : 'primary'}
+          onClick={() =>
+            locked ? onLockedClick?.(template) : onApply(template)
+          }
+          aria-label={
+            locked
+              ? `${template.name} requires Pro`
+              : `Apply ${template.name} template`
+          }
         >
-          Apply
+          {locked ? lockLabel : 'Apply'}
         </Button>
       </div>
     </div>

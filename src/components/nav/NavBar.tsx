@@ -6,6 +6,7 @@ const navLinks = [
   { to: '/map', label: 'Map', icon: MapPinIcon },
   { to: '/editor', label: 'Editor', icon: PencilRulerIcon },
   { to: '/hotspots', label: 'Hotspots', icon: FlameIcon },
+  { to: '/pricing', label: 'Pricing', icon: TagIcon },
 ] as const;
 
 export function NavBar() {
@@ -59,14 +60,14 @@ export function NavBar() {
           <BellIcon className="w-[18px] h-[18px]" />
         </button>
 
-        {/* Sign In button */}
-        <button
-          onClick={() => showToast('Sign-in coming soon!', 'info')}
-          className="hidden sm:inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[13px] font-semibold text-gray-600 hover:text-gray-900 ring-1 ring-gray-200 hover:ring-gray-300 hover:bg-gray-50 transition-all duration-300 ease-spring active:scale-[0.98] shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+        {/* Account button */}
+        <Link
+          to="/account"
+          className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
         >
-          <UserIcon className="w-3.5 h-3.5" />
-          Sign In
-        </button>
+          <UserIcon className="w-4 h-4" />
+          Account
+        </Link>
 
         {/* Hamburger — mobile only */}
         <button
@@ -102,21 +103,19 @@ export function NavBar() {
                       : 'text-gray-600 hover:bg-gray-100/80'
                   }`
                 }
-              >
-                <Icon className="w-4 h-4" />
-                {label}
-              </NavLink>
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </NavLink>
             ))}
-            <button
-              onClick={() => {
-                showToast('Sign-in coming soon!', 'info');
-                setMobileMenuOpen(false);
-              }}
-              className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-100/80 transition-all duration-300 ease-spring animate-fade-up stagger-4"
+            <Link
+              to="/account"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-100"
             >
               <UserIcon className="w-4 h-4" />
-              Sign In
-            </button>
+              Account
+            </Link>
           </div>
         </nav>
       )}
@@ -161,6 +160,15 @@ function FlameIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
       <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+    </svg>
+  );
+}
+
+function TagIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.59 13.41 11 3H4v7l9.59 9.59a2 2 0 0 0 2.82 0l4.18-4.18a2 2 0 0 0 0-2.82z" />
+      <circle cx="7" cy="7" r="1.5" />
     </svg>
   );
 }

@@ -22,6 +22,57 @@ export default defineSchema({
     .index('by_auth', ['authProvider', 'authId'])
     .index('by_email', ['email']),
 
+  // ── Billing Accounts ───────────────────────────────────────────────────
+  // One billing account per user for self-serve subscriptions.
+  billingAccounts: defineTable({
+    ownerUserId: v.id('users'),
+    stripeCustomerId: v.optional(v.string()),
+    billingEmail: v.optional(v.string()),
+    planKey: v.string(), // 'free' | 'pro' | 'team'
+    billingStatus: v.string(), // 'inactive' | 'pending' | 'active' | 'trialing' | 'past_due' | 'canceled'
+    entitlementSummary: v.record(v.string(), v.boolean()),
+    lastCheckoutSessionId: v.optional(v.string()),
+    currentPeriodEnd: v.optional(v.number()),
+    cancelAtPeriodEnd: v.optional(v.boolean()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_owner_user', ['ownerUserId'])
+    .index('by_stripe_customer_id', ['stripeCustomerId']),
+
+  // ── Billing Subscriptions ───────────────────────────────────────────────
+  // Current subscription projection from Stripe webhooks.
+  billingSubscriptions: defineTable({
+    billingAccountId: v.id('billingAccounts'),
+    stripeSubscriptionId: v.string(),
+    stripePriceId: v.optional(v.string()),
+    stripePriceLookupKey: v.optional(v.string()),
+    stripeProductId: v.optional(v.string()),
+    planKey: v.string(),
+    billingStatus: v.string(),
+    entitlementSummary: v.record(v.string(), v.boolean()),
+    currentPeriodStart: v.optional(v.number()),
+    currentPeriodEnd: v.optional(v.number()),
+    trialEnd: v.optional(v.number()),
+    cancelAtPeriodEnd: v.boolean(),
+    latestInvoiceId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_billing_account', ['billingAccountId'])
+    .index('by_stripe_subscription_id', ['stripeSubscriptionId']),
+
+  // ── Billing Events ──────────────────────────────────────────────────────
+  // Stripe webhook idempotency ledger.
+  billingEvents: defineTable({
+    stripeEventId: v.string(),
+    eventType: v.string(),
+    payloadSummary: v.string(),
+    status: v.string(),
+    processedAt: v.number(),
+  })
+    .index('by_stripe_event_id', ['stripeEventId']),
+
   // ── Hotspots ───────────────────────────────────────────────────────────
   // Community-reported street safety/improvement hotspots
   hotspots: defineTable({

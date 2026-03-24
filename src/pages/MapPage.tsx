@@ -1,4 +1,4 @@
-import { useState, useEffect, ComponentType } from 'react';
+import { useState, useEffect, useCallback, type ComponentType } from 'react';
 
 function MapPlaceholder() {
   return (
@@ -13,14 +13,6 @@ function MapPlaceholder() {
         <p className="text-gray-600 text-lg font-medium">Map View</p>
         <p className="text-gray-400 text-sm">Loading map experience...</p>
       </div>
-    </div>
-  );
-}
-
-function LoadingSpinner() {
-  return (
-    <div className="flex items-center justify-center h-full">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
     </div>
   );
 }
@@ -53,14 +45,15 @@ function useDynamicComponent<P extends object>(
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loader, namedExport]);
 
   return Component;
 }
 
 export default function MapPage() {
+  const loadMapView = useCallback(() => import('@/features/map/MapView'), []);
   const MapView = useDynamicComponent(
-    () => import('@/features/map/MapView'),
+    loadMapView,
     'MapView',
     MapPlaceholder,
   );

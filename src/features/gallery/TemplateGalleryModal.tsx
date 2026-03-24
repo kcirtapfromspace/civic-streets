@@ -1,13 +1,15 @@
 
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useStreetStore } from '@/stores/street-store';
 import type {
   TemplateDefinition,
   FunctionalClass,
 } from '@/lib/types';
-import { Modal, Select } from '@/components/ui';
+import { Button, Modal, Select } from '@/components/ui';
 import { TemplateCard } from './TemplateCard';
 import { loadTemplates } from '@/lib/templates';
+import { getPricingHref, useBillingAccess } from '@/lib/billing/access';
 
 const CATEGORY_OPTIONS = [
   { value: 'all', label: 'All Categories' },
@@ -27,16 +29,24 @@ const FUNCTIONAL_CLASS_FILTER_OPTIONS = [
 ];
 
 export function TemplateGalleryModal() {
+  const navigate = useNavigate();
   const isOpen = useStreetStore((s) => s.isTemplateGalleryOpen);
   const closeGallery = useStreetStore((s) => s.closeTemplateGallery);
   const applyTemplate = useStreetStore((s) => s.applyTemplate);
   const currentStreet = useStreetStore((s) => s.currentStreet);
+  const { canAccess: canUsePremiumTemplates, pricingHref } =
+    useBillingAccess('premium_templates');
 
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [classFilter, setClassFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const templates: TemplateDefinition[] = useMemo(() => loadTemplates(), []);
+
+  const isPremiumTemplate = (template: TemplateDefinition) =>
+    template.category === 'transit-priority' ||
+    template.id === 'complete-street-arterial' ||
+    template.id === 'shared-street-commercial';
 
   const filteredTemplates = useMemo(() => {
     return templates.filter((t) => {
@@ -66,7 +76,16 @@ export function TemplateGalleryModal() {
 
   const DEFAULT_ELEMENT_COUNT = 5;
 
+  const handleLockedTemplate = () => {
+    navigate(pricingHref || getPricingHref('premium_templates'));
+  };
+
   const handleApply = (template: TemplateDefinition) => {
+    if (isPremiumTemplate(template) && !canUsePremiumTemplates) {
+      handleLockedTemplate();
+      return;
+    }
+
     // If the user has modified the design (more elements than the default),
     // confirm before replacing it.
     const elementCount = currentStreet?.elements.length ?? 0;
@@ -84,6 +103,19 @@ export function TemplateGalleryModal() {
 
   return (
     <Modal isOpen={isOpen} onClose={closeGallery} title="Template Gallery">
+      {!canUsePremiumTemplates && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p>Advanced transit and shared-space templates require Pro.</p>
+          <Button
+            variant="secondary"
+            onClick={handleLockedTemplate}
+            className="shrink-0"
+          >
+            Upgrade
+          </Button>
+        </div>
+      )}
+
       {/* Filter bar */}
       <div className="flex flex-wrap items-end gap-3 mb-6">
         <div className="flex-1 min-w-[200px]">
@@ -128,6 +160,8 @@ export function TemplateGalleryModal() {
               key={template.id}
               template={template}
               onApply={handleApply}
+              locked={isPremiumTemplate(template) && !canUsePremiumTemplates}
+              onLockedClick={handleLockedTemplate}
             />
           ))}
         </div>

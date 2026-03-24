@@ -96,12 +96,19 @@ export function CrossSectionSVG({
 
   // Compute x-offsets for each element (left-to-right layout)
   const elementLayouts = useMemo(() => {
-    let x = 0;
-    return street.elements.map((el) => {
-      const offset = x;
-      x += el.width * PX_PER_FOOT;
-      return { element: el, xOffset: offset };
-    });
+    return street.elements.reduce<{
+      layouts: Array<{ element: StreetSegment['elements'][number]; xOffset: number }>;
+      nextXOffset: number;
+    }>(
+      (acc, element) => ({
+        layouts: [
+          ...acc.layouts,
+          { element, xOffset: acc.nextXOffset },
+        ],
+        nextXOffset: acc.nextXOffset + element.width * PX_PER_FOOT,
+      }),
+      { layouts: [], nextXOffset: 0 },
+    ).layouts;
   }, [street.elements]);
 
   // Ground line Y position (bottom of element rects)

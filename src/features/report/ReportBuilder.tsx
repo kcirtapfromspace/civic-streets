@@ -1,7 +1,8 @@
 // Report Builder — multi-step wizard for composing and sending reports to reps
 // Steps: 1. Context → 2. Find Reps → 3. Compose → 4. Review & Send
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button, Badge } from '@/components/ui';
 import { useReportStore, type ReportStep } from './report-store';
 import { RepLookup } from './RepLookup';
@@ -10,6 +11,7 @@ import { generateReportSubject, generateReportBody } from './templates';
 import type { ReportTemplateInput } from './templates';
 import type { HotspotPin, DesignPin } from '@/lib/types';
 import { HOTSPOT_CATEGORY_LABELS } from '@/lib/types';
+import { getPricingHref, useBillingAccess } from '@/lib/billing/access';
 
 // ── Props ──────────────────────────────────────────────────────────────────
 
@@ -305,6 +307,7 @@ function StepCompose({
   hotspot?: HotspotPin | null;
   design?: (DesignPin & { elements?: string }) | null;
 }) {
+  const navigate = useNavigate();
   const {
     address,
     selectedReps,
@@ -318,6 +321,13 @@ function StepCompose({
     togglePdf,
     setStep,
   } = useReportStore();
+  const { canAccess: canAttachPdf, pricingHref } = useBillingAccess(
+    'report_pdf_attachment',
+  );
+
+  const handleUpgrade = useCallback(() => {
+    navigate(pricingHref || getPricingHref('report_pdf_attachment'));
+  }, [navigate, pricingHref]);
 
   // Auto-generate template on first render if body is empty
   const generated = useMemo(() => {
@@ -363,6 +373,12 @@ function StepCompose({
       setBody(generated.body);
     }
   }, [generated, subject, body, setSubject, setBody]);
+
+  useEffect(() => {
+    if (designId && includePdf && !canAttachPdf) {
+      togglePdf();
+    }
+  }, [designId, includePdf, canAttachPdf, togglePdf]);
 
   const charCount = body.length;
 
@@ -416,17 +432,39 @@ function StepCompose({
 
       {/* PDF attachment toggle */}
       {designId && (
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={includePdf}
-            onChange={togglePdf}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          />
-          <span className="text-sm text-gray-700">
-            Include Street Design PDF
-          </span>
-        </label>
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={includePdf}
+              onChange={() => {
+                if (canAttachPdf) {
+                  togglePdf();
+                } else {
+                  handleUpgrade();
+                }
+              }}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={!canAttachPdf}
+            />
+            <span className="text-sm text-gray-700">
+              Include Street Design PDF
+            </span>
+            {!canAttachPdf && (
+              <Badge variant="warning">Pro</Badge>
+            )}
+          </label>
+          {!canAttachPdf && (
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <p className="text-xs text-gray-500">
+                PDF attachments are available on Pro.
+              </p>
+              <Button variant="ghost" onClick={handleUpgrade}>
+                Upgrade
+              </Button>
+            </div>
+          )}
+        </div>
       )}
 
       <div className="flex justify-between pt-2">

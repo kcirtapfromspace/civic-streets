@@ -94,7 +94,7 @@ export const vote = mutation({
     value: v.number(),
   },
   handler: async (ctx, args) => {
-    const user = await ensureUser(ctx, args.sessionToken);
+    await ensureUser(ctx, args.sessionToken);
 
     if (args.value !== 1 && args.value !== -1) {
       throw new Error('Vote value must be +1 or -1');

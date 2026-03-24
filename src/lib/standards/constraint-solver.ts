@@ -167,7 +167,6 @@ function distributeWidth(
       for (const el of adjustableEls) {
         el.width += share;
       }
-      surplus = 0;
       break;
     }
 

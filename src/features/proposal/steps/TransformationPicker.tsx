@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { useProposalStore } from '@/stores/proposal-store';
 import { getTransformationsForPreset, type TransformationCard } from '@/lib/presets/transformation-cards';
 import type { TemplateDefinition } from '@/lib/types';
@@ -16,46 +16,29 @@ export function TransformationPicker() {
   const applyTransformation = useProposalStore((s) => s.applyTransformation);
   const goBack = useProposalStore((s) => s.goBack);
 
-  const [templates, setTemplates] = useState<Map<string, TemplateDefinition>>(new Map());
-  const [loading, setLoading] = useState(true);
-
-  const cards = selectedPreset
-    ? getTransformationsForPreset(selectedPreset.suggestedTransformations)
-    : [];
-
-  // Load template JSON files
-  useEffect(() => {
-    if (cards.length === 0) return;
-
+  const templates = useMemo(() => {
     const templateModules = import.meta.glob('/data/templates/*.json', { eager: true });
     const loaded = new Map<string, TemplateDefinition>();
 
-    for (const [path, mod] of Object.entries(templateModules)) {
-      const template = (mod as { default: TemplateDefinition }).default ?? mod as TemplateDefinition;
+    for (const mod of Object.values(templateModules)) {
+      const template = (mod as { default: TemplateDefinition }).default ?? (mod as TemplateDefinition);
       if (template.id) {
         loaded.set(template.id, template);
       }
     }
 
-    setTemplates(loaded);
-    setLoading(false);
+    return loaded;
   }, []);
 
+  const cards = selectedPreset
+    ? getTransformationsForPreset(selectedPreset.suggestedTransformations)
+    : [];
   const handleSelect = (card: TransformationCard) => {
     const template = templates.get(card.templateId);
     if (template) {
       applyTransformation(template);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="w-5 h-5 border-2 border-blue-100 border-t-blue-500 rounded-full animate-spin" />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2.5">

@@ -191,7 +191,7 @@ export const list = query({
     }),
   },
   handler: async (ctx, args) => {
-    let q = ctx.db.query('hotspots').order('desc');
+    const q = ctx.db.query('hotspots').order('desc');
 
     const result = await q.paginate({
       numItems: args.paginationOpts.numItems,

@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useStreetStore } from '@/stores/street-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { CrossSectionSVG } from '@/features/renderer';
 import { COMMON_ROW_WIDTHS, UNITS } from '@/lib/constants';
 import { Button, Select, Tooltip } from '@/components/ui';
 import type { FunctionalClass, StreetDirection } from '@/lib/types';
+import { useBillingAccess } from '@/lib/billing/access';
 
 const FUNCTIONAL_CLASS_OPTIONS = [
   { value: 'local', label: 'Local' },
@@ -28,6 +30,7 @@ const ROW_WIDTH_OPTIONS = COMMON_ROW_WIDTHS.map((w) => ({
  * Rendered inside EditorHUD when workspace mode is 'design'.
  */
 export function EditorDock() {
+  const navigate = useNavigate();
   const currentStreet = useStreetStore((s) => s.currentStreet);
   const beforeStreet = useStreetStore((s) => s.beforeStreet);
   const showBeforeAfter = useStreetStore((s) => s.showBeforeAfter);
@@ -42,6 +45,7 @@ export function EditorDock() {
   const openTemplateGallery = useStreetStore((s) => s.openTemplateGallery);
   const setExporting = useStreetStore((s) => s.setExporting);
   const toggleBeforeAfter = useStreetStore((s) => s.toggleBeforeAfter);
+  const { canAccess: canExport, pricingHref } = useBillingAccess('pdf_export');
 
   const dockExpanded = useWorkspaceStore((s) => s.dockExpanded);
   const toggleDock = useWorkspaceStore((s) => s.toggleDock);
@@ -49,6 +53,10 @@ export function EditorDock() {
 
   const handleExport = useCallback(async () => {
     if (!currentStreet) return;
+    if (!canExport) {
+      navigate(pricingHref);
+      return;
+    }
     setExporting(true);
     try {
       const { generatePDF } = await import('@/features/export');
@@ -72,7 +80,15 @@ export function EditorDock() {
     } finally {
       setExporting(false);
     }
-  }, [currentStreet, beforeStreet, validationResults, setExporting]);
+  }, [
+    currentStreet,
+    beforeStreet,
+    validationResults,
+    setExporting,
+    canExport,
+    navigate,
+    pricingHref,
+  ]);
 
   const handleUndo = useCallback(() => {
     useStreetStore.temporal.getState().undo();
@@ -176,6 +192,9 @@ export function EditorDock() {
             onClick={handleExport}
             disabled={isExporting}
             className="text-xs px-2 py-1"
+            title={
+              canExport ? undefined : 'Upgrade to Pro to export PDFs'
+            }
           >
             {isExporting ? 'Exporting...' : 'PDF'}
           </Button>

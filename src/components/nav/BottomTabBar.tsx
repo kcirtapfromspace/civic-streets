@@ -5,7 +5,7 @@ const tabs = [
   { to: '/', label: 'Map', icon: MapPinIcon, end: true },
   { to: '/editor', label: 'Editor', icon: PencilRulerIcon, end: false },
   { to: '/hotspots', label: 'Hotspots', icon: FlameIcon, end: false },
-  { to: '/profile', label: 'Profile', icon: UserIcon, end: false },
+  { to: '/account', label: 'Account', icon: UserIcon, end: false },
 ] as const;
 
 interface BottomTabBarProps {

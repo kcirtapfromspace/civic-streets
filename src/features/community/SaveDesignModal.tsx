@@ -1,7 +1,9 @@
 import React, { useState, useCallback, useId } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Modal, Button, Select } from '@/components/ui';
 import { useCommunityStore } from './community-store';
 import { useHotspotsList } from '@/lib/api/use-hotspots';
+import { getPricingHref, useBillingAccess } from '@/lib/billing/access';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -30,6 +32,9 @@ export function SaveDesignModal({
 }: SaveDesignModalProps) {
   const { isSaveDesignOpen, closeSaveDesign, saveDesignData } = useCommunityStore();
   const { hotspots } = useHotspotsList();
+  const navigate = useNavigate();
+  const { canAccess: canUsePrivateProjects, pricingHref } =
+    useBillingAccess('private_projects');
 
   const hotspotLinkOptions = [
     { value: '', label: 'None' },
@@ -52,10 +57,19 @@ export function SaveDesignModal({
   const titleInputId = useId();
   const descId = useId();
 
+  const handleUpgrade = useCallback(() => {
+    navigate(pricingHref || getPricingHref('private_projects'));
+  }, [navigate, pricingHref]);
+
   const handleSave = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
       if (!title.trim()) return;
+
+      if (privacy === 'private' && !canUsePrivateProjects) {
+        handleUpgrade();
+        return;
+      }
 
       setIsSaving(true);
       onSave?.({
@@ -68,7 +82,17 @@ export function SaveDesignModal({
       setIsSaving(false);
       closeSaveDesign();
     },
-    [title, description, effectiveAddress, linkedHotspotId, privacy, onSave, closeSaveDesign],
+    [
+      title,
+      description,
+      effectiveAddress,
+      linkedHotspotId,
+      privacy,
+      onSave,
+      closeSaveDesign,
+      canUsePrivateProjects,
+      handleUpgrade,
+    ],
   );
 
   return (
@@ -189,7 +213,17 @@ export function SaveDesignModal({
               Public
             </label>
             <label
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-md border cursor-pointer transition-colors ${
+              onClick={(e) => {
+                if (!canUsePrivateProjects) {
+                  e.preventDefault();
+                  handleUpgrade();
+                }
+              }}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-md border transition-colors ${
+                canUsePrivateProjects
+                  ? 'cursor-pointer'
+                  : 'cursor-not-allowed opacity-80'
+              } ${
                 privacy === 'private'
                   ? 'border-blue-500 bg-blue-50 text-blue-700 font-medium'
                   : 'border-gray-200 hover:bg-gray-50 text-gray-700'
@@ -200,7 +234,14 @@ export function SaveDesignModal({
                 name="privacy"
                 value="private"
                 checked={privacy === 'private'}
-                onChange={() => setPrivacy('private')}
+                onChange={() => {
+                  if (canUsePrivateProjects) {
+                    setPrivacy('private');
+                  } else {
+                    handleUpgrade();
+                  }
+                }}
+                disabled={!canUsePrivateProjects}
                 className="sr-only"
               />
               <svg
@@ -218,8 +259,28 @@ export function SaveDesignModal({
                 <path d="M7 11V7a5 5 0 0110 0v4" />
               </svg>
               Private
+              {!canUsePrivateProjects && (
+                <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                  Pro
+                </span>
+              )}
             </label>
           </div>
+          {!canUsePrivateProjects && (
+            <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+              <p className="text-xs text-amber-800">
+                Private designs require Pro.
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleUpgrade}
+                className="shrink-0 text-amber-900 hover:bg-amber-100"
+              >
+                Upgrade
+              </Button>
+            </div>
+          )}
         </fieldset>
 
         {/* Actions */}

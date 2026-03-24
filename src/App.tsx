@@ -12,6 +12,10 @@ const EditorPage = lazy(() => import('@/pages/EditorPage'));
 const HotspotFeedPage = lazy(() => import('@/pages/HotspotFeedPage'));
 const HotspotDetailPage = lazy(() => import('@/pages/HotspotDetailPage'));
 const ReportPage = lazy(() => import('@/pages/ReportPage'));
+const PricingPage = lazy(() => import('@/pages/PricingPage'));
+const AccountPage = lazy(() => import('@/pages/AccountPage'));
+const BillingSuccessPage = lazy(() => import('@/pages/BillingSuccessPage'));
+const BillingCancelPage = lazy(() => import('@/pages/BillingCancelPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
 function PageLoader() {
@@ -45,6 +49,14 @@ export default function App() {
               <Route path="/editor/:id" element={<EditorPage />} />
               <Route path="/hotspots" element={<HotspotFeedPage />} />
               <Route path="/hotspot/:id" element={<HotspotDetailPage />} />
+
+              {/* Billing */}
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/account" element={<AccountPage />} />
+              <Route path="/billing/success" element={<BillingSuccessPage />} />
+              <Route path="/billing/cancel" element={<BillingCancelPage />} />
+
+              {/* Report builder — standalone or for a specific design */}
               <Route path="/report" element={<ReportPage />} />
               <Route path="/report/:designId" element={<ReportPage />} />
               <Route path="*" element={<NotFoundPage />} />
