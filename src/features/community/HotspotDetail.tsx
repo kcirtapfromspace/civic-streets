@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Badge, Button } from '@/components/ui';
 import {
   HOTSPOT_CATEGORY_LABELS,
@@ -12,8 +12,11 @@ import { DesignCard } from './DesignCard';
 import type { MockHotspot } from './mock-data';
 import { MOCK_COMMENTS, MOCK_DESIGNS, MOCK_USERS } from './mock-data';
 import type { MockUser } from './mock-data';
-import { detectCivicService, submitCivicReport } from '@/lib/api/civic-report';
+import { submitCivicReport } from '@/lib/api/civic-report';
 import { useVoteOnHotspot } from '@/lib/api/use-hotspots';
+import { useJurisdictionSummaryForLocation } from '@/lib/api/government';
+import { useToast } from '@/components/ui/Toast';
+import { UnsignedJurisdictionOutreachModal } from '@/features/government/UnsignedJurisdictionOutreachModal';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -138,20 +141,39 @@ export function HotspotDetail({
   onSendToRep,
   onViewOnMap,
 }: HotspotDetailProps) {
+  const { showToast } = useToast();
   const categoryColor = HOTSPOT_CATEGORY_COLORS[hotspot.category];
   const comments = MOCK_COMMENTS.filter((c) => c.hotspotId === hotspot.id);
   const voteOnHotspot = useVoteOnHotspot();
   const linkedDesigns = MOCK_DESIGNS.filter((d) =>
     hotspot.linkedDesignIds.includes(d.id),
   );
+  const { summary: jurisdiction, isLoading: jurisdictionLoading } =
+    useJurisdictionSummaryForLocation({
+      address: hotspot.address,
+      lat: hotspot.lat,
+      lng: hotspot.lng,
+    });
 
   // Civic reporting state
-  const civicService = detectCivicService(hotspot.lat, hotspot.lng);
   const [civicStatus, setCivicStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [civicResult, setCivicResult] = useState<{ trackingId?: string; trackingUrl?: string; deepLinkUrl?: string } | null>(null);
   const [civicError, setCivicError] = useState<string | null>(null);
+  const [outreachAction, setOutreachAction] = useState<
+    'report_to_city' | 'send_to_rep' | null
+  >(null);
 
-  const handleReportToCity = useCallback(async () => {
+  const handleReportToCity = async () => {
+    if (jurisdictionLoading && !jurisdiction) {
+      showToast('Checking jurisdiction coverage...', 'info');
+      return;
+    }
+
+    if (!jurisdiction?.isSigned) {
+      setOutreachAction('report_to_city');
+      return;
+    }
+
     setCivicStatus('submitting');
     setCivicError(null);
 
@@ -177,7 +199,21 @@ export function HotspotDetail({
       setCivicStatus('error');
       setCivicError(result.error ?? 'Failed to submit report.');
     }
-  }, [hotspot]);
+  };
+
+  const handleSendToRep = () => {
+    if (jurisdictionLoading && !jurisdiction) {
+      showToast('Checking jurisdiction coverage...', 'info');
+      return;
+    }
+
+    if (!jurisdiction?.isSigned) {
+      setOutreachAction('send_to_rep');
+      return;
+    }
+
+    onSendToRep?.(hotspot.id);
+  };
 
   return (
     <div className="bg-gray-50 min-h-full">
@@ -242,6 +278,14 @@ export function HotspotDetail({
                   <span>{getUserName(hotspot.authorId)}</span>
                   <span>&middot;</span>
                   <span>{timeAgo(hotspot.createdAt)}</span>
+                  {jurisdiction && (
+                    <>
+                      <span>&middot;</span>
+                      <Badge variant={jurisdiction.isSigned ? 'success' : 'warning'}>
+                        {jurisdiction.isSigned ? 'Government live' : 'Outreach'}
+                      </Badge>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -316,7 +360,7 @@ export function HotspotDetail({
             </Button>
             <Button
               variant="secondary"
-              onClick={() => onSendToRep?.(hotspot.id)}
+              onClick={handleSendToRep}
             >
               <svg
                 width="16"
@@ -357,6 +401,19 @@ export function HotspotDetail({
               {civicStatus === 'submitting' ? 'Submitting...' : 'Report to City'}
             </Button>
           </div>
+
+          {!jurisdiction?.isSigned && (
+            <div className="mx-5 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-sm font-medium text-amber-900">
+                {jurisdiction?.displayName ?? 'This jurisdiction'} is not live on
+                Curbwise yet.
+              </p>
+              <p className="mt-1 text-xs leading-5 text-amber-800">
+                Reporting to the city or representatives will queue an internal
+                outreach request so Curbwise can contact the right offices.
+              </p>
+            </div>
+          )}
 
           {/* Civic report result */}
           {civicStatus === 'success' && civicResult && (
@@ -415,6 +472,13 @@ export function HotspotDetail({
           </div>
         </div>
       </div>
+      <UnsignedJurisdictionOutreachModal
+        isOpen={outreachAction !== null}
+        onClose={() => setOutreachAction(null)}
+        hotspot={hotspot}
+        jurisdiction={jurisdiction}
+        sourceAction={outreachAction ?? 'report_to_city'}
+      />
     </div>
   );
 }

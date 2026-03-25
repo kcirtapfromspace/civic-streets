@@ -3,85 +3,106 @@ import type { BillingInterval, BillingPlanKey } from './types';
 export interface BillingPlan {
   key: BillingPlanKey;
   name: string;
+  audience: string;
   tagline: string;
   description: string;
-  monthlyPrice: string;
   annualPrice: string;
   annualNote: string;
   features: string[];
   ctaLabel: string;
+  ctaMode: 'self_serve' | 'contact' | 'current';
   featured?: boolean;
 }
 
 export const BILLING_PLANS: BillingPlan[] = [
   {
-    key: 'free',
-    name: 'Free',
-    tagline: 'For public-interest work and evaluation.',
+    key: 'civic_free',
+    name: 'Civic Free',
+    audience: 'Residents, advocates, journalists, and public-interest work',
+    tagline: 'Keep the public-interest layer open and usable.',
     description:
-      'Try the map, editor, and community workflows before you need a paid workspace.',
-    monthlyPrice: '$0',
+      'Public hotspots, issue reporting, read-only sharing, and public proposal work stay free so civic participation does not depend on procurement.',
     annualPrice: '$0',
     annualNote: 'No card required',
     features: [
-      'Public projects',
-      'Limited exports',
-      'Community hotspots',
-      'Basic templates',
+      'Public hotspots and issue reporting',
+      'Public proposals and read-only share links',
+      'Basic/watermarked public exports',
+      'Core civic reporting workflows',
     ],
-    ctaLabel: 'Stay Free',
+    ctaLabel: 'Keep Using Civic Free',
+    ctaMode: 'current',
   },
   {
-    key: 'pro',
-    name: 'Pro',
-    tagline: 'For consultants and small planning teams.',
+    key: 'town_essential',
+    name: 'Town Essential',
+    audience: 'Towns and small cities under 50k population',
+    tagline: 'Affordable annual access for smaller public agencies.',
     description:
-      'Private projects, branded exports, and enough throughput to use Curbwise on active client work.',
-    monthlyPrice: '$99',
-    annualPrice: '$990',
-    annualNote: '2 months free billed annually',
+      'One private workspace, up to five members, branded exports, review threads, and a simple annual self-serve path for smaller public bodies.',
+    annualPrice: '$3,000',
+    annualNote: 'Annual self-serve pricing',
     features: [
-      'Private projects',
-      'Unwatermarked PDF exports',
-      'Advanced templates',
-      'Priority billing support',
+      '1 private workspace and up to 5 members',
+      'Private projects and branded exports',
+      'Advanced templates and review threads',
+      'Annual billing with light onboarding',
     ],
-    ctaLabel: 'Start Pro',
+    ctaLabel: 'Start Town Essential',
+    ctaMode: 'self_serve',
     featured: true,
   },
   {
-    key: 'team',
-    name: 'Team',
-    tagline: 'For agencies and shared delivery.',
+    key: 'city_standard',
+    name: 'City Standard',
+    audience: 'Cities 50k-500k and smaller public agencies',
+    tagline: 'Collaborative municipal delivery with annual contracts.',
     description:
-      'Collaborative billing for teams that need shared work, review loops, and more control over deliverables.',
-    monthlyPrice: '$299',
-    annualPrice: '$2,990',
-    annualNote: 'Annual invoice-friendly pricing',
+      'Multiple workspaces, member roles, approvals, template controls, and procurement-lite annual invoicing for city teams that need shared delivery.',
+    annualPrice: '$12,000',
+    annualNote: 'Annual contract, provisioned with onboarding',
     features: [
-      'Team collaboration',
-      'Custom templates',
-      'Branded export packages',
-      'Shared account management',
+      'Multiple workspaces and member roles',
+      'Approval states and internal reviews',
+      'Template library controls',
+      'Annual invoicing and onboarding support',
     ],
-    ctaLabel: 'Start Team',
+    ctaLabel: 'Talk to Sales',
+    ctaMode: 'contact',
+  },
+  {
+    key: 'agency_enterprise',
+    name: 'Agency Enterprise',
+    audience: 'Large cities, regional agencies, and transit authorities',
+    tagline: 'Procurement-ready delivery for annual institutional contracts.',
+    description:
+      'Manual institutional pilots today, with dedicated onboarding and org controls for large agencies that need annual terms, procurement support, and advanced governance.',
+    annualPrice: '$35,000+',
+    annualNote: 'Annual contract, scoped with procurement review',
+    features: [
+      'Audit logs and billing admin controls',
+      'Custom overlays and retention controls',
+      'Implementation support for pilot rollouts',
+      'Manual institutional provisioning',
+    ],
+    ctaLabel: 'Plan an Institutional Pilot',
+    ctaMode: 'contact',
   },
 ];
 
-export const ENTERPRISE_BILLING = {
-  key: 'enterprise' as const,
-  name: 'Enterprise',
-  tagline: 'For cities, BIDs, and larger public agencies.',
-  description:
-    'Procurement-friendly billing with SSO, custom overlays, and implementation support.',
-  features: [
-    'SSO and shared workspaces',
-    'Custom city overlays',
-    'Dedicated onboarding',
-    'Annual contracts and invoicing',
-  ],
-  ctaLabel: 'Contact Sales',
-};
+export const WHAT_STAYS_FREE = [
+  'Public hotspots and issue reporting',
+  'Public proposals and read-only sharing',
+  'Basic public exports for civic advocacy',
+  'Community-facing safety storytelling',
+];
+
+export const GOVERNMENT_PACKAGING_NOTES = [
+  'Population bands determine municipal pricing, not seat count alone.',
+  'Only Town Essential is self-serve in Stripe.',
+  'City Standard and Agency Enterprise are annual, sales-led contracts.',
+  'Institutional pilots are provisioned manually until enterprise controls are complete.',
+];
 
 export function getBillingIntervalLabel(interval: BillingInterval): string {
   return interval === 'monthly' ? 'Monthly' : 'Annual';

@@ -45,7 +45,7 @@ export function EditorDock() {
   const openTemplateGallery = useStreetStore((s) => s.openTemplateGallery);
   const setExporting = useStreetStore((s) => s.setExporting);
   const toggleBeforeAfter = useStreetStore((s) => s.toggleBeforeAfter);
-  const { canAccess: canExport, pricingHref } = useBillingAccess('pdf_export');
+  const { canAccess: canExport, contactHref } = useBillingAccess('pdf_export');
 
   const dockExpanded = useWorkspaceStore((s) => s.dockExpanded);
   const toggleDock = useWorkspaceStore((s) => s.toggleDock);
@@ -54,7 +54,7 @@ export function EditorDock() {
   const handleExport = useCallback(async () => {
     if (!currentStreet) return;
     if (!canExport) {
-      navigate(pricingHref);
+      navigate(contactHref);
       return;
     }
     setExporting(true);
@@ -87,7 +87,7 @@ export function EditorDock() {
     setExporting,
     canExport,
     navigate,
-    pricingHref,
+    contactHref,
   ]);
 
   const handleUndo = useCallback(() => {
@@ -193,7 +193,9 @@ export function EditorDock() {
             disabled={isExporting}
             className="text-xs px-2 py-1"
             title={
-              canExport ? undefined : 'Upgrade to Pro to export PDFs'
+              canExport
+                ? undefined
+                : 'Contact Curbwise to unlock branded export delivery'
             }
           >
             {isExporting ? 'Exporting...' : 'PDF'}

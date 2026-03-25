@@ -1,46 +1,65 @@
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { GovernmentLeadForm } from '@/features/government/GovernmentLeadForm';
 
-// Demo video + screenshots captured from Humboldt Park, Chicago flow
 const HERO_VIDEO = '/demo-videos/curbwise-demo.webm';
 const HERO_POSTER = '/demo-screenshots/08-satellite-with-proposal.png';
 const SCREENSHOT_CRASH = '/demo-screenshots/03-crash-heatmap-layers.png';
 const SCREENSHOT_PROPOSAL = '/demo-screenshots/06-proposal-review.png';
 const SCREENSHOT_INTERSECTION = '/demo-screenshots/12-intersection-review.png';
-const SCREENSHOT_BEFORE = '/demo-screenshots/04-before-selector.png';
 
 const DATA_SOURCES = [
-  { city: 'New York City', source: 'NYC OpenData / NYPD', range: '2012–present' },
-  { city: 'Chicago', source: 'City of Chicago / CPD E-Crash', range: '2015–present' },
-  { city: 'Nationwide', source: 'NHTSA FARS (Fatal Crashes)', range: '2020–2023' },
+  { city: 'New York City', source: 'NYC OpenData / NYPD', range: '2012-present' },
+  { city: 'Chicago', source: 'City of Chicago / CPD E-Crash', range: '2015-present' },
+  { city: 'Nationwide', source: 'NHTSA FARS', range: '2020-2023' },
 ];
 
 const FEATURES = [
   {
-    title: 'Crash-Informed Design',
-    description: 'Real crash data from NYPD, Chicago PD, and NHTSA overlaid directly on the map. See exactly where people are getting hurt.',
+    title: 'See the pattern fast',
+    description:
+      'Crash clusters, hotspots, and issue context land on one map so the dangerous block is obvious before the meeting starts.',
     icon: HeatmapIcon,
     image: SCREENSHOT_CRASH,
   },
   {
-    title: 'Street Proposals in Minutes',
-    description: 'Pick a street, choose existing conditions, select a transformation. Get a professional before/after cross-section instantly.',
+    title: 'Sketch the fix in minutes',
+    description:
+      'Generate corridor and cross-section concepts quickly enough to keep up with workshops, committees, and corridor reviews.',
     icon: RoadIcon,
     image: SCREENSHOT_PROPOSAL,
   },
   {
-    title: 'Intersection Improvements',
-    description: 'Click any intersection to get data-driven improvement suggestions ranked by crash severity and complexity.',
+    title: 'Carry the work into government',
+    description:
+      'When a town or city is ready, Curbwise becomes the internal coordination layer instead of forcing staff into scattered files.',
     icon: IntersectionIcon,
     image: SCREENSHOT_INTERSECTION,
   },
 ];
 
+const GOVERNMENT_POINTS = [
+  'Private workspaces and internal review',
+  'Official contact routing and onboarding help',
+  'Manual contracting for towns, cities, and agencies',
+];
+
 export default function LandingPage() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!location.hash) return;
+    const targetId = location.hash.replace('#', '');
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    requestAnimationFrame(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [location.hash]);
+
   return (
-    <div className="min-h-screen bg-white">
-      {/* ── Hero ────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden">
-        {/* Background video with overlay */}
+    <div className="min-h-screen bg-stone-50 text-slate-950">
+      <section className="relative overflow-hidden border-b border-white/10">
         <div className="absolute inset-0">
           <video
             autoPlay
@@ -48,119 +67,147 @@ export default function LandingPage() {
             loop
             playsInline
             poster={HERO_POSTER}
-            className="w-full h-full object-cover"
+            className="h-full w-full object-cover"
           >
             <source src={HERO_VIDEO} type="video/webm" />
           </video>
-          <div className="absolute inset-0 bg-gradient-to-b from-gray-900/70 via-gray-900/50 to-gray-900/80" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(56,189,248,0.22),transparent_28%),linear-gradient(180deg,rgba(2,6,23,0.64),rgba(2,6,23,0.82))]" />
         </div>
 
-        <div className="relative z-10 max-w-6xl mx-auto px-6 pt-24 pb-32 lg:pt-36 lg:pb-44">
-          {/* Badge */}
-          <div className="flex items-center gap-2 mb-8">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-white/80 ring-1 ring-white/20 backdrop-blur-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              Live crash data from 3 sources
-            </span>
-          </div>
+        <div className="relative z-10 mx-auto max-w-7xl px-6 pb-24 pt-24 lg:px-10 lg:pb-36 lg:pt-32">
+          <div className="grid gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-white/78 backdrop-blur">
+                <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                Crash-informed civic street work
+              </div>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black text-white tracking-tight leading-[1.05] max-w-3xl">
-            Design safer streets with
-            <span className="text-blue-400"> real crash data</span>
-          </h1>
+              <h1 className="mt-8 max-w-4xl text-5xl font-black leading-[0.95] tracking-[-0.04em] text-white sm:text-6xl lg:text-8xl">
+                Find the dangerous block.
+                <span className="block text-sky-300">Sketch the fix.</span>
+                <span className="block text-white/80">Bring the city in.</span>
+              </h1>
 
-          <p className="mt-6 text-lg sm:text-xl text-white/70 max-w-2xl leading-relaxed">
-            Curbwise puts crash data, street design tools, and intersection improvements
-            into one map. Propose road diets, protected bike lanes, and safety fixes —
-            all backed by real data from your city.
-          </p>
+              <p className="mt-6 max-w-2xl text-base leading-7 text-white/72 sm:text-lg">
+                Curbwise keeps the public street-safety layer open, then helps
+                towns and cities wire up the internal side when they are ready.
+              </p>
 
-          <div className="mt-10 flex flex-wrap gap-4">
-            <Link
-              to="/map"
-              className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-full text-[15px] font-bold bg-blue-600 text-white hover:bg-blue-500 transition-all duration-300 ease-spring active:scale-[0.97] shadow-[0_4px_24px_rgba(59,130,246,0.4)]"
-            >
-              Open the Map
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
-              </svg>
-            </Link>
-            <a
-              href="#features"
-              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-[15px] font-semibold text-white/80 hover:text-white ring-1 ring-white/20 hover:ring-white/40 transition-all duration-300 ease-spring"
-            >
-              See how it works
-            </a>
+              <div className="mt-10 flex flex-wrap gap-4">
+                <Link
+                  to="/map"
+                  className="inline-flex items-center gap-2 rounded-full bg-sky-400 px-7 py-3.5 text-sm font-semibold text-slate-950 shadow-[0_20px_60px_rgba(56,189,248,0.32)] transition hover:bg-sky-300"
+                >
+                  Open the Map
+                </Link>
+                <a
+                  href="#government"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/18 bg-white/8 px-7 py-3.5 text-sm font-semibold text-white/88 backdrop-blur transition hover:bg-white/14"
+                >
+                  For Towns and Cities
+                </a>
+                <a
+                  href="#features"
+                  className="inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-medium text-white/72 transition hover:text-white"
+                >
+                  See the workflow
+                </a>
+              </div>
+            </div>
+
+            <div className="rounded-[32px] border border-white/12 bg-white/10 p-6 backdrop-blur-xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55">
+                What stays open
+              </p>
+              <p className="mt-4 text-2xl font-semibold leading-tight text-white">
+                Hotspots, public proposals, and civic reporting remain available.
+              </p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                {[
+                  ['Map hotspots', 'Open'],
+                  ['Public proposals', 'Open'],
+                  ['Government setup', 'Contact us'],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="rounded-2xl border border-white/10 bg-slate-950/20 px-4 py-4"
+                  >
+                    <p className="text-xs uppercase tracking-[0.2em] text-white/45">
+                      {label}
+                    </p>
+                    <p className="mt-2 text-sm font-medium text-white">{value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Bottom gradient fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-stone-50 to-transparent" />
       </section>
 
-      {/* ── Trusted Data Sources ─────────────────────────────────── */}
-      <section className="py-16 border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-6">
-          <p className="text-center text-xs font-bold text-gray-300 uppercase tracking-[0.2em] mb-8">
-            Built on open safety data
+      <section className="border-b border-stone-200 py-12">
+        <div className="mx-auto max-w-6xl px-6">
+          <p className="text-center text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">
+            Built on public safety data
           </p>
-          <div className="flex flex-wrap justify-center gap-8 lg:gap-16">
-            {DATA_SOURCES.map((src) => (
-              <div key={src.city} className="text-center">
-                <div className="text-sm font-bold text-gray-900">{src.city}</div>
-                <div className="text-xs text-gray-400 mt-0.5">{src.source}</div>
-                <div className="text-[10px] text-gray-300 mt-0.5">{src.range}</div>
+          <div className="mt-8 grid gap-5 sm:grid-cols-3">
+            {DATA_SOURCES.map((source) => (
+              <div
+                key={source.city}
+                className="rounded-3xl border border-stone-200 bg-white px-5 py-5 text-center shadow-[0_8px_30px_rgba(15,23,42,0.04)]"
+              >
+                <p className="text-sm font-semibold text-slate-900">{source.city}</p>
+                <p className="mt-1 text-xs text-slate-500">{source.source}</p>
+                <p className="mt-2 text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                  {source.range}
+                </p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Features ─────────────────────────────────────────────── */}
-      <section id="features" className="py-24 lg:py-32">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-20">
-            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight">
-              Everything you need to advocate for safer streets
-            </h2>
-            <p className="mt-4 text-lg text-gray-500 max-w-2xl mx-auto">
-              From crash analysis to street-level proposals — all in one tool, no GIS expertise required.
+      <section id="features" className="py-20 lg:py-28">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="max-w-2xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
+              Workflow
             </p>
+            <h2 className="mt-4 text-4xl font-black tracking-[-0.04em] text-slate-950 sm:text-5xl">
+              One street-safety loop, from signal to concept.
+            </h2>
           </div>
 
-          <div className="flex flex-col gap-24 lg:gap-32">
-            {FEATURES.map((feature, i) => {
+          <div className="mt-16 flex flex-col gap-16">
+            {FEATURES.map((feature, index) => {
               const Icon = feature.icon;
-              const isReversed = i % 2 === 1;
+              const reversed = index % 2 === 1;
 
               return (
                 <div
                   key={feature.title}
-                  className={`flex flex-col gap-8 lg:gap-16 ${isReversed ? 'lg:flex-row-reverse' : 'lg:flex-row'} items-center`}
+                  className={`grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center ${reversed ? 'lg:[&>*:first-child]:order-2' : ''}`}
                 >
-                  {/* Text */}
-                  <div className="flex-1 max-w-lg">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mb-5">
-                      <Icon className="w-5 h-5 text-blue-600" />
+                  <div className="max-w-xl">
+                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+                      <Icon className="h-5 w-5" />
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-900 tracking-tight">
+                    <h3 className="mt-6 text-3xl font-semibold tracking-tight text-slate-950">
                       {feature.title}
                     </h3>
-                    <p className="mt-3 text-base text-gray-500 leading-relaxed">
+                    <p className="mt-4 text-base leading-7 text-slate-600">
                       {feature.description}
                     </p>
                   </div>
 
-                  {/* Screenshot */}
-                  <div className="flex-1 max-w-2xl">
-                    <div className="rounded-2xl overflow-hidden ring-1 ring-black/[0.06] shadow-[0_8px_40px_rgba(0,0,0,0.08)]">
-                      <img
-                        src={feature.image}
-                        alt={feature.title}
-                        className="w-full"
-                        loading="lazy"
-                      />
-                    </div>
+                  <div className="overflow-hidden rounded-[28px] border border-stone-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.08)]">
+                    <img
+                      src={feature.image}
+                      alt={feature.title}
+                      className="w-full"
+                      loading="lazy"
+                    />
                   </div>
                 </div>
               );
@@ -169,81 +216,101 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── How it works ─────────────────────────────────────────── */}
-      <section className="py-24 lg:py-32 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight">
-              From crash data to street proposal in 60 seconds
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <section className="border-y border-stone-200 bg-white py-20 lg:py-24">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="grid gap-8 lg:grid-cols-3">
             {[
-              {
-                step: '1',
-                title: 'Search your street',
-                description: 'Type any address. The map zooms in and loads crash data automatically.',
-              },
-              {
-                step: '2',
-                title: 'Choose a transformation',
-                description: 'Pick existing conditions, then select from road diet, bike lanes, or complete street templates.',
-              },
-              {
-                step: '3',
-                title: 'Share your proposal',
-                description: 'Get a professional before/after cross-section. Export as PDF for your city council meeting.',
-              },
-            ].map((item) => (
-              <div key={item.step} className="bg-white rounded-2xl p-8 ring-1 ring-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
-                <div className="w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center mb-5">
-                  {item.step}
+              ['1', 'Search the block', 'Center the map, pull in crash context, and identify the exact curb or intersection that needs attention.'],
+              ['2', 'Shape the proposal', 'Switch into design mode, apply a transformation, and review the concept without leaving the workflow.'],
+              ['3', 'Move the jurisdiction', 'If the city is not live yet, Curbwise starts the government-side follow-up instead of dropping the thread.'],
+            ].map(([step, title, description]) => (
+              <div
+                key={step}
+                className="rounded-[28px] border border-stone-200 bg-stone-50 px-6 py-6"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">
+                  {step}
                 </div>
-                <h3 className="text-lg font-bold text-gray-900">{item.title}</h3>
-                <p className="mt-2 text-sm text-gray-500 leading-relaxed">{item.description}</p>
+                <h3 className="mt-5 text-xl font-semibold text-slate-950">
+                  {title}
+                </h3>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  {description}
+                </p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── CTA ──────────────────────────────────────────────────── */}
-      <section className="py-24 lg:py-32">
-        <div className="max-w-3xl mx-auto px-6 text-center">
-          <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight">
-            Ready to make your streets safer?
-          </h2>
-          <p className="mt-4 text-lg text-gray-500">
-            Curbwise is free and open source. Start designing today.
-          </p>
-          <div className="mt-10">
-            <Link
-              to="/map"
-              className="inline-flex items-center gap-2.5 px-8 py-4 rounded-full text-base font-bold bg-blue-600 text-white hover:bg-blue-500 transition-all duration-300 ease-spring active:scale-[0.97] shadow-[0_4px_24px_rgba(59,130,246,0.4)]"
-            >
-              Open Curbwise
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
-              </svg>
-            </Link>
+      <section id="government" className="relative overflow-hidden bg-[#f4efe5] py-20 lg:py-28">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_25%),radial-gradient(circle_at_bottom_right,rgba(15,23,42,0.08),transparent_30%)]" />
+        <div className="relative mx-auto grid max-w-6xl gap-10 px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+              For Towns and Cities
+            </p>
+            <h2 className="mt-4 text-4xl font-black tracking-[-0.04em] text-slate-950 sm:text-5xl">
+              Need the government side wired up?
+            </h2>
+            <p className="mt-5 max-w-xl text-base leading-7 text-slate-700">
+              Tell us the jurisdiction, the team, and what needs to be unlocked.
+              We handle scope and onboarding directly instead of pushing a public
+              pricing page.
+            </p>
+
+            <div className="mt-8 space-y-3">
+              {GOVERNMENT_POINTS.map((point) => (
+                <div
+                  key={point}
+                  className="flex items-start gap-3 rounded-2xl border border-black/5 bg-white/70 px-4 py-4"
+                >
+                  <div className="mt-1 h-2.5 w-2.5 rounded-full bg-sky-500" />
+                  <p className="text-sm leading-6 text-slate-700">{point}</p>
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-8 text-sm text-slate-500">
+              Already inside the app? You can manage jurisdiction status and
+              contact Curbwise from <Link to="/account" className="font-medium text-slate-900 underline">Account</Link>.
+            </p>
           </div>
+
+          <GovernmentLeadForm
+            sourceSurface="landing"
+            title="Request municipal onboarding"
+            description="Share the jurisdiction and the internal workflow you need. We will follow up directly."
+            submitLabel="Send setup request"
+          />
         </div>
       </section>
 
-      {/* ── Footer ───────────────────────────────────────────────── */}
-      <footer className="border-t border-gray-100 py-12">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <footer className="border-t border-stone-200 bg-stone-50 py-10">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 text-center sm:flex-row sm:text-left">
           <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 rounded-md bg-blue-600 flex items-center justify-center">
-              <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 19L8 5" /><path d="M16 5L20 19" /><path d="M12 6V8" /><path d="M12 11V13" /><path d="M12 16V18" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950 text-white">
+              <svg
+                className="h-4 w-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M4 19L8 5" />
+                <path d="M16 5L20 19" />
+                <path d="M12 6V8" />
+                <path d="M12 11V13" />
+                <path d="M12 16V18" />
               </svg>
             </div>
-            <span className="text-sm font-bold text-gray-900">Curbwise</span>
+            <span className="text-sm font-semibold text-slate-900">Curbwise</span>
           </div>
-          <p className="text-xs text-gray-400">
-            Open-source street safety tool. Crash data from NYC OpenData, City of Chicago, and NHTSA FARS.
+          <p className="text-xs text-slate-500">
+            Street safety workspace built on public crash data from NYC, Chicago,
+            and NHTSA.
           </p>
         </div>
       </footer>
@@ -251,30 +318,63 @@ export default function LandingPage() {
   );
 }
 
-// ── Inline SVG Icons ──────────────────────────────────────────────
-
 function HeatmapIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <circle cx="12" cy="12" r="6" />
-      <circle cx="12" cy="12" r="2" />
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 17h4v4" />
+      <path d="M7 7h4V3" />
+      <path d="M17 21v-4h4" />
+      <path d="M21 7h-4V3" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <circle cx="15.5" cy="8.5" r="2.2" />
+      <circle cx="11.5" cy="14.5" r="2.7" />
+      <circle cx="17.5" cy="16.5" r="1.4" />
     </svg>
   );
 }
 
 function RoadIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 19L8 5" /><path d="M16 5L20 19" /><path d="M12 6V8" /><path d="M12 11V13" /><path d="M12 16V18" />
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M7 3h10l4 18H3L7 3Z" />
+      <path d="M12 6v2" />
+      <path d="M12 12v2" />
+      <path d="M12 18v.5" />
     </svg>
   );
 }
 
 function IntersectionIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="7" /><path d="M12 2v6M12 16v6M2 12h6M16 12h6" />
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M10 3v6.5a2.5 2.5 0 0 1-5 0V3" />
+      <path d="M14 21v-6.5a2.5 2.5 0 0 1 5 0V21" />
+      <path d="M3 10h6.5a2.5 2.5 0 0 1 0 5H3" />
+      <path d="M21 14h-6.5a2.5 2.5 0 0 1 0-5H21" />
     </svg>
   );
 }

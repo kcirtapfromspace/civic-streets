@@ -6,57 +6,100 @@ import {
   type QueryCtx,
 } from './_generated/server';
 import type { Doc, Id } from './_generated/dataModel';
+import { ensureOrganizationForUser } from './organizations';
 
-type BillingPlanKey = 'free' | 'pro' | 'team';
-type BillingInterval = 'month' | 'year';
-type BillingStatus = 'inactive' | 'pending' | 'active' | 'trialing' | 'past_due' | 'canceled';
+type BillingPlanKey =
+  | 'civic_free'
+  | 'town_essential'
+  | 'city_standard'
+  | 'agency_enterprise';
+type BillingStatus =
+  | 'inactive'
+  | 'pending'
+  | 'active'
+  | 'trialing'
+  | 'past_due'
+  | 'canceled';
 type EntitlementSummary = Record<string, boolean>;
 
 const DEFAULT_ENTITLEMENTS: Record<BillingPlanKey, EntitlementSummary> = {
-  free: {},
-  pro: {
-    private_projects: true,
-    unwatermarked_exports: true,
-    branded_exports: true,
-    advanced_templates: true,
+  civic_free: {
+    public_hotspots: true,
+    public_issue_reports: true,
+    public_proposals: true,
+    public_share_links: true,
+    basic_public_exports: true,
   },
-  team: {
+  town_essential: {
+    public_hotspots: true,
+    public_issue_reports: true,
+    public_proposals: true,
+    public_share_links: true,
+    basic_public_exports: true,
+    private_workspaces: true,
     private_projects: true,
-    unwatermarked_exports: true,
     branded_exports: true,
     advanced_templates: true,
-    team_collaboration: true,
-    custom_templates: true,
+    review_threads: true,
+  },
+  city_standard: {
+    public_hotspots: true,
+    public_issue_reports: true,
+    public_proposals: true,
+    public_share_links: true,
+    basic_public_exports: true,
+    private_workspaces: true,
+    private_projects: true,
+    branded_exports: true,
+    advanced_templates: true,
+    review_threads: true,
+    approval_states: true,
+    member_roles: true,
+    invoice_mode: true,
+    priority_support: true,
+  },
+  agency_enterprise: {
+    public_hotspots: true,
+    public_issue_reports: true,
+    public_proposals: true,
+    public_share_links: true,
+    basic_public_exports: true,
+    private_workspaces: true,
+    private_projects: true,
+    branded_exports: true,
+    advanced_templates: true,
+    review_threads: true,
+    approval_states: true,
+    member_roles: true,
+    billing_admin: true,
+    invoice_mode: true,
+    audit_logs: true,
+    sso: true,
+    custom_overlays: true,
+    retention_controls: true,
     priority_support: true,
   },
 };
 
-export const PLAN_PRICE_LOOKUP_KEYS: Record<
-  Exclude<BillingPlanKey, 'free'>,
-  Record<BillingInterval, string>
-> = {
-  pro: {
-    month: 'curbwise-pro-monthly',
-    year: 'curbwise-pro-annual',
+export const PLAN_PRICE_LOOKUP_KEYS = {
+  town_essential: {
+    year: 'curbwise-town-essential-annual',
   },
-  team: {
-    month: 'curbwise-team-monthly',
-    year: 'curbwise-team-annual',
-  },
-};
+} as const;
 
 const PLAN_KEY_BY_PRICE_LOOKUP_KEY = new Map<string, BillingPlanKey>([
-  [PLAN_PRICE_LOOKUP_KEYS.pro.month, 'pro'],
-  [PLAN_PRICE_LOOKUP_KEYS.pro.year, 'pro'],
-  [PLAN_PRICE_LOOKUP_KEYS.team.month, 'team'],
-  [PLAN_PRICE_LOOKUP_KEYS.team.year, 'team'],
+  [PLAN_PRICE_LOOKUP_KEYS.town_essential.year, 'town_essential'],
+  ['curbwise-pro-annual', 'town_essential'],
+  ['curbwise-pro-monthly', 'town_essential'],
+  ['curbwise-team-annual', 'city_standard'],
+  ['curbwise-team-monthly', 'city_standard'],
 ]);
 
 function getDefaultEntitlements(planKey: BillingPlanKey): EntitlementSummary {
   return { ...DEFAULT_ENTITLEMENTS[planKey] };
 }
 
-function mergeEntitlements(...summaries: Array<EntitlementSummary | undefined>): EntitlementSummary {
+function mergeEntitlements(...summaries: Array<EntitlementSummary | undefined>) {
   const merged: EntitlementSummary = {};
   for (const summary of summaries) {
     if (!summary) continue;
@@ -70,10 +113,16 @@ function mergeEntitlements(...summaries: Array<EntitlementSummary | undefined>):
 }
 
 function normalizePlanKey(planKey: string | undefined): BillingPlanKey {
-  if (planKey === 'pro' || planKey === 'team') {
-    return planKey;
+  if (planKey === 'town_essential' || planKey === 'pro') {
+    return 'town_essential';
   }
-  return 'free';
+  if (planKey === 'city_standard' || planKey === 'team') {
+    return 'city_standard';
+  }
+  if (planKey === 'agency_enterprise' || planKey === 'enterprise') {
+    return 'agency_enterprise';
+  }
+  return 'civic_free';
 }
 
 function normalizeBillingStatus(status: string | undefined): BillingStatus {
@@ -95,11 +144,14 @@ function isActiveBillingStatus(status: BillingStatus): boolean {
 }
 
 function planKeyFromLookupKey(lookupKey?: string): BillingPlanKey {
-  if (!lookupKey) return 'free';
-  return PLAN_KEY_BY_PRICE_LOOKUP_KEY.get(lookupKey) ?? 'free';
+  if (!lookupKey) return 'civic_free';
+  return PLAN_KEY_BY_PRICE_LOOKUP_KEY.get(lookupKey) ?? 'civic_free';
 }
 
-export function getPriceLookupKey(planKey: Exclude<BillingPlanKey, 'free'>, interval: BillingInterval): string {
+export function getPriceLookupKey(
+  planKey: Extract<BillingPlanKey, 'town_essential'>,
+  interval: 'year',
+): string {
   return PLAN_PRICE_LOOKUP_KEYS[planKey][interval];
 }
 
@@ -206,21 +258,70 @@ async function findBillingSubscriptionByAccount(
     .unique();
 }
 
+function getOrganizationMetadata(organization: Doc<'organizations'>) {
+  return {
+    organizationId: organization._id,
+    organizationType: organization.organizationType,
+    jurisdictionName: organization.jurisdictionName,
+    populationBand: organization.populationBand,
+    contractTier: organization.contractTier,
+    procurementState: organization.procurementState,
+    invoiceMode: organization.invoiceMode,
+    purchaseOrderNumber: organization.purchaseOrderNumber,
+    contractRenewalDate: organization.contractRenewalDate,
+  };
+}
+
 async function ensureBillingAccount(
   ctx: MutationCtx,
   ownerUserId: Id<'users'>,
 ) {
   const existing = await findBillingAccountByOwner(ctx, ownerUserId);
+  const user = await ctx.db.get(ownerUserId);
+  if (!user) {
+    throw new Error('Billing owner user not found');
+  }
+
+  const organizationContext = await ensureOrganizationForUser(ctx, user);
+  const organizationMetadata = getOrganizationMetadata(
+    organizationContext.organization,
+  );
+
   if (existing) {
-    return existing;
+    const updates: Partial<Doc<'billingAccounts'>> = {
+      organizationId: existing.organizationId ?? organizationContext.organization._id,
+      organizationType: existing.organizationType ?? organizationMetadata.organizationType,
+      jurisdictionName: existing.jurisdictionName ?? organizationMetadata.jurisdictionName,
+      populationBand: existing.populationBand ?? organizationMetadata.populationBand,
+      contractTier: existing.contractTier ?? organizationMetadata.contractTier,
+      procurementState: existing.procurementState ?? organizationMetadata.procurementState,
+      invoiceMode: existing.invoiceMode ?? organizationMetadata.invoiceMode,
+      purchaseOrderNumber:
+        existing.purchaseOrderNumber ?? organizationMetadata.purchaseOrderNumber,
+      contractRenewalDate:
+        existing.contractRenewalDate ?? organizationMetadata.contractRenewalDate,
+      updatedAt: Date.now(),
+    };
+    await ctx.db.patch(existing._id, updates);
+    return await ctx.db.get(existing._id);
   }
 
   const now = Date.now();
   const billingAccountId = await ctx.db.insert('billingAccounts', {
     ownerUserId,
-    planKey: 'free',
+    organizationId: organizationContext.organization._id,
+    planKey: 'civic_free',
     billingStatus: 'inactive',
-    entitlementSummary: getDefaultEntitlements('free'),
+    entitlementSummary: getDefaultEntitlements('civic_free'),
+    organizationType: organizationMetadata.organizationType,
+    jurisdictionName: organizationMetadata.jurisdictionName,
+    populationBand: organizationMetadata.populationBand,
+    contractTier: organizationMetadata.contractTier,
+    procurementState: organizationMetadata.procurementState,
+    billingAdminUserIds: [ownerUserId],
+    invoiceMode: organizationMetadata.invoiceMode,
+    purchaseOrderNumber: organizationMetadata.purchaseOrderNumber,
+    contractRenewalDate: organizationMetadata.contractRenewalDate,
     createdAt: now,
     updatedAt: now,
   });
@@ -233,20 +334,28 @@ async function upsertBillingAccountSnapshotRecord(
   args: {
     billingAccountId?: Id<'billingAccounts'>;
     ownerUserId?: Id<'users'>;
+    organizationId?: Id<'organizations'>;
     stripeCustomerId?: string;
     billingEmail?: string;
-    planKey?: BillingPlanKey;
+    planKey?: string;
     billingStatus?: BillingStatus;
     entitlementSummary?: EntitlementSummary;
+    organizationType?: string;
+    jurisdictionName?: string;
+    populationBand?: string;
+    contractTier?: string;
+    procurementState?: string;
+    billingAdminUserIds?: Id<'users'>[];
+    invoiceMode?: string;
+    purchaseOrderNumber?: string;
+    contractRenewalDate?: number;
     lastCheckoutSessionId?: string;
     currentPeriodEnd?: number;
     cancelAtPeriodEnd?: boolean;
   },
 ) {
   let account =
-    args.billingAccountId
-      ? await ctx.db.get(args.billingAccountId)
-      : null;
+    args.billingAccountId ? await ctx.db.get(args.billingAccountId) : null;
 
   if (!account && args.ownerUserId) {
     account = await findBillingAccountByOwner(ctx, args.ownerUserId);
@@ -260,40 +369,39 @@ async function upsertBillingAccountSnapshotRecord(
     if (!args.ownerUserId) {
       throw new Error('Cannot create billing account snapshot without an owner');
     }
-    const now = Date.now();
-    const billingAccountId = await ctx.db.insert('billingAccounts', {
-      ownerUserId: args.ownerUserId,
-      stripeCustomerId: args.stripeCustomerId,
-      billingEmail: args.billingEmail,
-      planKey: args.planKey ?? 'free',
-      billingStatus: args.billingStatus ?? 'inactive',
-      entitlementSummary: args.entitlementSummary ?? getDefaultEntitlements(args.planKey ?? 'free'),
-      lastCheckoutSessionId: args.lastCheckoutSessionId,
-      currentPeriodEnd: args.currentPeriodEnd,
-      cancelAtPeriodEnd: args.cancelAtPeriodEnd,
-      createdAt: now,
-      updatedAt: now,
-    });
-    return await ctx.db.get(billingAccountId);
+    const ensured = await ensureBillingAccount(ctx, args.ownerUserId);
+    if (!ensured) {
+      throw new Error('Unable to provision billing account');
+    }
+    account = ensured;
   }
 
   const updates: Partial<Doc<'billingAccounts'>> = {
     updatedAt: Date.now(),
   };
-  if (args.stripeCustomerId !== undefined) {
-    updates.stripeCustomerId = args.stripeCustomerId;
-  }
-  if (args.billingEmail !== undefined) {
-    updates.billingEmail = args.billingEmail;
-  }
-  if (args.planKey !== undefined) {
-    updates.planKey = args.planKey;
-  }
-  if (args.billingStatus !== undefined) {
-    updates.billingStatus = args.billingStatus;
-  }
+
+  if (args.organizationId !== undefined) updates.organizationId = args.organizationId;
+  if (args.stripeCustomerId !== undefined) updates.stripeCustomerId = args.stripeCustomerId;
+  if (args.billingEmail !== undefined) updates.billingEmail = args.billingEmail;
+  if (args.planKey !== undefined) updates.planKey = normalizePlanKey(args.planKey);
+  if (args.billingStatus !== undefined) updates.billingStatus = args.billingStatus;
   if (args.entitlementSummary !== undefined) {
     updates.entitlementSummary = args.entitlementSummary;
+  }
+  if (args.organizationType !== undefined) updates.organizationType = args.organizationType;
+  if (args.jurisdictionName !== undefined) updates.jurisdictionName = args.jurisdictionName;
+  if (args.populationBand !== undefined) updates.populationBand = args.populationBand;
+  if (args.contractTier !== undefined) updates.contractTier = args.contractTier;
+  if (args.procurementState !== undefined) updates.procurementState = args.procurementState;
+  if (args.billingAdminUserIds !== undefined) {
+    updates.billingAdminUserIds = args.billingAdminUserIds;
+  }
+  if (args.invoiceMode !== undefined) updates.invoiceMode = args.invoiceMode;
+  if (args.purchaseOrderNumber !== undefined) {
+    updates.purchaseOrderNumber = args.purchaseOrderNumber;
+  }
+  if (args.contractRenewalDate !== undefined) {
+    updates.contractRenewalDate = args.contractRenewalDate;
   }
   if (args.lastCheckoutSessionId !== undefined) {
     updates.lastCheckoutSessionId = args.lastCheckoutSessionId;
@@ -313,11 +421,12 @@ async function upsertBillingSubscriptionSnapshotRecord(
   ctx: MutationCtx,
   args: {
     billingAccountId: Id<'billingAccounts'>;
+    organizationId?: Id<'organizations'>;
     stripeSubscriptionId: string;
     stripePriceId?: string;
     stripePriceLookupKey?: string;
     stripeProductId?: string;
-    planKey: BillingPlanKey;
+    planKey: string;
     billingStatus: BillingStatus;
     entitlementSummary: EntitlementSummary;
     currentPeriodStart?: number;
@@ -333,11 +442,12 @@ async function upsertBillingSubscriptionSnapshotRecord(
   if (!existing) {
     const billingSubscriptionId = await ctx.db.insert('billingSubscriptions', {
       billingAccountId: args.billingAccountId,
+      organizationId: args.organizationId,
       stripeSubscriptionId: args.stripeSubscriptionId,
       stripePriceId: args.stripePriceId,
       stripePriceLookupKey: args.stripePriceLookupKey,
       stripeProductId: args.stripeProductId,
-      planKey: args.planKey,
+      planKey: normalizePlanKey(args.planKey),
       billingStatus: args.billingStatus,
       entitlementSummary: args.entitlementSummary,
       currentPeriodStart: args.currentPeriodStart,
@@ -352,11 +462,12 @@ async function upsertBillingSubscriptionSnapshotRecord(
   }
 
   await ctx.db.patch(existing._id, {
+    organizationId: args.organizationId ?? existing.organizationId,
     stripeSubscriptionId: args.stripeSubscriptionId,
     stripePriceId: args.stripePriceId,
     stripePriceLookupKey: args.stripePriceLookupKey,
     stripeProductId: args.stripeProductId,
-    planKey: args.planKey,
+    planKey: normalizePlanKey(args.planKey),
     billingStatus: args.billingStatus,
     entitlementSummary: args.entitlementSummary,
     currentPeriodStart: args.currentPeriodStart,
@@ -409,13 +520,13 @@ export const getBillingState = query({
     if (!account) {
       return {
         userId: user._id,
-        planKey: 'free' as BillingPlanKey,
+        planKey: 'civic_free' as BillingPlanKey,
         billingStatus: 'inactive' as BillingStatus,
         stripeCustomerId: null,
         billingEmail: user.email ?? null,
         currentPeriodEnd: null,
         cancelAtPeriodEnd: false,
-        entitlementSummary: getDefaultEntitlements('free'),
+        entitlementSummary: getDefaultEntitlements('civic_free'),
         canManageBilling: false,
         isActive: false,
         subscription: null,
@@ -428,14 +539,19 @@ export const getBillingState = query({
     );
     const effectivePlanKey = isActiveBillingStatus(billingStatus)
       ? normalizePlanKey(subscription?.planKey ?? account.planKey)
-      : 'free';
+      : normalizePlanKey(account.planKey);
     const mergedEntitlements = isActiveBillingStatus(billingStatus)
       ? mergeEntitlements(
           getDefaultEntitlements(effectivePlanKey),
           account.entitlementSummary,
           subscription?.entitlementSummary,
         )
-      : getDefaultEntitlements('free');
+      : mergeEntitlements(
+          getDefaultEntitlements('civic_free'),
+          normalizePlanKey(account.planKey) === 'civic_free'
+            ? account.entitlementSummary
+            : undefined,
+        );
 
     return {
       userId: user._id,
@@ -444,10 +560,27 @@ export const getBillingState = query({
       billingStatus,
       stripeCustomerId: account.stripeCustomerId ?? null,
       billingEmail: account.billingEmail ?? user.email ?? null,
-      currentPeriodEnd: subscription?.currentPeriodEnd ?? account.currentPeriodEnd ?? null,
-      cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? account.cancelAtPeriodEnd ?? false,
+      currentPeriodEnd:
+        subscription?.currentPeriodEnd ?? account.currentPeriodEnd ?? null,
+      cancelAtPeriodEnd:
+        subscription?.cancelAtPeriodEnd ?? account.cancelAtPeriodEnd ?? false,
       entitlementSummary: mergedEntitlements,
-      canManageBilling: Boolean(account.stripeCustomerId),
+      organization: account.organizationId
+        ? {
+            organizationId: account.organizationId,
+            organizationType: account.organizationType ?? null,
+            jurisdictionName: account.jurisdictionName ?? null,
+            populationBand: account.populationBand ?? null,
+            contractTier: account.contractTier ?? effectivePlanKey,
+            procurementState: account.procurementState ?? null,
+            invoiceMode: account.invoiceMode ?? null,
+            purchaseOrderNumber: account.purchaseOrderNumber ?? null,
+            contractRenewalDate: account.contractRenewalDate ?? null,
+          }
+        : null,
+      canManageBilling:
+        Boolean(account.stripeCustomerId) &&
+        normalizePlanKey(account.planKey) !== 'agency_enterprise',
       isActive: isActiveBillingStatus(billingStatus),
       subscription: subscription
         ? {
@@ -483,9 +616,10 @@ export const upsertBillingAccountSnapshot = internalMutation({
   args: {
     billingAccountId: v.optional(v.id('billingAccounts')),
     ownerUserId: v.optional(v.id('users')),
+    organizationId: v.optional(v.id('organizations')),
     stripeCustomerId: v.optional(v.string()),
     billingEmail: v.optional(v.string()),
-    planKey: v.optional(v.union(v.literal('free'), v.literal('pro'), v.literal('team'))),
+    planKey: v.optional(v.string()),
     billingStatus: v.optional(
       v.union(
         v.literal('inactive'),
@@ -497,34 +631,33 @@ export const upsertBillingAccountSnapshot = internalMutation({
       ),
     ),
     entitlementSummary: v.optional(v.record(v.string(), v.boolean())),
+    organizationType: v.optional(v.string()),
+    jurisdictionName: v.optional(v.string()),
+    populationBand: v.optional(v.string()),
+    contractTier: v.optional(v.string()),
+    procurementState: v.optional(v.string()),
+    billingAdminUserIds: v.optional(v.array(v.id('users'))),
+    invoiceMode: v.optional(v.string()),
+    purchaseOrderNumber: v.optional(v.string()),
+    contractRenewalDate: v.optional(v.number()),
     lastCheckoutSessionId: v.optional(v.string()),
     currentPeriodEnd: v.optional(v.number()),
     cancelAtPeriodEnd: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    return await upsertBillingAccountSnapshotRecord(ctx, {
-      billingAccountId: args.billingAccountId,
-      ownerUserId: args.ownerUserId,
-      stripeCustomerId: args.stripeCustomerId,
-      billingEmail: args.billingEmail,
-      planKey: args.planKey,
-      billingStatus: args.billingStatus,
-      entitlementSummary: args.entitlementSummary,
-      lastCheckoutSessionId: args.lastCheckoutSessionId,
-      currentPeriodEnd: args.currentPeriodEnd,
-      cancelAtPeriodEnd: args.cancelAtPeriodEnd,
-    });
+    return await upsertBillingAccountSnapshotRecord(ctx, args);
   },
 });
 
 export const upsertBillingSubscriptionSnapshot = internalMutation({
   args: {
     billingAccountId: v.id('billingAccounts'),
+    organizationId: v.optional(v.id('organizations')),
     stripeSubscriptionId: v.string(),
     stripePriceId: v.optional(v.string()),
     stripePriceLookupKey: v.optional(v.string()),
     stripeProductId: v.optional(v.string()),
-    planKey: v.union(v.literal('free'), v.literal('pro'), v.literal('team')),
+    planKey: v.string(),
     billingStatus: v.union(
       v.literal('inactive'),
       v.literal('pending'),
@@ -541,21 +674,7 @@ export const upsertBillingSubscriptionSnapshot = internalMutation({
     latestInvoiceId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    return await upsertBillingSubscriptionSnapshotRecord(ctx, {
-      billingAccountId: args.billingAccountId,
-      stripeSubscriptionId: args.stripeSubscriptionId,
-      stripePriceId: args.stripePriceId,
-      stripePriceLookupKey: args.stripePriceLookupKey,
-      stripeProductId: args.stripeProductId,
-      planKey: args.planKey,
-      billingStatus: args.billingStatus,
-      entitlementSummary: args.entitlementSummary,
-      currentPeriodStart: args.currentPeriodStart,
-      currentPeriodEnd: args.currentPeriodEnd,
-      trialEnd: args.trialEnd,
-      cancelAtPeriodEnd: args.cancelAtPeriodEnd,
-      latestInvoiceId: args.latestInvoiceId,
-    });
+    return await upsertBillingSubscriptionSnapshotRecord(ctx, args);
   },
 });
 
@@ -593,6 +712,7 @@ export const handleStripeEvent = internalMutation({
         const metadata = safeObject(object?.metadata);
         const billingAccountId = safeString(metadata?.billingAccountId);
         const ownerUserId = safeString(metadata?.userId);
+        const organizationId = safeString(metadata?.organizationId);
         const stripeCustomerId =
           safeString(object?.customer) ??
           safeString(object?.customer_id) ??
@@ -601,16 +721,15 @@ export const handleStripeEvent = internalMutation({
           safeString(safeObject(object?.customer_details)?.email) ??
           safeString(object?.customer_email) ??
           undefined;
-        const currentPeriodEnd = safeNumber(safeObject(object?.subscription)?.current_period_end);
 
         await upsertBillingAccountSnapshotRecord(ctx, {
           billingAccountId: billingAccountId as Id<'billingAccounts'> | undefined,
           ownerUserId: ownerUserId as Id<'users'> | undefined,
+          organizationId: organizationId as Id<'organizations'> | undefined,
           stripeCustomerId,
           billingEmail,
           billingStatus: 'pending',
           lastCheckoutSessionId: safeString(object?.id),
-          currentPeriodEnd,
         });
         break;
       }
@@ -622,6 +741,7 @@ export const handleStripeEvent = internalMutation({
         const metadata = safeObject(object?.metadata);
         const billingAccountId = safeString(metadata?.billingAccountId);
         const ownerUserId = safeString(metadata?.userId);
+        const organizationId = safeString(metadata?.organizationId);
         const stripeCustomerId =
           safeString(object?.customer) ??
           safeString(object?.customer_id) ??
@@ -638,7 +758,7 @@ export const handleStripeEvent = internalMutation({
         if (billingAccount) {
           const itemsObject = safeObject(object?.items);
           const item = Array.isArray(itemsObject?.data)
-            ? (itemsObject?.data?.[0] as Record<string, unknown> | undefined)
+            ? (itemsObject.data[0] as Record<string, unknown> | undefined)
             : undefined;
           const price = safeObject(item?.price);
           const priceLookupKey = extractPriceLookupKey(price);
@@ -658,17 +778,24 @@ export const handleStripeEvent = internalMutation({
           await upsertBillingAccountSnapshotRecord(ctx, {
             billingAccountId: billingAccount._id,
             ownerUserId: billingAccount.ownerUserId,
+            organizationId:
+              (organizationId as Id<'organizations'> | undefined) ??
+              billingAccount.organizationId,
             stripeCustomerId: billingAccount.stripeCustomerId ?? stripeCustomerId,
             billingEmail: billingAccount.billingEmail,
             planKey,
             billingStatus: subscriptionStatus,
             entitlementSummary,
+            contractTier: planKey,
             currentPeriodEnd: safeNumber(object?.current_period_end),
             cancelAtPeriodEnd: safeBoolean(object?.cancel_at_period_end),
           });
 
           await upsertBillingSubscriptionSnapshotRecord(ctx, {
             billingAccountId: billingAccount._id,
+            organizationId:
+              (organizationId as Id<'organizations'> | undefined) ??
+              billingAccount.organizationId,
             stripeSubscriptionId: subscriptionId,
             stripePriceId: safeString(price?.id),
             stripePriceLookupKey: priceLookupKey,
@@ -708,6 +835,7 @@ export const handleStripeEvent = internalMutation({
           await upsertBillingAccountSnapshotRecord(ctx, {
             billingAccountId: billingAccount._id,
             ownerUserId: billingAccount.ownerUserId,
+            organizationId: billingAccount.organizationId,
             stripeCustomerId: billingAccount.stripeCustomerId ?? stripeCustomerId,
             billingEmail: billingAccount.billingEmail,
             planKey: normalizePlanKey(subscription?.planKey ?? billingAccount.planKey),
@@ -722,6 +850,7 @@ export const handleStripeEvent = internalMutation({
           if (subscription) {
             await upsertBillingSubscriptionSnapshotRecord(ctx, {
               billingAccountId: billingAccount._id,
+              organizationId: billingAccount.organizationId,
               stripeSubscriptionId: subscription.stripeSubscriptionId,
               stripePriceId: subscription.stripePriceId ?? undefined,
               stripePriceLookupKey: subscription.stripePriceLookupKey ?? undefined,
@@ -730,7 +859,10 @@ export const handleStripeEvent = internalMutation({
               billingStatus: normalizeBillingStatus(billingStatus),
               entitlementSummary: subscription.entitlementSummary,
               currentPeriodStart: subscription.currentPeriodStart ?? undefined,
-              currentPeriodEnd: safeNumber(object?.period_end) ?? subscription.currentPeriodEnd ?? undefined,
+              currentPeriodEnd:
+                safeNumber(object?.period_end) ??
+                subscription.currentPeriodEnd ??
+                undefined,
               trialEnd: subscription.trialEnd ?? undefined,
               cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
               latestInvoiceId,
@@ -755,6 +887,7 @@ export const handleStripeEvent = internalMutation({
           await upsertBillingAccountSnapshotRecord(ctx, {
             billingAccountId: billingAccount._id,
             ownerUserId: billingAccount.ownerUserId,
+            organizationId: billingAccount.organizationId,
             stripeCustomerId: billingAccount.stripeCustomerId ?? stripeCustomerId,
             billingEmail: billingAccount.billingEmail,
             planKey: normalizePlanKey(billingAccount.planKey),
@@ -768,6 +901,7 @@ export const handleStripeEvent = internalMutation({
           if (subscription) {
             await upsertBillingSubscriptionSnapshotRecord(ctx, {
               billingAccountId: billingAccount._id,
+              organizationId: billingAccount.organizationId,
               stripeSubscriptionId: subscription.stripeSubscriptionId,
               stripePriceId: subscription.stripePriceId ?? undefined,
               stripePriceLookupKey: subscription.stripePriceLookupKey ?? undefined,
@@ -806,7 +940,9 @@ export const handleStripeEvent = internalMutation({
   },
 });
 
-function accountEntitlementsFromMetadata(metadata: Record<string, unknown> | undefined): EntitlementSummary {
+function accountEntitlementsFromMetadata(
+  metadata: Record<string, unknown> | undefined,
+) {
   if (!metadata) return {};
   const source = safeString(metadata.entitlementSummary);
   if (!source) return {};

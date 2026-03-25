@@ -11,6 +11,10 @@ export type BillingFeatureKey =
   | 'pdf_export'
   | 'premium_templates'
   | 'report_pdf_attachment'
+  | 'review_threads'
+  | 'approval_states'
+  | 'member_roles'
+  | 'audit_logs'
   | 'team_collaboration';
 
 type BillingAccessRequirement = {
@@ -18,11 +22,23 @@ type BillingAccessRequirement = {
   entitlement?: keyof BillingEntitlements;
 };
 
+export const BILLING_FEATURE_LABELS: Record<BillingFeatureKey, string> = {
+  private_projects: 'private projects',
+  pdf_export: 'branded PDF exports',
+  premium_templates: 'advanced template packs',
+  report_pdf_attachment: 'report PDF attachments',
+  review_threads: 'review threads',
+  approval_states: 'approval states',
+  member_roles: 'member roles',
+  audit_logs: 'audit logs',
+  team_collaboration: 'shared municipal collaboration',
+};
+
 const PLAN_ORDER: Record<BillingPlanKey, number> = {
-  free: 0,
-  pro: 1,
-  team: 2,
-  enterprise: 3,
+  civic_free: 0,
+  town_essential: 1,
+  city_standard: 2,
+  agency_enterprise: 3,
 };
 
 const BILLING_ACCESS_REQUIREMENTS: Record<
@@ -30,24 +46,40 @@ const BILLING_ACCESS_REQUIREMENTS: Record<
   BillingAccessRequirement
 > = {
   private_projects: {
-    minimumPlan: 'pro',
+    minimumPlan: 'town_essential',
     entitlement: 'privateProjects',
   },
   pdf_export: {
-    minimumPlan: 'pro',
-    entitlement: 'unwatermarkedExports',
+    minimumPlan: 'town_essential',
+    entitlement: 'brandedExports',
   },
   premium_templates: {
-    minimumPlan: 'pro',
+    minimumPlan: 'town_essential',
     entitlement: 'advancedTemplates',
   },
   report_pdf_attachment: {
-    minimumPlan: 'pro',
-    entitlement: 'unwatermarkedExports',
+    minimumPlan: 'town_essential',
+    entitlement: 'brandedExports',
+  },
+  review_threads: {
+    minimumPlan: 'town_essential',
+    entitlement: 'reviewThreads',
+  },
+  approval_states: {
+    minimumPlan: 'city_standard',
+    entitlement: 'approvalStates',
+  },
+  member_roles: {
+    minimumPlan: 'city_standard',
+    entitlement: 'memberRoles',
+  },
+  audit_logs: {
+    minimumPlan: 'agency_enterprise',
+    entitlement: 'auditLogs',
   },
   team_collaboration: {
-    minimumPlan: 'team',
-    entitlement: 'teamCollaboration',
+    minimumPlan: 'city_standard',
+    entitlement: 'reviewThreads',
   },
 };
 
@@ -74,9 +106,11 @@ export function hasActiveBillingStatus(status: BillingState['status']): boolean 
   return status === 'active' || status === 'trialing';
 }
 
-export function getPricingHref(feature?: BillingFeatureKey): string {
-  if (!feature) return '/pricing';
-  return `/pricing?feature=${encodeURIComponent(feature)}`;
+export function getGovernmentContactHref(feature?: BillingFeatureKey): string {
+  if (!feature) {
+    return '/account?intent=government';
+  }
+  return `/account?intent=government&feature=${encodeURIComponent(feature)}`;
 }
 
 export function canAccessBillingFeature(
@@ -84,7 +118,7 @@ export function canAccessBillingFeature(
   feature: BillingFeatureKey,
 ): boolean {
   const requirement = BILLING_ACCESS_REQUIREMENTS[feature];
-  if (billingState.planKey === 'enterprise') return true;
+  if (billingState.planKey === 'agency_enterprise') return true;
   if (!hasPlanAccess(billingState.planKey, requirement.minimumPlan)) {
     return false;
   }
@@ -102,13 +136,17 @@ export function useBillingAccess(feature: BillingFeatureKey) {
     [billingState, feature],
   );
 
-  const pricingHref = useMemo(() => getPricingHref(feature), [feature]);
+  const contactHref = useMemo(
+    () => getGovernmentContactHref(feature),
+    [feature],
+  );
 
   return {
     billingState,
     billingStateLoading,
     canAccess: billingStateLoading ? false : canAccess,
-    pricingHref,
+    contactHref,
+    requestedFeatureLabel: BILLING_FEATURE_LABELS[feature],
     requiredPlanKey: BILLING_ACCESS_REQUIREMENTS[feature].minimumPlan,
     requiredEntitlement: BILLING_ACCESS_REQUIREMENTS[feature].entitlement,
   };

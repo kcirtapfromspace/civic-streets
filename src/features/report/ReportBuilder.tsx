@@ -11,7 +11,7 @@ import { generateReportSubject, generateReportBody } from './templates';
 import type { ReportTemplateInput } from './templates';
 import type { HotspotPin, DesignPin } from '@/lib/types';
 import { HOTSPOT_CATEGORY_LABELS } from '@/lib/types';
-import { getPricingHref, useBillingAccess } from '@/lib/billing/access';
+import { getGovernmentContactHref, useBillingAccess } from '@/lib/billing/access';
 
 // ── Props ──────────────────────────────────────────────────────────────────
 
@@ -321,13 +321,13 @@ function StepCompose({
     togglePdf,
     setStep,
   } = useReportStore();
-  const { canAccess: canAttachPdf, pricingHref } = useBillingAccess(
+  const { canAccess: canAttachPdf, contactHref } = useBillingAccess(
     'report_pdf_attachment',
   );
 
   const handleUpgrade = useCallback(() => {
-    navigate(pricingHref || getPricingHref('report_pdf_attachment'));
-  }, [navigate, pricingHref]);
+    navigate(contactHref || getGovernmentContactHref('report_pdf_attachment'));
+  }, [contactHref, navigate]);
 
   // Auto-generate template on first render if body is empty
   const generated = useMemo(() => {
@@ -451,16 +451,16 @@ function StepCompose({
               Include Street Design PDF
             </span>
             {!canAttachPdf && (
-              <Badge variant="warning">Pro</Badge>
+              <Badge variant="warning">Gov</Badge>
             )}
           </label>
           {!canAttachPdf && (
             <div className="mt-2 flex items-center justify-between gap-3">
               <p className="text-xs text-gray-500">
-                PDF attachments are available on Pro.
+                PDF attachments are enabled once your jurisdiction is provisioned.
               </p>
               <Button variant="ghost" onClick={handleUpgrade}>
-                Upgrade
+                Contact Curbwise
               </Button>
             </div>
           )}

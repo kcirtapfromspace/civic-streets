@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Modal, Button, Select } from '@/components/ui';
 import { useCommunityStore } from './community-store';
 import { useHotspotsList } from '@/lib/api/use-hotspots';
-import { getPricingHref, useBillingAccess } from '@/lib/billing/access';
+import { getGovernmentContactHref, useBillingAccess } from '@/lib/billing/access';
+import { useOrganizationContext } from '@/lib/api/organization';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -33,8 +34,9 @@ export function SaveDesignModal({
   const { isSaveDesignOpen, closeSaveDesign, saveDesignData } = useCommunityStore();
   const { hotspots } = useHotspotsList();
   const navigate = useNavigate();
-  const { canAccess: canUsePrivateProjects, pricingHref } =
+  const { canAccess: canUsePrivateProjects, contactHref } =
     useBillingAccess('private_projects');
+  const { organization } = useOrganizationContext();
 
   const hotspotLinkOptions = [
     { value: '', label: 'None' },
@@ -58,8 +60,8 @@ export function SaveDesignModal({
   const descId = useId();
 
   const handleUpgrade = useCallback(() => {
-    navigate(pricingHref || getPricingHref('private_projects'));
-  }, [navigate, pricingHref]);
+    navigate(contactHref || getGovernmentContactHref('private_projects'));
+  }, [contactHref, navigate]);
 
   const handleSave = useCallback(
     (e: React.FormEvent) => {
@@ -261,15 +263,28 @@ export function SaveDesignModal({
               Private
               {!canUsePrivateProjects && (
                 <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                  Pro
+                  Gov
                 </span>
               )}
             </label>
           </div>
+          {privacy === 'private' && (
+            <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+              Saved to{' '}
+              <span className="font-semibold text-slate-900">
+                {organization?.workspaceName ?? 'Shared Workspace'}
+              </span>{' '}
+              in{' '}
+              <span className="font-semibold text-slate-900">
+                {organization?.name ?? 'your organization'}
+              </span>
+              .
+            </div>
+          )}
           {!canUsePrivateProjects && (
             <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
               <p className="text-xs text-amber-800">
-                Private designs require Pro.
+                Private designs are enabled after municipal onboarding.
               </p>
               <Button
                 type="button"
@@ -277,7 +292,7 @@ export function SaveDesignModal({
                 onClick={handleUpgrade}
                 className="shrink-0 text-amber-900 hover:bg-amber-100"
               >
-                Upgrade
+                Contact Curbwise
               </Button>
             </div>
           )}

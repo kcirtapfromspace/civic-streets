@@ -27,7 +27,7 @@ export function TemplateCard({
   template,
   onApply,
   locked = false,
-  lockLabel = 'Unlock with Pro',
+  lockLabel = 'Contact Curbwise',
   onLockedClick,
 }: TemplateCardProps) {
   const cat = CATEGORY_BADGE[template.category];
@@ -47,7 +47,7 @@ export function TemplateCard({
         </h3>
         <div className="flex flex-col items-end gap-1">
           <Badge variant={cat.variant}>{cat.label}</Badge>
-          {locked && <Badge variant="warning">Pro</Badge>}
+          {locked && <Badge variant="warning">Gov</Badge>}
         </div>
       </div>
 
@@ -75,7 +75,7 @@ export function TemplateCard({
           }
           aria-label={
             locked
-              ? `${template.name} requires Pro`
+              ? `${template.name} requires municipal onboarding`
               : `Apply ${template.name} template`
           }
         >

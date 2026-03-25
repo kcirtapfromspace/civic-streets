@@ -1,6 +1,8 @@
+import { internal } from './_generated/api';
 import { query, mutation } from './_generated/server';
 import { v } from 'convex/values';
 import { ensureUser } from './users';
+import { ensureOrganizationForUser } from './organizations';
 
 // ── Design Votes Table ──────────────────────────────────────────────────────
 // Note: designVotes table should be added to schema if not present.
@@ -24,9 +26,12 @@ export const save = mutation({
     warningCount: v.number(),
     templateId: v.optional(v.string()),
     hotspotId: v.optional(v.id('hotspots')),
+    visibility: v.optional(v.union(v.literal('public'), v.literal('private'))),
+    workspaceId: v.optional(v.id('workspaces')),
   },
   handler: async (ctx, args) => {
     const user = await ensureUser(ctx, args.sessionToken);
+    const organizationContext = await ensureOrganizationForUser(ctx, user);
 
     // Input validation
     if (args.title.length < 1 || args.title.length > 200) {
@@ -59,8 +64,12 @@ export const save = mutation({
     const now = Date.now();
     const designId = await ctx.db.insert('designs', {
       userId: user._id,
+      organizationId: organizationContext.organization._id,
+      workspaceId: args.workspaceId ?? organizationContext.workspace._id,
       title: args.title,
       description: args.description,
+      visibility: args.visibility ?? 'public',
+      reviewStatus: 'draft',
       streetData: args.streetData,
       beforeStreetData: args.beforeStreetData,
       lat: args.lat,
@@ -78,10 +87,42 @@ export const save = mutation({
       updatedAt: now,
     });
 
+    const projectId = await ctx.db.insert('projects', {
+      organizationId: organizationContext.organization._id,
+      workspaceId: args.workspaceId ?? organizationContext.workspace._id,
+      ownerUserId: user._id,
+      name: args.title,
+      description: args.description,
+      visibility: args.visibility ?? 'public',
+      sourceType: 'design',
+      linkedDesignId: designId,
+      status: 'draft',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await ctx.db.patch(designId, {
+      projectId,
+    });
+
     // If linked to a hotspot, update the hotspot's designId
     if (args.hotspotId) {
       await ctx.db.patch(args.hotspotId, { designId });
     }
+
+    await ctx.runMutation(internal.organizations.logAuditEvent, {
+      organizationId: organizationContext.organization._id,
+      workspaceId: args.workspaceId ?? organizationContext.workspace._id,
+      projectId,
+      actorUserId: user._id,
+      eventType: 'design.saved',
+      entityType: 'design',
+      entityId: String(designId),
+      metadataJson: JSON.stringify({
+        visibility: args.visibility ?? 'public',
+        hotspotId: args.hotspotId ?? null,
+      }),
+    });
 
     return designId;
   },
@@ -161,8 +202,12 @@ export const list = query({
         cursor: args.paginationOpts.cursor ?? null,
       });
 
+    const visiblePage = result.page.filter(
+      (design) => design.visibility !== 'private',
+    );
+
     // Sort by upvotes descending
-    const sorted = [...result.page].sort((a, b) => b.upvotes - a.upvotes);
+    const sorted = [...visiblePage].sort((a, b) => b.upvotes - a.upvotes);
 
     return {
       page: sorted,
@@ -176,7 +221,7 @@ export const getById = query({
   args: { designId: v.id('designs') },
   handler: async (ctx, args) => {
     const design = await ctx.db.get(args.designId);
-    if (!design) return null;
+    if (!design || design.visibility === 'private') return null;
 
     const author = await ctx.db.get(design.userId);
     return {
@@ -201,10 +246,11 @@ export const getByBounds = query({
     maxLng: v.number(),
   },
   handler: async (ctx, args) => {
-    const designs = await ctx.db.query('designs').collect();
+    const designs = await ctx.db.query('designs').take(500);
 
     return designs.filter(
       (d) =>
+        d.visibility !== 'private' &&
         d.lat !== undefined &&
         d.lng !== undefined &&
         d.lat >= args.minLat &&
@@ -218,11 +264,13 @@ export const getByBounds = query({
 export const getByHotspot = query({
   args: { hotspotId: v.id('hotspots') },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const designs = await ctx.db
       .query('designs')
       .withIndex('by_hotspot', (q) => q.eq('hotspotId', args.hotspotId))
       .order('desc')
-      .collect();
+      .take(100);
+
+    return designs.filter((design) => design.visibility !== 'private');
   },
 });
 

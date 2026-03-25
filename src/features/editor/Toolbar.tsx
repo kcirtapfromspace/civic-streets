@@ -38,12 +38,12 @@ export function Toolbar() {
   const openTemplateGallery = useStreetStore((s) => s.openTemplateGallery);
   const setExporting = useStreetStore((s) => s.setExporting);
   const toggleBeforeAfter = useStreetStore((s) => s.toggleBeforeAfter);
-  const { canAccess: canExport, pricingHref } = useBillingAccess('pdf_export');
+  const { canAccess: canExport, contactHref } = useBillingAccess('pdf_export');
 
   const handleExport = useCallback(async () => {
     if (!currentStreet) return;
     if (!canExport) {
-      navigate(pricingHref);
+      navigate(contactHref);
       return;
     }
     setExporting(true);
@@ -76,7 +76,7 @@ export function Toolbar() {
     setExporting,
     canExport,
     navigate,
-    pricingHref,
+    contactHref,
   ]);
 
   const handleUndo = useCallback(() => {
@@ -160,7 +160,9 @@ export function Toolbar() {
         disabled={isExporting}
         aria-busy={isExporting}
         title={
-          canExport ? undefined : 'Upgrade to Pro to export PDFs'
+          canExport
+            ? undefined
+            : 'Contact Curbwise to unlock branded export delivery'
         }
       >
         {isExporting && (

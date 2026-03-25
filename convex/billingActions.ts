@@ -35,25 +35,20 @@ type BillingAccountDoc = Doc<'billingAccounts'>;
 type UserDoc = Doc<'users'>;
 
 function getPriceLookupKeyFromEnvironment(
-  planKey: 'pro' | 'team',
-  interval: 'month' | 'year',
+  planKey: 'town_essential',
+  interval: 'year',
 ): string {
   const envKey =
-    planKey === 'pro'
-      ? interval === 'month'
-        ? process.env.STRIPE_PRO_MONTHLY_PRICE_LOOKUP_KEY
-        : process.env.STRIPE_PRO_ANNUAL_PRICE_LOOKUP_KEY
-      : interval === 'month'
-        ? process.env.STRIPE_TEAM_MONTHLY_PRICE_LOOKUP_KEY
-        : process.env.STRIPE_TEAM_ANNUAL_PRICE_LOOKUP_KEY;
+    process.env.STRIPE_TOWN_ESSENTIAL_ANNUAL_PRICE_LOOKUP_KEY ??
+    process.env.STRIPE_PRO_ANNUAL_PRICE_LOOKUP_KEY;
   return envKey ?? getPriceLookupKey(planKey, interval);
 }
 
 export const createCheckoutSession = action({
   args: {
     sessionToken: v.string(),
-    planKey: v.union(v.literal('pro'), v.literal('team')),
-    interval: v.union(v.literal('month'), v.literal('year')),
+    planKey: v.literal('town_essential'),
+    interval: v.literal('year'),
     successUrl: v.string(),
     cancelUrl: v.string(),
   },
@@ -74,6 +69,9 @@ export const createCheckoutSession = action({
     if (!billingAccount) {
       throw new Error('Unable to resolve billing account');
     }
+    if (!billingAccount.organizationId) {
+      throw new Error('Billing account is missing an organization');
+    }
 
     const stripe = getStripeClient();
     let stripeCustomerId: string = billingAccount.stripeCustomerId ?? '';
@@ -85,6 +83,7 @@ export const createCheckoutSession = action({
           metadata: {
             userId: user._id,
             billingAccountId: billingAccount._id,
+            organizationId: billingAccount.organizationId,
           },
         },
         {
@@ -97,6 +96,7 @@ export const createCheckoutSession = action({
         internal.billing.upsertBillingAccountSnapshot,
         {
           billingAccountId: billingAccount._id,
+          organizationId: billingAccount.organizationId,
           stripeCustomerId,
           billingEmail: user.email ?? undefined,
         },
@@ -123,6 +123,7 @@ export const createCheckoutSession = action({
         customer: stripeCustomerId,
         success_url: args.successUrl,
         cancel_url: args.cancelUrl,
+        billing_address_collection: 'auto',
         client_reference_id: String(user._id),
         allow_promotion_codes: true,
         line_items: [
@@ -134,6 +135,7 @@ export const createCheckoutSession = action({
         metadata: {
           userId: String(user._id),
           billingAccountId: String(billingAccount._id),
+          organizationId: String(billingAccount.organizationId),
           planKey: args.planKey,
           interval: args.interval,
         },
@@ -141,6 +143,7 @@ export const createCheckoutSession = action({
           metadata: {
             userId: String(user._id),
             billingAccountId: String(billingAccount._id),
+            organizationId: String(billingAccount.organizationId),
             planKey: args.planKey,
             interval: args.interval,
           },
@@ -155,9 +158,12 @@ export const createCheckoutSession = action({
       internal.billing.upsertBillingAccountSnapshot,
       {
         billingAccountId: billingAccount._id,
+        organizationId: billingAccount.organizationId,
         stripeCustomerId,
         billingEmail: user.email ?? undefined,
         billingStatus: 'pending',
+        planKey: 'town_essential',
+        contractTier: 'town_essential',
         lastCheckoutSessionId: checkoutSession.id,
       },
     );
@@ -192,7 +198,6 @@ export const createPortalSession = action({
     if (!billingAccount) {
       throw new Error('Unable to resolve billing account');
     }
-
     const stripe = getStripeClient();
     let stripeCustomerId: string = billingAccount.stripeCustomerId ?? '';
     if (!stripeCustomerId) {
@@ -202,6 +207,7 @@ export const createPortalSession = action({
           metadata: {
             userId: user._id,
             billingAccountId: billingAccount._id,
+            organizationId: billingAccount.organizationId ?? '',
           },
         },
         {
@@ -211,6 +217,7 @@ export const createPortalSession = action({
       stripeCustomerId = createdCustomer.id;
       await ctx.runMutation(internal.billing.upsertBillingAccountSnapshot, {
         billingAccountId: billingAccount._id,
+        organizationId: billingAccount.organizationId,
         stripeCustomerId,
         billingEmail: user.email ?? undefined,
       });

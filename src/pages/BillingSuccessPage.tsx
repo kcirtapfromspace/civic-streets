@@ -19,7 +19,7 @@ export default function BillingSuccessPage() {
   useEffect(() => {
     if (billingStateLoading) return;
     if (
-      billingState.planKey !== 'free' &&
+      billingState.planKey !== 'civic_free' &&
       hasActiveBillingStatus(billingState.status)
     ) {
       const timer = window.setTimeout(() => {
@@ -37,12 +37,11 @@ export default function BillingSuccessPage() {
           ✓
         </div>
         <h1 className="text-2xl font-semibold text-slate-950">
-          Subscription processing
+          Contract sync in progress
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          Stripe checkout completed. We are waiting for the subscription and
-          entitlement webhooks to finish syncing into Convex before unlocking
-          paid features.
+          Billing changes were received. We are waiting for the Stripe and
+          Convex state to finish syncing before updating contract access.
         </p>
 
         <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-left">

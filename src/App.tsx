@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { Layout } from '@/components/nav';
 import { ToastProvider } from '@/components/ui/Toast';
@@ -12,7 +12,6 @@ const EditorPage = lazy(() => import('@/pages/EditorPage'));
 const HotspotFeedPage = lazy(() => import('@/pages/HotspotFeedPage'));
 const HotspotDetailPage = lazy(() => import('@/pages/HotspotDetailPage'));
 const ReportPage = lazy(() => import('@/pages/ReportPage'));
-const PricingPage = lazy(() => import('@/pages/PricingPage'));
 const AccountPage = lazy(() => import('@/pages/AccountPage'));
 const BillingSuccessPage = lazy(() => import('@/pages/BillingSuccessPage'));
 const BillingCancelPage = lazy(() => import('@/pages/BillingCancelPage'));
@@ -41,6 +40,14 @@ export default function App() {
           <Routes>
             {/* Marketing landing page — no nav chrome */}
             <Route path="/" element={<LandingPage />} />
+            <Route
+              path="/pricing"
+              element={<Navigate to={{ pathname: '/', hash: '#government' }} replace />}
+            />
+            <Route
+              path="/institutions"
+              element={<Navigate to={{ pathname: '/', hash: '#government' }} replace />}
+            />
 
             {/* App pages — with nav layout */}
             <Route element={<Layout />}>
@@ -51,7 +58,6 @@ export default function App() {
               <Route path="/hotspot/:id" element={<HotspotDetailPage />} />
 
               {/* Billing */}
-              <Route path="/pricing" element={<PricingPage />} />
               <Route path="/account" element={<AccountPage />} />
               <Route path="/billing/success" element={<BillingSuccessPage />} />
               <Route path="/billing/cancel" element={<BillingCancelPage />} />

@@ -9,7 +9,7 @@ import type {
 import { Button, Modal, Select } from '@/components/ui';
 import { TemplateCard } from './TemplateCard';
 import { loadTemplates } from '@/lib/templates';
-import { getPricingHref, useBillingAccess } from '@/lib/billing/access';
+import { getGovernmentContactHref, useBillingAccess } from '@/lib/billing/access';
 
 const CATEGORY_OPTIONS = [
   { value: 'all', label: 'All Categories' },
@@ -34,7 +34,7 @@ export function TemplateGalleryModal() {
   const closeGallery = useStreetStore((s) => s.closeTemplateGallery);
   const applyTemplate = useStreetStore((s) => s.applyTemplate);
   const currentStreet = useStreetStore((s) => s.currentStreet);
-  const { canAccess: canUsePremiumTemplates, pricingHref } =
+  const { canAccess: canUsePremiumTemplates, contactHref } =
     useBillingAccess('premium_templates');
 
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -77,7 +77,7 @@ export function TemplateGalleryModal() {
   const DEFAULT_ELEMENT_COUNT = 5;
 
   const handleLockedTemplate = () => {
-    navigate(pricingHref || getPricingHref('premium_templates'));
+    navigate(contactHref || getGovernmentContactHref('premium_templates'));
   };
 
   const handleApply = (template: TemplateDefinition) => {
@@ -105,13 +105,13 @@ export function TemplateGalleryModal() {
     <Modal isOpen={isOpen} onClose={closeGallery} title="Template Gallery">
       {!canUsePremiumTemplates && (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <p>Advanced transit and shared-space templates require Pro.</p>
+          <p>Advanced transit and shared-space templates are unlocked during municipal onboarding.</p>
           <Button
             variant="secondary"
             onClick={handleLockedTemplate}
             className="shrink-0"
           >
-            Upgrade
+            Contact Curbwise
           </Button>
         </div>
       )}

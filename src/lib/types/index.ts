@@ -68,3 +68,13 @@ export type {
   CrashSummary,
   IntersectionProposal,
 } from './intersection';
+
+export type {
+  CoverageStatus,
+  JurisdictionContactType,
+  OutreachRequestStatus,
+  JurisdictionContact,
+  JurisdictionSummary,
+  GovernmentLead,
+  GovernmentHubContext,
+} from './government';

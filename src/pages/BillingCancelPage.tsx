@@ -9,19 +9,19 @@ export default function BillingCancelPage() {
           !
         </div>
         <h1 className="text-2xl font-semibold text-slate-950">
-          Checkout canceled
+          Onboarding request canceled
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          No changes were made to your subscription. You can return to pricing
-          or continue using the free plan.
+          No contract changes were made. You can return to account or keep using
+          the public civic workflows.
         </p>
 
         <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Link to="/pricing">
-            <Button variant="primary">Back to Pricing</Button>
+          <Link to="/account">
+            <Button variant="primary">Back to Account</Button>
           </Link>
-          <Link to="/">
-            <Button variant="secondary">Back to Map</Button>
+          <Link to="/#government">
+            <Button variant="secondary">Government Contact</Button>
           </Link>
         </div>
       </div>

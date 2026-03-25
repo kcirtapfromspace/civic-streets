@@ -1,6 +1,8 @@
+import { internal } from './_generated/api';
 import { query, mutation } from './_generated/server';
 import { v } from 'convex/values';
 import { ensureUser } from './users';
+import { ensureOrganizationForUser } from './organizations';
 
 // ── Mutations ───────────────────────────────────────────────────────────────
 
@@ -17,9 +19,12 @@ export const create = mutation({
     body: v.string(),
     communityVotes: v.number(),
     supporterCount: v.number(),
+    visibility: v.optional(v.union(v.literal('public'), v.literal('private'))),
+    workspaceId: v.optional(v.id('workspaces')),
   },
   handler: async (ctx, args) => {
     const user = await ensureUser(ctx, args.sessionToken);
+    const organizationContext = await ensureOrganizationForUser(ctx, user);
 
     // Input validation
     if (args.repName.length < 1 || args.repName.length > 200) {
@@ -49,8 +54,12 @@ export const create = mutation({
     const now = Date.now();
     const reportId = await ctx.db.insert('reports', {
       userId: user._id,
+      organizationId: organizationContext.organization._id,
+      workspaceId: args.workspaceId ?? organizationContext.workspace._id,
       designId: args.designId,
       hotspotId: args.hotspotId,
+      visibility: args.visibility ?? 'public',
+      reviewStatus: 'draft',
       repName: args.repName,
       repTitle: args.repTitle,
       repEmail: args.repEmail,
@@ -61,6 +70,37 @@ export const create = mutation({
       supporterCount: args.supporterCount,
       status: 'draft',
       createdAt: now,
+    });
+
+    const projectId = await ctx.db.insert('projects', {
+      organizationId: organizationContext.organization._id,
+      workspaceId: args.workspaceId ?? organizationContext.workspace._id,
+      ownerUserId: user._id,
+      name: args.subject,
+      description: args.body.slice(0, 500),
+      visibility: args.visibility ?? 'public',
+      sourceType: 'report',
+      linkedReportId: reportId,
+      status: 'draft',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await ctx.db.patch(reportId, { projectId });
+
+    await ctx.runMutation(internal.organizations.logAuditEvent, {
+      organizationId: organizationContext.organization._id,
+      workspaceId: args.workspaceId ?? organizationContext.workspace._id,
+      projectId,
+      actorUserId: user._id,
+      eventType: 'report.created',
+      entityType: 'report',
+      entityId: String(reportId),
+      metadataJson: JSON.stringify({
+        designId: args.designId ?? null,
+        hotspotId: args.hotspotId ?? null,
+        visibility: args.visibility ?? 'public',
+      }),
     });
 
     return reportId;
@@ -133,7 +173,11 @@ export const updateStatus = mutation({
 export const getById = query({
   args: { reportId: v.id('reports') },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.reportId);
+    const report = await ctx.db.get(args.reportId);
+    if (!report || report.visibility === 'private') {
+      return null;
+    }
+    return report;
   },
 });
 
@@ -151,10 +195,12 @@ export const listByUser = query({
 export const listByDesign = query({
   args: { designId: v.id('designs') },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const reports = await ctx.db
       .query('reports')
       .withIndex('by_design', (q) => q.eq('designId', args.designId))
       .order('desc')
-      .collect();
+      .take(100);
+
+    return reports.filter((report) => report.visibility !== 'private');
   },
 });
