@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useQuery } from 'convex/react';
+import { api } from '@/../convex/_generated/api';
 import { Badge } from '@/components/ui';
 import {
   HOTSPOT_CATEGORY_LABELS,
@@ -342,7 +344,10 @@ export function InstitutionalDashboard({
   organizationId: propOrgId,
 }: InstitutionalDashboardProps) {
   const { orgSlug } = useParams<{ orgSlug: string }>();
-  const effectiveOrgId = propOrgId ?? orgSlug ?? '';
+
+  // Look up org by slug to get the real Convex document ID
+  const org = useQuery(api.organizations.getBySlug, orgSlug ? { slug: orgSlug } : 'skip');
+  const effectiveOrgId = propOrgId ?? (org?._id as string) ?? '';
 
   // useServiceAreas returns the raw Convex useQuery result:
   // undefined while loading, or an array of service area docs.
@@ -357,13 +362,13 @@ export function InstitutionalDashboard({
   // useHotspotsByServiceArea returns undefined while loading, or an array of hotspot docs.
   const hotspots = useHotspotsByServiceArea(activeAreaId || undefined);
 
-  // Derive the org name from the URL slug (org data isn't on the service area doc)
-  const orgName = orgSlug
+  // Use actual org name if available, fallback to formatted slug
+  const orgName = org?.name ?? (orgSlug
     ? orgSlug
         .split('-')
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(' ')
-    : 'Organization';
+    : 'Organization');
 
   // Computed stats
   const sortedHotspots = useMemo(() => {

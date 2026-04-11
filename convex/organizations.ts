@@ -95,6 +95,16 @@ function compareSelections(
   return String(a.organization._id).localeCompare(String(b.organization._id));
 }
 
+export const getBySlug = query({
+  args: { slug: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query('organizations')
+      .withIndex('by_slug', (q) => q.eq('slug', args.slug))
+      .unique();
+  },
+});
+
 export async function getDefaultOrganizationContext(
   ctx: QueryCtx | MutationCtx,
   userId: Id<'users'>,
