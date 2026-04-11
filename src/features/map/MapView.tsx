@@ -5,6 +5,7 @@ import { MapControls } from './MapControls';
 import { EarthView } from './EarthView';
 import { PinDesignFlow } from './PinDesignFlow';
 import { CommunityPinsLayer } from './CommunityPinsLayer';
+import { ServiceAreaLayer } from './ServiceAreaLayer';
 import { EditorHUD } from './EditorHUD';
 import { MapOverlay as ProposalMapOverlay } from '@/features/proposal/MapOverlay';
 import { SavedProposalsLayer } from '@/features/proposal/SavedProposalsLayer';
@@ -132,6 +133,7 @@ export function MapView() {
           <EarthView map={map} enabled={is3D} />
           <PinDesignFlow map={map} />
           <CommunityPinsLayer map={map} />
+          <ServiceAreaLayer map={map} />
           <SavedProposalsLayer map={map} />
           <ProposalMapOverlay map={map} />
           <DrawingLayer map={map} />

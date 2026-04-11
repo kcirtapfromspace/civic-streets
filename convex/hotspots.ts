@@ -4,6 +4,26 @@ import { ensureUser } from './users';
 import { checkRateLimit } from './rateLimit';
 import { resolveStorageUrls } from './storage';
 
+// ── Geometry Helpers ────────────────────────────────────────────────────────
+
+/**
+ * Ray-casting point-in-polygon test.
+ * @param point - [lng, lat] coordinate
+ * @param polygon - array of [lng, lat] vertices forming a closed ring
+ */
+function pointInPolygon(point: [number, number], polygon: [number, number][]): boolean {
+  const [x, y] = point;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [xi, yi] = polygon[i];
+    const [xj, yj] = polygon[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
 // ── Mutations ───────────────────────────────────────────────────────────────
 
 export const create = mutation({
@@ -455,5 +475,106 @@ export const getUserVote = query({
       .unique();
 
     return vote ? vote.value : null;
+  },
+});
+
+export const getByServiceArea = query({
+  args: {
+    serviceAreaId: v.id('serviceAreas'),
+  },
+  handler: async (ctx, args) => {
+    const serviceArea = await ctx.db.get(args.serviceAreaId);
+    if (!serviceArea) throw new Error('Service area not found');
+
+    // For bounding_box type, filter hotspots by bounds
+    if (serviceArea.areaType === 'bounding_box' && serviceArea.bounds) {
+      const { south, west, north, east } = serviceArea.bounds;
+      const allHotspots = await ctx.db.query('hotspots').collect();
+      const filtered = allHotspots.filter(
+        (h) => h.lat >= south && h.lat <= north && h.lng >= west && h.lng <= east,
+      );
+      // Resolve photo storage URLs
+      return Promise.all(
+        filtered.map(async (h) => {
+          if (h.photoStorageIds && h.photoStorageIds.length > 0) {
+            const resolvedUrls = await resolveStorageUrls(ctx, h.photoStorageIds);
+            return { ...h, photoUrls: resolvedUrls };
+          }
+          return h;
+        }),
+      );
+    }
+
+    // For polygon type, parse GeoJSON and do point-in-polygon test
+    if (serviceArea.areaType === 'polygon' && serviceArea.geometry) {
+      const geojson = JSON.parse(serviceArea.geometry);
+      const allHotspots = await ctx.db.query('hotspots').collect();
+      const filtered = allHotspots.filter((h) =>
+        pointInPolygon([h.lng, h.lat], geojson.coordinates[0]),
+      );
+      return Promise.all(
+        filtered.map(async (h) => {
+          if (h.photoStorageIds && h.photoStorageIds.length > 0) {
+            const resolvedUrls = await resolveStorageUrls(ctx, h.photoStorageIds);
+            return { ...h, photoUrls: resolvedUrls };
+          }
+          return h;
+        }),
+      );
+    }
+
+    // Fallback: return empty
+    return [];
+  },
+});
+
+export const getHeatmapByServiceArea = query({
+  args: {
+    serviceAreaId: v.id('serviceAreas'),
+  },
+  handler: async (ctx, args) => {
+    const serviceArea = await ctx.db.get(args.serviceAreaId);
+    if (!serviceArea) throw new Error('Service area not found');
+
+    let filtered: Array<{
+      lat: number;
+      lng: number;
+      weight: number;
+      category: string;
+      severity: string;
+    }> = [];
+
+    if (serviceArea.areaType === 'bounding_box' && serviceArea.bounds) {
+      const { south, west, north, east } = serviceArea.bounds;
+      const all = await ctx.db.query('hotspots').collect();
+      filtered = all
+        .filter(
+          (h) =>
+            h.lat >= south && h.lat <= north && h.lng >= west && h.lng <= east,
+        )
+        .map((h) => ({
+          lat: h.lat,
+          lng: h.lng,
+          weight: (h.upvotes || 0) + 1,
+          category: h.category,
+          severity: h.severity,
+        }));
+    } else if (serviceArea.areaType === 'polygon' && serviceArea.geometry) {
+      const geojson = JSON.parse(serviceArea.geometry);
+      const all = await ctx.db.query('hotspots').collect();
+      filtered = all
+        .filter((h) =>
+          pointInPolygon([h.lng, h.lat], geojson.coordinates[0]),
+        )
+        .map((h) => ({
+          lat: h.lat,
+          lng: h.lng,
+          weight: (h.upvotes || 0) + 1,
+          category: h.category,
+          severity: h.severity,
+        }));
+    }
+
+    return filtered;
   },
 });

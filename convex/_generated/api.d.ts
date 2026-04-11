@@ -22,6 +22,7 @@ import type * as organizations from "../organizations.js";
 import type * as rateLimit from "../rateLimit.js";
 import type * as reports from "../reports.js";
 import type * as reviewThreads from "../reviewThreads.js";
+import type * as serviceAreas from "../serviceAreas.js";
 import type * as storage from "../storage.js";
 import type * as users from "../users.js";
 
@@ -46,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   rateLimit: typeof rateLimit;
   reports: typeof reports;
   reviewThreads: typeof reviewThreads;
+  serviceAreas: typeof serviceAreas;
   storage: typeof storage;
   users: typeof users;
 }>;

@@ -15,6 +15,7 @@ const ReportPage = lazy(() => import('@/pages/ReportPage'));
 const AccountPage = lazy(() => import('@/pages/AccountPage'));
 const BillingSuccessPage = lazy(() => import('@/pages/BillingSuccessPage'));
 const BillingCancelPage = lazy(() => import('@/pages/BillingCancelPage'));
+const InstitutionalDashboardPage = lazy(() => import('@/pages/InstitutionalDashboardPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
 function PageLoader() {
@@ -61,6 +62,9 @@ export default function App() {
               <Route path="/account" element={<AccountPage />} />
               <Route path="/billing/success" element={<BillingSuccessPage />} />
               <Route path="/billing/cancel" element={<BillingCancelPage />} />
+
+              {/* Institutional dashboard */}
+              <Route path="/institutional/:orgSlug" element={<InstitutionalDashboardPage />} />
 
               {/* Report builder — standalone or for a specific design */}
               <Route path="/report" element={<ReportPage />} />
