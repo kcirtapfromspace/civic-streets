@@ -15,6 +15,8 @@ export interface MapState {
   showHotspots: boolean;
   showDesigns: boolean;
   showHeatmap: boolean;
+  showServiceAreas: boolean;
+  activeServiceAreaOrgId: string | null;
   // Selected location
   selectedLocation: { lat: number; lng: number; address: string } | null;
   // Context menu
@@ -37,6 +39,8 @@ export interface MapState {
   toggleHotspots: () => void;
   toggleDesigns: () => void;
   toggleHeatmap: () => void;
+  toggleServiceAreas: () => void;
+  setActiveServiceAreaOrgId: (orgId: string | null) => void;
   setSelectedLocation: (location: MapState['selectedLocation']) => void;
   setLockedToLocation: (locked: boolean) => void;
   openContextMenu: (position: MapState['contextMenuPosition']) => void;
@@ -55,6 +59,8 @@ export const useMapStore = create<MapState>()((set) => ({
   showHotspots: true,
   showDesigns: true,
   showHeatmap: false,
+  showServiceAreas: false,
+  activeServiceAreaOrgId: null,
 
   selectedLocation: null,
   contextMenuPosition: null,
@@ -82,6 +88,9 @@ export const useMapStore = create<MapState>()((set) => ({
     set((state) => ({ showDesigns: !state.showDesigns })),
   toggleHeatmap: () =>
     set((state) => ({ showHeatmap: !state.showHeatmap })),
+  toggleServiceAreas: () =>
+    set((state) => ({ showServiceAreas: !state.showServiceAreas })),
+  setActiveServiceAreaOrgId: (orgId) => set({ activeServiceAreaOrgId: orgId }),
 
   setSelectedLocation: (location) => set({ selectedLocation: location }),
 

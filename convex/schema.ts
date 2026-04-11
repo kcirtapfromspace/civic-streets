@@ -53,6 +53,31 @@ export default defineSchema({
     .index('by_user', ['userId'])
     .index('by_org_user', ['organizationId', 'userId']),
 
+  // ── Service Areas ────────────────────────────────────────────────────────
+  // Geographic boundaries for organizations (transit agencies, cities, etc.)
+  serviceAreas: defineTable({
+    organizationId: v.id('organizations'),
+    name: v.string(),                          // "CTA Full Network", "Red Line Corridor"
+    areaType: v.string(),                      // 'bounding_box' | 'polygon' | 'route_buffer'
+    // Bounding box (simplest geofence)
+    bounds: v.optional(v.object({
+      south: v.number(),
+      west: v.number(),
+      north: v.number(),
+      east: v.number(),
+    })),
+    // GeoJSON geometry string for polygon/multipolygon/linestring
+    geometry: v.optional(v.string()),
+    // Buffer distance in meters (for route_buffer type)
+    bufferMeters: v.optional(v.number()),
+    color: v.optional(v.string()),             // hex color for map overlay
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_organization', ['organizationId'])
+    .index('by_active', ['isActive']),
+
   workspaces: defineTable({
     organizationId: v.id('organizations'),
     name: v.string(),

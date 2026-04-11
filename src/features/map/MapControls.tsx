@@ -38,12 +38,14 @@ export function MapControls({ map }: MapControlsProps) {
     showHotspots,
     showDesigns,
     showHeatmap,
+    showServiceAreas,
     is3D,
     mapType,
     selectedLocation,
     toggleHotspots,
     toggleDesigns,
     toggleHeatmap,
+    toggleServiceAreas,
     toggle3D,
     setMapType,
     setCenter,
@@ -397,6 +399,29 @@ export function MapControls({ map }: MapControlsProps) {
                   }}
                 />
                 Heatmap
+              </span>
+            </label>
+
+            {/* Institutional Overlay section */}
+            <div className="border-t border-gray-100 pt-2 mt-1">
+              <div className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.15em] mb-2">
+                Institutional
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2.5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={showServiceAreas}
+                onChange={toggleServiceAreas}
+                className="w-4 h-4 rounded border-gray-300 text-cyan-500 focus:ring-cyan-500 cursor-pointer"
+              />
+              <span className="flex items-center gap-1.5 text-xs text-gray-700 group-hover:text-gray-900">
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: '#00A1DE' }}
+                />
+                Service Areas
               </span>
             </label>
 
