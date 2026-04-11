@@ -164,6 +164,9 @@ export function MapView() {
                     issueGroup: data.group,
                     issueType: data.issueType,
                     isBlocking: data.isBlocking,
+                    processedImages: data.processedImages,
+                    honeypotValue: data.honeypotValue,
+                    formOpenedAt: data.formOpenedAt,
                   });
                 } catch (err) {
                   console.error('[MapView] Failed to create hotspot:', err);

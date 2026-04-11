@@ -3,6 +3,7 @@ import { Button } from '@/components/ui';
 import type { IssueGroup, IssueType, HotspotSeverity } from '@/lib/types/community';
 import { ISSUE_GROUP_LABELS, ISSUE_GROUP_COLORS, SEVERITY_LABELS } from '@/lib/types/community';
 import { ISSUE_TYPES, getIssueTypesByGroup, getIssueTypeConfig, ISSUE_GROUP_ICONS } from '@/lib/config/issue-types';
+import { processImages, type ProcessedImage, type PhotoExifData } from '../../lib/images/process-image';
 
 // ── Severity colors ───────────────────────────────────────────────────────
 
@@ -31,6 +32,9 @@ export interface IssueReportFormData {
   isBlocking: boolean;
   title: string;
   description: string;
+  processedImages?: ProcessedImage[];
+  honeypotValue?: string;
+  formOpenedAt?: number;
 }
 
 interface IssueReportFormProps {
@@ -78,6 +82,14 @@ export function IssueReportForm({
   const [title, setTitle] = useState('');
   const [titleEdited, setTitleEdited] = useState(false);
   const [description, setDescription] = useState('');
+
+  // Anti-abuse: honeypot + timing
+  const [honeypotValue, setHoneypotValue] = useState('');
+  const [formOpenedAt] = useState(() => Date.now());
+
+  // Image processing pipeline
+  const [isProcessingImages, setIsProcessingImages] = useState(false);
+  const [processedImages, setProcessedImages] = useState<ProcessedImage[]>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const addressId = useId();
@@ -128,17 +140,20 @@ export function IssueReportForm({
 
   // ── Photo handling ──────────────────────────────────────────────────
 
-  const processFiles = useCallback((files: FileList | File[]) => {
-    Array.from(files)
-      .filter((f) => f.type.startsWith('image/'))
-      .forEach((file) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const dataUrl = e.target?.result as string;
-          if (dataUrl) setPhotoDataUrls((prev) => [...prev, dataUrl]);
-        };
-        reader.readAsDataURL(file);
-      });
+  const processFiles = useCallback(async (files: FileList | File[]) => {
+    const imageFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    if (imageFiles.length === 0) return;
+
+    setIsProcessingImages(true);
+    try {
+      const results = await processImages(imageFiles);
+      setProcessedImages((prev) => [...prev, ...results]);
+      // Also create preview URLs for display
+      const previewUrls = results.map((r) => URL.createObjectURL(r.blob));
+      setPhotoDataUrls((prev) => [...prev, ...previewUrls]);
+    } finally {
+      setIsProcessingImages(false);
+    }
   }, []);
 
   const handleDrop = useCallback(
@@ -166,6 +181,7 @@ export function IssueReportForm({
 
   const removePhoto = useCallback((index: number) => {
     setPhotoDataUrls((prev) => prev.filter((_, i) => i !== index));
+    setProcessedImages((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
   // ── Navigation ──────────────────────────────────────────────────────
@@ -194,10 +210,13 @@ export function IssueReportForm({
         isBlocking,
         title: finalTitle,
         description: description.trim(),
+        processedImages,
+        honeypotValue,
+        formOpenedAt,
       });
       setIsSubmitting(false);
     },
-    [selectedGroup, selectedType, titleEdited, title, autoTitle, address, initialLat, initialLng, photoDataUrls, severity, isBlocking, description, onSubmit],
+    [selectedGroup, selectedType, titleEdited, title, autoTitle, address, initialLat, initialLng, photoDataUrls, severity, isBlocking, description, onSubmit, processedImages, honeypotValue, formOpenedAt],
   );
 
   // ── Step indicator ──────────────────────────────────────────────────
@@ -233,6 +252,20 @@ export function IssueReportForm({
         <p className="text-xs text-gray-500 mt-1.5">
           {stepLabels[step - 1]}
         </p>
+      </div>
+
+      {/* Honeypot fields - invisible to users, bots will fill them */}
+      <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, overflow: 'hidden' }}>
+        <label htmlFor="website">Website</label>
+        <input
+          id="website"
+          name="website"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          value={honeypotValue}
+          onChange={(e) => setHoneypotValue(e.target.value)}
+        />
       </div>
 
       <div className="px-5 py-4">
@@ -284,7 +317,7 @@ export function IssueReportForm({
                     : 'Take a photo of the problem'}
                 </span>
                 <span className="text-xs text-gray-400 mt-0.5">
-                  Tap to take photo or upload
+                  Tap to take photo or upload &middot; Photo recommended
                 </span>
               </div>
 
@@ -316,6 +349,10 @@ export function IssueReportForm({
                     </div>
                   ))}
                 </div>
+              )}
+
+              {isProcessingImages && (
+                <p className="text-xs text-gray-500 mt-1">Compressing photos...</p>
               )}
             </div>
 

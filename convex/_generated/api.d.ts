@@ -11,6 +11,7 @@
 import type * as billing from "../billing.js";
 import type * as billingActions from "../billingActions.js";
 import type * as comments from "../comments.js";
+import type * as crons from "../crons.js";
 import type * as designs from "../designs.js";
 import type * as government from "../government.js";
 import type * as governmentActions from "../governmentActions.js";
@@ -18,8 +19,10 @@ import type * as governmentShared from "../governmentShared.js";
 import type * as hotspots from "../hotspots.js";
 import type * as http from "../http.js";
 import type * as organizations from "../organizations.js";
+import type * as rateLimit from "../rateLimit.js";
 import type * as reports from "../reports.js";
 import type * as reviewThreads from "../reviewThreads.js";
+import type * as storage from "../storage.js";
 import type * as users from "../users.js";
 
 import type {
@@ -32,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   billing: typeof billing;
   billingActions: typeof billingActions;
   comments: typeof comments;
+  crons: typeof crons;
   designs: typeof designs;
   government: typeof government;
   governmentActions: typeof governmentActions;
@@ -39,8 +43,10 @@ declare const fullApi: ApiFromModules<{
   hotspots: typeof hotspots;
   http: typeof http;
   organizations: typeof organizations;
+  rateLimit: typeof rateLimit;
   reports: typeof reports;
   reviewThreads: typeof reviewThreads;
+  storage: typeof storage;
   users: typeof users;
 }>;
 

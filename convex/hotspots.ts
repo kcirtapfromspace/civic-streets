@@ -1,6 +1,8 @@
 import { query, mutation } from './_generated/server';
 import { v } from 'convex/values';
 import { ensureUser } from './users';
+import { checkRateLimit } from './rateLimit';
+import { resolveStorageUrls } from './storage';
 
 // ── Mutations ───────────────────────────────────────────────────────────────
 
@@ -14,12 +16,52 @@ export const create = mutation({
     lat: v.number(),
     lng: v.number(),
     address: v.string(),
-    photoUrls: v.array(v.string()),
+    photoUrls: v.optional(v.array(v.string())),
+    photoStorageIds: v.optional(v.array(v.id('_storage'))),
+    photoExifData: v.optional(v.array(v.object({
+      lat: v.optional(v.number()),
+      lng: v.optional(v.number()),
+      timestamp: v.optional(v.string()),
+      orientation: v.optional(v.number()),
+    }))),
+    locationVerification: v.optional(v.object({
+      photoHasGps: v.boolean(),
+      distanceMeters: v.optional(v.number()),
+      status: v.string(),
+    })),
+    issueGroup: v.optional(v.string()),
+    issueType: v.optional(v.string()),
+    isBlocking: v.optional(v.boolean()),
+    clientMeta: v.optional(v.object({
+      userAgent: v.optional(v.string()),
+      screenResolution: v.optional(v.string()),
+      timezone: v.optional(v.string()),
+      language: v.optional(v.string()),
+      platform: v.optional(v.string()),
+      formDurationMs: v.number(),
+    })),
+    honeypot: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await ensureUser(ctx, args.sessionToken);
 
-    // Input validation
+    // ── Anti-abuse checks ─────────────────────────────────────────────────
+
+    // Honeypot check — silently return fake ID if bot detected
+    if (args.honeypot) {
+      return 'fake_bot_detected' as any;
+    }
+
+    // Form timing check — reject suspiciously fast submissions
+    if (args.clientMeta?.formDurationMs !== undefined && args.clientMeta.formDurationMs < 3000) {
+      throw new Error('Please take more time to fill out the report');
+    }
+
+    // Rate limiting
+    await checkRateLimit(ctx, user._id, 'hotspot_create', user.reputation);
+
+    // ── Input validation ──────────────────────────────────────────────────
+
     if (args.title.length < 1 || args.title.length > 200) {
       throw new Error('Title must be 1-200 characters');
     }
@@ -52,6 +94,46 @@ export const create = mutation({
       throw new Error('Longitude must be between -180 and 180');
     }
 
+    // Chicago metro bounds
+    if (args.lat < 41.6 || args.lat > 42.1) {
+      throw new Error('Location must be within the Chicago metro area');
+    }
+    if (args.lng < -88.0 || args.lng > -87.4) {
+      throw new Error('Location must be within the Chicago metro area');
+    }
+
+    // ── Duplicate detection ───────────────────────────────────────────────
+
+    // Check for duplicate reports from this user (same area + category within 1 hour)
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    const userRecentHotspots = await ctx.db
+      .query('hotspots')
+      .withIndex('by_user', (q) => q.eq('userId', user._id))
+      .collect();
+
+    const duplicate = userRecentHotspots.find((h) => {
+      if (h.createdAt < oneHourAgo) return false;
+      if (h.category !== args.category) return false;
+      // ~50m proximity check (rough: 0.0005 degrees ≈ 55m)
+      const latDiff = Math.abs(h.lat - args.lat);
+      const lngDiff = Math.abs(h.lng - args.lng);
+      return latDiff < 0.0005 && lngDiff < 0.0005;
+    });
+
+    if (duplicate) {
+      throw new Error('You already reported a similar issue nearby. Consider upvoting the existing report.');
+    }
+
+    // ── Photo requirement for new users ───────────────────────────────────
+
+    const hasPhotos = (args.photoStorageIds && args.photoStorageIds.length > 0) ||
+                      (args.photoUrls && args.photoUrls.length > 0);
+    if (user.reputation < 10 && !hasPhotos) {
+      throw new Error('New reporters must include at least one photo');
+    }
+
+    // ── Insert hotspot ────────────────────────────────────────────────────
+
     const now = Date.now();
     const hotspotId = await ctx.db.insert('hotspots', {
       userId: user._id,
@@ -63,12 +145,33 @@ export const create = mutation({
       lng: args.lng,
       address: args.address,
       photoUrls: args.photoUrls,
+      photoStorageIds: args.photoStorageIds,
+      photoExifData: args.photoExifData,
+      locationVerification: args.locationVerification,
+      issueGroup: args.issueGroup,
+      issueType: args.issueType,
+      isBlocking: args.isBlocking,
       upvotes: 0,
       commentCount: 0,
       status: 'open',
       createdAt: now,
       updatedAt: now,
     });
+
+    // ── Store report metadata ─────────────────────────────────────────────
+
+    if (args.clientMeta) {
+      await ctx.db.insert('reportMetadata', {
+        hotspotId,
+        userAgent: args.clientMeta.userAgent,
+        screenResolution: args.clientMeta.screenResolution,
+        timezone: args.clientMeta.timezone,
+        language: args.clientMeta.language,
+        platform: args.clientMeta.platform,
+        formDurationMs: args.clientMeta.formDurationMs,
+        createdAt: now,
+      });
+    }
 
     return hotspotId;
   },
@@ -226,8 +329,19 @@ export const list = query({
     // Sort by upvotes descending
     filtered.sort((a, b) => b.upvotes - a.upvotes);
 
+    // Resolve storage URLs for backward compatibility
+    const page = await Promise.all(
+      filtered.map(async (h) => {
+        if (h.photoStorageIds && h.photoStorageIds.length > 0) {
+          const resolvedUrls = await resolveStorageUrls(ctx, h.photoStorageIds);
+          return { ...h, photoUrls: resolvedUrls };
+        }
+        return h;
+      }),
+    );
+
     return {
-      page: filtered,
+      page,
       continueCursor: result.continueCursor,
       isDone: result.isDone,
     };
@@ -240,10 +354,17 @@ export const getById = query({
     const hotspot = await ctx.db.get(args.hotspotId);
     if (!hotspot) return null;
 
+    // Resolve storage URLs for backward compatibility
+    let photoUrls = hotspot.photoUrls;
+    if (hotspot.photoStorageIds && hotspot.photoStorageIds.length > 0) {
+      photoUrls = await resolveStorageUrls(ctx, hotspot.photoStorageIds);
+    }
+
     // Include author info
     const author = await ctx.db.get(hotspot.userId);
     return {
       ...hotspot,
+      photoUrls,
       author: author
         ? {
             _id: author._id,
@@ -268,12 +389,23 @@ export const getByBounds = query({
     // For Phase 0.5 this is acceptable; for production, use a geo-index
     const hotspots = await ctx.db.query('hotspots').collect();
 
-    return hotspots.filter(
+    const filtered = hotspots.filter(
       (h) =>
         h.lat >= args.minLat &&
         h.lat <= args.maxLat &&
         h.lng >= args.minLng &&
         h.lng <= args.maxLng,
+    );
+
+    // Resolve storage URLs for backward compatibility
+    return Promise.all(
+      filtered.map(async (h) => {
+        if (h.photoStorageIds && h.photoStorageIds.length > 0) {
+          const resolvedUrls = await resolveStorageUrls(ctx, h.photoStorageIds);
+          return { ...h, photoUrls: resolvedUrls };
+        }
+        return h;
+      }),
     );
   },
 });
@@ -281,11 +413,22 @@ export const getByBounds = query({
 export const getByUser = query({
   args: { userId: v.id('users') },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const hotspots = await ctx.db
       .query('hotspots')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
       .order('desc')
       .collect();
+
+    // Resolve storage URLs for backward compatibility
+    return Promise.all(
+      hotspots.map(async (h) => {
+        if (h.photoStorageIds && h.photoStorageIds.length > 0) {
+          const resolvedUrls = await resolveStorageUrls(ctx, h.photoStorageIds);
+          return { ...h, photoUrls: resolvedUrls };
+        }
+        return h;
+      }),
+    );
   },
 });
 

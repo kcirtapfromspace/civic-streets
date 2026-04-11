@@ -5,8 +5,11 @@ import { convexAvailable } from './convex-provider';
 import { MOCK_HOTSPOTS as COMMUNITY_MOCK_HOTSPOTS } from '@/features/community/mock-data';
 import { MOCK_HOTSPOTS as MAP_MOCK_HOTSPOTS } from '@/features/map/mock-data';
 import { useLocalHotspotsStore } from '@/stores/local-hotspots-store';
+import { collectClientMeta } from './fingerprint';
 import type { MockHotspot } from '@/features/community/mock-data';
 import type { HotspotPin, HotspotCategory, HotspotSeverity, HotspotStatus, IssueGroup, IssueType } from '@/lib/types/community';
+import { computeLocationVerification } from '../images/process-image';
+import type { PhotoExifData, ProcessedImage } from '../images/process-image';
 
 const SESSION_KEY = 'curbwise-session';
 function getSessionToken(): string {
@@ -165,6 +168,7 @@ function useHotspotsByBoundsConvex(bounds?: {
 
 function useCreateHotspotConvex() {
   const createMutation = useMutation(api.hotspots.create);
+  const generateUploadUrl = useMutation(api.storage.generateUploadUrl);
 
   return useCallback(
     async (data: {
@@ -175,16 +179,52 @@ function useCreateHotspotConvex() {
       lat: number;
       lng: number;
       address: string;
-      photoUrls: string[];
+      photoUrls?: string[];
       issueGroup?: IssueGroup;
       issueType?: IssueType;
       isBlocking?: boolean;
+      processedImages?: Array<{ blob: Blob; exif: PhotoExifData | null }>;
+      honeypotValue?: string;
+      formOpenedAt?: number;
     }) => {
       const sessionToken = getSessionToken();
       if (!sessionToken) {
         console.error('[useCreateHotspot] No session token');
         return;
       }
+
+      // Upload compressed images to Convex storage
+      let photoStorageIds: string[] | undefined;
+      let photoExifData: PhotoExifData[] | undefined;
+
+      if (data.processedImages && data.processedImages.length > 0) {
+        const uploadResults = await Promise.all(
+          data.processedImages.map(async (img) => {
+            const uploadUrl = await generateUploadUrl();
+            const result = await fetch(uploadUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': img.blob.type || 'image/jpeg' },
+              body: img.blob,
+            });
+            const { storageId } = await result.json();
+            return storageId;
+          })
+        );
+        photoStorageIds = uploadResults;
+        photoExifData = data.processedImages
+          .map((img) => img.exif)
+          .filter((e): e is PhotoExifData => e !== null);
+      }
+
+      // Compute location verification from EXIF GPS vs reported lat/lng
+      let locationVerification: { photoHasGps: boolean; distanceMeters?: number; status: string } | undefined;
+      if (photoExifData && photoExifData.length > 0) {
+        locationVerification = computeLocationVerification(data.lat, data.lng, photoExifData);
+      }
+
+      // Collect client metadata
+      const clientMeta = data.formOpenedAt ? collectClientMeta(data.formOpenedAt) : undefined;
+
       return createMutation({
         sessionToken,
         title: data.title,
@@ -195,9 +235,17 @@ function useCreateHotspotConvex() {
         lng: data.lng,
         address: data.address,
         photoUrls: data.photoUrls,
+        photoStorageIds: photoStorageIds as any,
+        photoExifData,
+        locationVerification,
+        issueGroup: data.issueGroup,
+        issueType: data.issueType,
+        isBlocking: data.isBlocking,
+        clientMeta,
+        honeypot: data.honeypotValue,
       });
     },
-    [createMutation],
+    [createMutation, generateUploadUrl],
   );
 }
 

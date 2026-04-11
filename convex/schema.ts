@@ -323,7 +323,26 @@ export default defineSchema({
     lng: v.number(),
     address: v.string(),
     // Optional photo URLs (stored externally or as Convex file references)
-    photoUrls: v.array(v.string()),
+    photoUrls: v.optional(v.array(v.string())),
+    // Convex file storage refs for uploaded photos
+    photoStorageIds: v.optional(v.array(v.id('_storage'))),
+    // Extracted EXIF GPS data from photos
+    photoExifData: v.optional(v.array(v.object({
+      lat: v.optional(v.number()),
+      lng: v.optional(v.number()),
+      timestamp: v.optional(v.string()),
+      orientation: v.optional(v.number()),
+    }))),
+    // Photo GPS vs reported location verification
+    locationVerification: v.optional(v.object({
+      photoHasGps: v.boolean(),
+      distanceMeters: v.optional(v.number()),
+      status: v.string(),
+    })),
+    // Issue classification (sent from frontend)
+    issueGroup: v.optional(v.string()),
+    issueType: v.optional(v.string()),
+    isBlocking: v.optional(v.boolean()),
     // Community engagement
     upvotes: v.number(),
     commentCount: v.number(),
@@ -358,6 +377,31 @@ export default defineSchema({
   })
     .index('by_hotspot', ['hotspotId'])
     .index('by_user_hotspot', ['userId', 'hotspotId']),
+
+  // ── Rate Limits ─────────────────────────────────────────────────────────
+  // Tracks submission frequency per user for abuse prevention
+  rateLimits: defineTable({
+    userId: v.id('users'),
+    action: v.string(),      // 'hotspot_create' | 'vote' | 'comment'
+    timestamp: v.number(),
+  })
+    .index('by_user_action', ['userId', 'action', 'timestamp']),
+
+  // ── Report Metadata ─────────────────────────────────────────────────────
+  // Device/browser fingerprint data captured with each hotspot report
+  reportMetadata: defineTable({
+    hotspotId: v.id('hotspots'),
+    userAgent: v.optional(v.string()),
+    screenResolution: v.optional(v.string()),
+    timezone: v.optional(v.string()),
+    language: v.optional(v.string()),
+    platform: v.optional(v.string()),
+    formDurationMs: v.number(),
+    ipAddress: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index('by_hotspot', ['hotspotId'])
+    .index('by_ip', ['ipAddress']),
 
   // ── Comments ───────────────────────────────────────────────────────────
   comments: defineTable({
