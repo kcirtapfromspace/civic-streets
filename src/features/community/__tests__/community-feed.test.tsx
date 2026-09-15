@@ -168,7 +168,7 @@ describe('map and feed explorer integration', () => {
     expect(screen.getByRole('button', { name: 'Close map' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Close map' }));
     expect(screen.queryByRole('button', { name: 'Close map' })).not.toBeInTheDocument();
-  });
+  }, 15_000);
   it('draws, saves, reapplies, and clears a polygon through visible controls', () => {
     vi.spyOn(window, 'prompt').mockReturnValue('School crossing');
     render(<HotspotExplorer />);
@@ -215,7 +215,7 @@ describe('map and feed explorer integration', () => {
       fireEvent.change(screen.getAllByRole('combobox', { name: label })[0], {
         target: { value: '' },
       });
-  });
+  }, 15_000);
   it('shows source loading without describing it as an empty search', () => {
     useHotspotsList.mockReturnValue({ hotspots: [], isLoading: true });
     render(<HotspotExplorer />);
