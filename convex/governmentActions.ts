@@ -3,7 +3,8 @@
 import { action, type ActionCtx } from './_generated/server';
 import { internal, api } from './_generated/api';
 import { v } from 'convex/values';
-import type { Doc, Id } from './_generated/dataModel';
+import type { Id } from './_generated/dataModel';
+import type { SessionUser } from './users';
 import {
   buildOutreachCopy,
   isSignedCoverageStatus,
@@ -53,7 +54,7 @@ type DiscoveryCandidate = {
   freshUntil: number;
 };
 
-type UserSnapshot = Doc<'users'>;
+type UserSnapshot = SessionUser;
 type DiscoveryState = 'cached' | 'queued' | 'discovered';
 
 type ResolveCoverageAndContactsResult = {

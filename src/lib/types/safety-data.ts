@@ -1,5 +1,26 @@
 export type CrashMode = 'pedestrian' | 'cyclist' | 'motorist';
-export type CrashSeverity = 'fatal' | 'severe-injury' | 'moderate-injury' | 'minor';
+export type CrashSeverity = 'fatal' | 'severe-injury' | 'moderate-injury' | 'minor' | 'unknown';
+
+export interface CrashBounds { south: number; west: number; north: number; east: number }
+export interface CrashDateRange { start: string; end: string }
+export interface CrashFetchResult {
+  crashes: NormalizedCrash[];
+  /** Incomplete results, unavailable fields, or source query limits. */
+  warnings?: string[];
+}
+export interface CrashSourceResult {
+  sourceId: string;
+  status: 'loaded' | 'partial' | 'error';
+  count: number;
+  warnings: string[];
+  error?: string;
+}
+export type CrashCoverage = 'municipal' | 'fatal-only' | 'unsupported';
+export interface CrashViewportResult {
+  crashes: NormalizedCrash[];
+  sources: CrashSourceResult[];
+  coverage: CrashCoverage;
+}
 
 export interface NormalizedCrash {
   id: string;
@@ -8,8 +29,9 @@ export interface NormalizedCrash {
   date: string; // ISO date
   modes: CrashMode[];
   severity: CrashSeverity;
-  fatalities: number;
-  injuries: number;
+  fatalities: number | null;
+  injuries: number | null;
+  injuryCountScope?: 'all' | 'serious-only';
   source: string;
 }
 
@@ -18,7 +40,9 @@ export interface DataSourceConfig {
   name: string;
   /** Bounding box: [south, west, north, east] */
   bounds: [number, number, number, number];
-  fetch: (bounds: { south: number; west: number; north: number; east: number }) => Promise<NormalizedCrash[]>;
+  fetch: (bounds: CrashBounds, dateRange?: CrashDateRange | null) => Promise<CrashFetchResult>;
+  coverage: 'municipal' | 'fatal-only';
+  coverageNote: string;
   /** City or region name for display */
   city: string;
   /** Reporting agency / publisher */
@@ -32,7 +56,7 @@ export interface DataSourceConfig {
 export interface CrashFilters {
   modes: Set<CrashMode>;
   severities: Set<CrashSeverity>;
-  dateRange: { start: string; end: string } | null;
+  dateRange: CrashDateRange | null;
 }
 
 export const SEVERITY_WEIGHTS: Record<CrashSeverity, number> = {
@@ -40,6 +64,7 @@ export const SEVERITY_WEIGHTS: Record<CrashSeverity, number> = {
   'severe-injury': 0.7,
   'moderate-injury': 0.4,
   'minor': 0.15,
+  'unknown': 0.15,
 };
 
 export const SEVERITY_COLORS: Record<CrashSeverity, string> = {
@@ -47,6 +72,7 @@ export const SEVERITY_COLORS: Record<CrashSeverity, string> = {
   'severe-injury': '#EA580C',
   'moderate-injury': '#F59E0B',
   'minor': '#6B7280',
+  'unknown': '#64748B',
 };
 
 export const MODE_LABELS: Record<CrashMode, string> = {
@@ -60,4 +86,5 @@ export const SEVERITY_LABELS: Record<CrashSeverity, string> = {
   'severe-injury': 'Severe Injury',
   'moderate-injury': 'Moderate Injury',
   'minor': 'Minor',
+  'unknown': 'Other / unknown severity',
 };

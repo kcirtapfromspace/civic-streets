@@ -54,7 +54,7 @@ export function ImprovementPicker() {
             {crashSummary.totalCrashes} crash{crashSummary.totalCrashes !== 1 ? 'es' : ''} nearby
             {crashSummary.pedestrianCrashes > 0 && ` (${crashSummary.pedestrianCrashes} pedestrian)`}
             {crashSummary.fatalities > 0 && (
-              <span className="text-red-900 font-bold"> — {crashSummary.fatalities} fatal</span>
+              <span className="text-red-900 font-bold"> — {crashSummary.fatalities} recorded fatalities</span>
             )}
           </span>
         </div>

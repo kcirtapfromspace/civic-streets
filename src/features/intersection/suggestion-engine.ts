@@ -55,7 +55,8 @@ export function summarizeCrashes(
   let motoristCrashes = 0;
 
   for (const c of crashes) {
-    fatalities += c.fatalities;
+    // Aggregate recorded counts; missing counts are not evidence of no harm.
+    fatalities += c.fatalities ?? 0;
     if (c.severity === 'severe-injury') severeInjuries++;
     if (c.modes.includes('pedestrian')) pedestrianCrashes++;
     if (c.modes.includes('cyclist')) cyclistCrashes++;

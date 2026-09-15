@@ -118,7 +118,6 @@ export function canAccessBillingFeature(
   feature: BillingFeatureKey,
 ): boolean {
   const requirement = BILLING_ACCESS_REQUIREMENTS[feature];
-  if (billingState.planKey === 'agency_enterprise') return true;
   if (!hasPlanAccess(billingState.planKey, requirement.minimumPlan)) {
     return false;
   }

@@ -53,6 +53,11 @@ export function DrawingTool({ map, onPolygonComplete, onClear }: DrawingToolProp
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasPolygon, setHasPolygon] = useState(false);
   const verticesRef = useRef<[number, number][]>([]);
+  const restoreZoomRef = useRef<boolean | null>(null);
+  const restoreDoubleClickZoom = useCallback(() => {
+    if (restoreZoomRef.current) map.doubleClickZoom.enable();
+    restoreZoomRef.current = null;
+  }, [map]);
 
   const updateSource = useCallback(
     (closed = false) => {
@@ -117,6 +122,8 @@ export function DrawingTool({ map, onPolygonComplete, onClear }: DrawingToolProp
     });
   }, [map]);
 
+  useEffect(() => () => { cleanup(); restoreDoubleClickZoom(); }, [cleanup, restoreDoubleClickZoom]);
+
   // Handle click to add vertex
   useEffect(() => {
     if (!isDrawing) return;
@@ -133,6 +140,7 @@ export function DrawingTool({ map, onPolygonComplete, onClear }: DrawingToolProp
         setIsDrawing(false);
         setHasPolygon(true);
         map.getCanvas().style.cursor = '';
+        restoreDoubleClickZoom();
         onPolygonComplete([...verticesRef.current]);
       }
     };
@@ -142,6 +150,7 @@ export function DrawingTool({ map, onPolygonComplete, onClear }: DrawingToolProp
         verticesRef.current = [];
         updateSource(false);
         cleanup();
+        restoreDoubleClickZoom();
         setIsDrawing(false);
         setHasPolygon(false);
         onClear();
@@ -157,7 +166,7 @@ export function DrawingTool({ map, onPolygonComplete, onClear }: DrawingToolProp
       map.off('dblclick', handleDblClick);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isDrawing, map, onPolygonComplete, onClear, updateSource, cleanup]);
+  }, [isDrawing, map, onPolygonComplete, onClear, updateSource, cleanup, restoreDoubleClickZoom]);
 
   const startDrawing = () => {
     verticesRef.current = [];
@@ -165,6 +174,7 @@ export function DrawingTool({ map, onPolygonComplete, onClear }: DrawingToolProp
     initLayers();
     updateSource(false);
     map.getCanvas().style.cursor = 'crosshair';
+    restoreZoomRef.current = map.doubleClickZoom.isEnabled();
     map.doubleClickZoom.disable();
     setIsDrawing(true);
   };
@@ -174,7 +184,7 @@ export function DrawingTool({ map, onPolygonComplete, onClear }: DrawingToolProp
     cleanup();
     setIsDrawing(false);
     setHasPolygon(false);
-    map.doubleClickZoom.enable();
+    restoreDoubleClickZoom();
     onClear();
   };
 

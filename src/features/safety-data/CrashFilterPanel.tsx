@@ -1,5 +1,6 @@
 import { useSafetyDataStore } from './safety-data-store';
 import { useMapStore } from '@/features/map/map-store';
+import { CrashCoverageStatus } from './CrashCoverageStatus';
 import {
   MODE_LABELS,
   SEVERITY_LABELS,
@@ -9,7 +10,7 @@ import {
 } from '@/lib/types/safety-data';
 
 const ALL_MODES: CrashMode[] = ['pedestrian', 'cyclist', 'motorist'];
-const ALL_SEVERITIES: CrashSeverity[] = ['fatal', 'severe-injury', 'moderate-injury', 'minor'];
+const ALL_SEVERITIES: CrashSeverity[] = ['fatal', 'severe-injury', 'moderate-injury', 'minor', 'unknown'];
 
 const MODE_COLORS: Record<CrashMode, string> = {
   pedestrian: '#8B5CF6',
@@ -20,7 +21,6 @@ const MODE_COLORS: Record<CrashMode, string> = {
 export function CrashFilterPanel() {
   const enabled = useSafetyDataStore((s) => s.enabled);
   const filters = useSafetyDataStore((s) => s.filters);
-  const crashes = useSafetyDataStore((s) => s.crashes);
   const isLoading = useSafetyDataStore((s) => s.isLoading);
   const zoom = useMapStore((s) => s.zoom);
   const showHeatmap = useSafetyDataStore((s) => s.showHeatmap);
@@ -44,11 +44,7 @@ export function CrashFilterPanel() {
           )}
         </div>
 
-        <div className="text-[10px] text-gray-400">
-          {crashes.length === 0 && !isLoading && zoom < 11
-            ? 'Zoom in to see crash data'
-            : `${crashes.length.toLocaleString()} crashes loaded`}
-        </div>
+        <CrashCoverageStatus zoom={zoom} />
 
         {/* Layer toggles */}
         <div className="flex flex-col gap-1.5">

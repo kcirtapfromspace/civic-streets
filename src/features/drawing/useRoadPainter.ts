@@ -4,6 +4,7 @@ import { useDrawingStore } from '@/stores/drawing-store';
 import { useStyleReload } from '@/features/map/useStyleReload';
 import { snapToRoad } from '@/features/proposal/utils/road-snap';
 import { fetchRoadPath } from '@/features/proposal/utils/road-geometry';
+import { reverseGeocodeLocation } from '@/lib/api/geocoding';
 
 type LatLng = { lat: number; lng: number };
 
@@ -16,15 +17,11 @@ const SELECTED_LINE_LAYER = 'road-painter-selected-line';
 
 const MIN_POINT_DISTANCE = 0.00008; // ~9m — filters jitter while painting
 
-/** Reverse-geocode a point via Nominatim to get the street name. */
+/** Resolve an explicitly selected road through the shared backend proxy. */
 async function reverseGeocodeStreetName(point: LatLng): Promise<string | null> {
   try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${point.lat}&lon=${point.lng}&zoom=17&addressdetails=1`,
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.address?.road ?? null;
+    const result = await reverseGeocodeLocation(point.lat, point.lng);
+    return result?.road ?? null;
   } catch {
     return null;
   }
@@ -68,12 +65,14 @@ export function useRoadPainter(map: maplibregl.Map | null) {
   // Imperative trail state (not in React/Zustand for performance)
   const trailRef = useRef<LatLng[]>([]);
   const isDraggingRef = useRef(false);
+  const requestRef = useRef(0);
 
   // ── Road + New Road: drag-to-paint ──────────────────────────────
   useEffect(() => {
     if (!map || (activeTool !== 'road' && activeTool !== 'newroad')) return;
 
     const store = useDrawingStore;
+    let disposed = false;
     const canvas = map.getCanvas();
     canvas.style.cursor = 'crosshair';
 
@@ -129,6 +128,8 @@ export function useRoadPainter(map: maplibregl.Map | null) {
       if (e.originalEvent.button !== 0) return; // left-click only
       e.preventDefault();
 
+      requestRef.current += 1;
+      store.getState().setIsSnapping(false);
       isDraggingRef.current = true;
       trailRef.current = [{ lat: e.lngLat.lat, lng: e.lngLat.lng }];
       store.getState().setIsDragging(true);
@@ -173,21 +174,25 @@ export function useRoadPainter(map: maplibregl.Map | null) {
         return;
       }
 
+      store.getState().setStreetName(null);
       if (activeTool === 'road') {
+        const request = ++requestRef.current;
+        const isCurrent = () => !disposed && requestRef.current === request && store.getState().isSnapping;
         store.getState().setIsSnapping(true);
         try {
           const snapped = await snapToRoad(trail);
+          if (!isCurrent()) return;
           store.getState().setSelectedPath(snapped);
 
           // Reverse-geocode the midpoint to get the street name
           const mid = snapped[Math.floor(snapped.length / 2)];
           reverseGeocodeStreetName(mid).then((name) => {
-            if (name) store.getState().setStreetName(name);
+            if (store.getState().selectedPath === snapped) store.getState().setStreetName(name);
           });
         } catch {
-          store.getState().setSelectedPath(trail);
+          if (isCurrent()) store.getState().setSelectedPath(trail);
         } finally {
-          store.getState().setIsSnapping(false);
+          if (isCurrent()) store.getState().setIsSnapping(false);
         }
       } else {
         store.getState().setSelectedPath(trail);
@@ -211,6 +216,9 @@ export function useRoadPainter(map: maplibregl.Map | null) {
     map.on('contextmenu', onContextMenu);
 
     return () => {
+      disposed = true;
+      useDrawingStore.getState().setIsDragging(false);
+      useDrawingStore.getState().setIsSnapping(false);
       canvas.style.cursor = '';
       map.dragPan.enable();
       isDraggingRef.current = false;
@@ -221,7 +229,7 @@ export function useRoadPainter(map: maplibregl.Map | null) {
       map.off('mouseup', onMouseUp);
       map.off('contextmenu', onContextMenu);
     };
-  }, [map, activeTool]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [map, activeTool]);
 
   // ── Intersection: click to mark ─────────────────────────────────
   useEffect(() => {
@@ -232,6 +240,7 @@ export function useRoadPainter(map: maplibregl.Map | null) {
     const MARKER_PULSE_LAYER = 'intersection-marker-pulse';
 
     const canvas = map.getCanvas();
+    let disposed = false;
     canvas.style.cursor = 'pointer';
 
     const cleanupMarker = () => {
@@ -243,9 +252,11 @@ export function useRoadPainter(map: maplibregl.Map | null) {
     const onClick = async (e: maplibregl.MapMouseEvent) => {
       const center = { lat: e.lngLat.lat, lng: e.lngLat.lng };
       const store = useDrawingStore.getState();
+      const isCurrent = () => !disposed && useDrawingStore.getState().intersectionCenter === center;
 
       // Store intersection center point
       store.setIntersectionCenter(center);
+      store.setStreetName(null);
       store.setIsSnapping(true);
 
       // Render a circle marker at click point
@@ -286,21 +297,25 @@ export function useRoadPainter(map: maplibregl.Map | null) {
       // Fetch road geometry and reverse-geocode for intersection name
       try {
         const { path } = await fetchRoadPath(center);
+        if (!isCurrent()) return;
         store.setSelectedPath(path);
 
         // Reverse-geocode for cross street name
         const name = await reverseGeocodeStreetName(center);
-        if (name) store.setStreetName(name);
+        if (isCurrent()) store.setStreetName(name);
       } catch {
         // Road geometry is optional for intersections
-        store.setSelectedPath([center, { lat: center.lat + 0.0001, lng: center.lng }]);
+        if (isCurrent()) store.setSelectedPath([center, { lat: center.lat + 0.0001, lng: center.lng }]);
       } finally {
-        store.setIsSnapping(false);
+        if (isCurrent()) store.setIsSnapping(false);
       }
     };
 
     map.on('click', onClick);
     return () => {
+      disposed = true;
+      useDrawingStore.getState().setIsDragging(false);
+      useDrawingStore.getState().setIsSnapping(false);
       canvas.style.cursor = '';
       cleanupMarker();
       map.off('click', onClick);
@@ -387,6 +402,9 @@ export function useRoadPainter(map: maplibregl.Map | null) {
       map.once('styledata', addLayers);
     }
 
-    return () => cleanupSelected(map);
+    return () => {
+      map.off('styledata', addLayers);
+      cleanupSelected(map);
+    };
   }, [map, selectedPath, activeTool, styleVersion]);
 }

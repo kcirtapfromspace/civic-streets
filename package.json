@@ -8,7 +8,14 @@
         "preview": "vite preview",
         "lint": "eslint .",
         "test": "vitest run",
-        "test:watch": "vitest"
+        "test:watch": "vitest",
+        "test:coverage": "vitest run --coverage && node scripts/testing/check-coverage.mjs --strict",
+        "test:policy": "node --test scripts/testing/coverage-policy.test.mjs",
+        "coverage:check": "node scripts/testing/check-coverage.mjs --strict",
+        "coverage:ratchet": "node scripts/testing/check-coverage.mjs --ratchet --strict",
+        "typecheck:backend": "tsc --noEmit -p convex/tsconfig.json",
+        "check": "npm run test:policy && npm run test:coverage && npm run typecheck:backend && npm run build",
+        "coverage:strict": "node scripts/testing/check-coverage.mjs --strict"
     },
     "dependencies": {
         "@react-pdf/renderer": "^4.3.2",
@@ -24,14 +31,18 @@
         "zustand": "^5.0.12"
     },
     "devDependencies": {
-        "@eslint/js": "^10.0.1",
+        "@edge-runtime/vm": "^5.0.0",
+        "@eslint/js": "^9.39.5",
         "@tailwindcss/vite": "^4.2.2",
+        "@testing-library/dom": "^10.4.2",
         "@testing-library/jest-dom": "^6.9.1",
         "@testing-library/react": "^16.3.2",
         "@types/node": "^22",
         "@types/react": "^19",
         "@types/react-dom": "^19",
         "@vitejs/plugin-react": "^6.0.1",
+        "@vitest/coverage-v8": "4.1.0",
+        "convex-test": "0.0.54",
         "eslint": "^9",
         "eslint-plugin-react-hooks": "^7.0.1",
         "eslint-plugin-react-refresh": "^0.5.2",
@@ -41,6 +52,6 @@
         "typescript": "^5",
         "typescript-eslint": "^8.57.1",
         "vite": "^8.0.1",
-        "vitest": "^4.1.0"
+        "vitest": "4.1.0"
     }
 }

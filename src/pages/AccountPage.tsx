@@ -65,7 +65,7 @@ export default function AccountPage() {
   const [searchParams] = useSearchParams();
   const { showToast } = useToast();
   const { billingState, billingStateLoading, billingError, openPortal } = useBilling();
-  const { organization, organizationLoading } = useOrganizationContext({
+  const { organization, organizationLoading, organizationError } = useOrganizationContext({
     bootstrapIfMissing: true,
   });
   const { hub, isLoading: governmentHubLoading } = useGovernmentHub();
@@ -122,6 +122,7 @@ export default function AccountPage() {
             </div>
 
             <div className="px-6 py-6">
+              {organizationError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{organizationError}</p>}
               <div className="grid gap-4 md:grid-cols-3">
                 <MetricCard
                   label="Current plan"

@@ -32,22 +32,15 @@ export function MapOverlay({ map }: MapOverlayProps) {
 
   const resultRef = useRef<RenderStreetResult | null>(null);
 
-  // Cleanup helper
-  const cleanup = () => {
-    if (!map || !resultRef.current) return;
-    cleanupMapLayers(map, resultRef.current.layerIds);
-    for (const sid of resultRef.current.sourceIds) cleanupMapSource(map, sid);
-    resultRef.current = null;
-  };
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return cleanup;
-  }, [map]);
-
   // Draw road highlight + element polygons
   useEffect(() => {
     if (!map) return;
+    const cleanup = () => {
+      if (!resultRef.current) return;
+      cleanupMapLayers(map, resultRef.current.layerIds);
+      for (const sid of resultRef.current.sourceIds) cleanupMapSource(map, sid);
+      resultRef.current = null;
+    };
 
     cleanup();
 
@@ -75,7 +68,10 @@ export function MapOverlay({ map }: MapOverlayProps) {
       map.once('styledata', render);
     }
 
-    return cleanup;
+    return () => {
+      map.off('styledata', render);
+      cleanup();
+    };
   }, [map, roadPath, beforeStreet, afterStreet, showBeforeOnMap, step, mode, styleVersion]);
 
   return null;

@@ -1,11 +1,10 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import { Badge } from '@/components/ui';
 import {
-  HOTSPOT_CATEGORY_LABELS,
   HOTSPOT_CATEGORY_COLORS,
   SEVERITY_LABELS,
 } from '@/lib/types/community';
-import type { HotspotCategory, HotspotSeverity, HotspotStatus } from '@/lib/types/community';
+import type { HotspotSeverity, HotspotStatus } from '@/lib/types/community';
 import { useCommunityStore } from './community-store';
 import type { MockHotspot } from './mock-data';
 

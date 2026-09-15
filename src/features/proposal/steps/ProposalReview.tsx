@@ -5,6 +5,7 @@ import { useStreetStore } from '@/stores/street-store';
 import { useSavedProposalsStore } from '@/stores/saved-proposals-store';
 import { useCommunityStore } from '@/features/community/community-store';
 import { generatePDF } from '@/features/export';
+import { loadStandards, validateStreet } from '@/lib/standards/validator';
 
 const CrossSectionSVG = lazy(() =>
   import('@/features/renderer/CrossSectionSVG').then((m) => ({
@@ -29,6 +30,8 @@ export function ProposalReview() {
   const setBeforeStreet = useStreetStore((s) => s.setBeforeStreet);
 
   const [isSavingPDF, setIsSavingPDF] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const openSaveDesign = useCommunityStore((s) => s.openSaveDesign);
 
   if (!beforeStreet || !afterStreet) return null;
 
@@ -40,8 +43,10 @@ export function ProposalReview() {
 
   const handleSavePDF = async () => {
     setIsSavingPDF(true);
+    setPdfError(null);
     try {
-      const blob = await generatePDF(afterStreet, beforeStreet, []);
+      const validationResults = validateStreet(afterStreet, loadStandards());
+      const blob = await generatePDF(afterStreet, beforeStreet, validationResults);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -50,16 +55,18 @@ export function ProposalReview() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+    } catch {
+      setPdfError('The PDF could not be generated. Please try again.');
     } finally {
       setIsSavingPDF(false);
     }
   };
 
-  const openSaveDesign = useCommunityStore((s) => s.openSaveDesign);
-
   const handleDone = () => {
     const proposal = useProposalStore.getState().getProposal();
     if (proposal) useSavedProposalsStore.getState().saveProposal(proposal);
+    setStreet(afterStreet);
+    setBeforeStreet(beforeStreet);
 
     // Open SaveDesignModal to share with community
     openSaveDesign({
@@ -151,6 +158,7 @@ export function ProposalReview() {
       </div>
 
       {/* Actions */}
+      {pdfError && <p role="alert" className="text-xs text-red-700">{pdfError}</p>}
       <div className="flex gap-2 mt-1">
         <button
           onClick={handleEditDetails}

@@ -1,9 +1,8 @@
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ReportBuilder } from '@/features/report/ReportBuilder';
 import { useHotspotById, mockHotspotToPin } from '@/lib/api/use-hotspots';
 
 export default function ReportPage() {
-  const { designId } = useParams<{ designId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const hotspotId = searchParams.get('hotspot') ?? undefined;

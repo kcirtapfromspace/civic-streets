@@ -2,7 +2,7 @@
 
 import { submitToSeeClickFix, getSeeClickFixCategories, type SeeClickFixCategory } from './civic/seeclickfix';
 import { submitToOpen311, getOpen311Services, type Open311Service } from './civic/open311';
-import { getCityDeepLink, type DeepLinkCity } from './civic/deeplinks';
+import { DENVER_311_CITY, getCityDeepLink } from './civic/deeplinks';
 
 export type CivicServiceTier = 'seeclickfix' | 'open311' | 'deeplink';
 
@@ -23,6 +23,7 @@ export interface CivicReportInput {
 }
 
 export interface CivicReportResult {
+  /** True only when a city API accepts the report; opening a portal is not submission. */
   success: boolean;
   trackingId?: string;
   trackingUrl?: string;
@@ -46,10 +47,10 @@ const CIVIC_SERVICES: CivicServiceConfig[] = [
     bounds: [41.6, -87.9, 42.1, -87.5], // Chicago metro
   },
   {
-    id: 'seeclickfix',
-    name: 'SeeClickFix',
-    city: 'Denver',
-    bounds: [39.6, -105.1, 39.9, -104.8], // Denver metro
+    id: 'deeplink',
+    name: 'Denver 311',
+    city: DENVER_311_CITY.name,
+    bounds: DENVER_311_CITY.bounds,
   },
   // Other SCF cities can be added here
 ];
@@ -67,7 +68,14 @@ export async function getCivicCategories(lat: number, lng: number): Promise<Civi
 
   if (!service) return [];
 
-  switch (service.id) {
+  return getCategoriesForCivicService(service.id, lat, lng);
+}
+
+/** Adapter dispatch shared by configured city integrations. */
+export async function getCategoriesForCivicService(
+  tier: CivicServiceTier, lat: number, lng: number,
+): Promise<CivicCategory[]> {
+  switch (tier) {
     case 'seeclickfix': {
       const cats = await getSeeClickFixCategories(lat, lng);
       return cats.map((c: SeeClickFixCategory) => ({
@@ -98,7 +106,7 @@ export async function submitCivicReport(input: CivicReportInput): Promise<CivicR
     const deepLink = getCityDeepLink(input.lat, input.lng, input.address, input.description);
     if (deepLink) {
       return {
-        success: true,
+        success: false,
         deepLinkUrl: deepLink.url,
       };
     }
@@ -108,7 +116,14 @@ export async function submitCivicReport(input: CivicReportInput): Promise<CivicR
     };
   }
 
-  switch (service.id) {
+  return submitToCivicService(service.id, input);
+}
+
+/** Submit through an explicitly selected integration; city routing stays above. */
+export async function submitToCivicService(
+  tier: CivicServiceTier, input: CivicReportInput,
+): Promise<CivicReportResult> {
+  switch (tier) {
     case 'seeclickfix':
       return submitToSeeClickFix(input);
     case 'open311':
@@ -116,7 +131,7 @@ export async function submitCivicReport(input: CivicReportInput): Promise<CivicR
     case 'deeplink': {
       const deepLink = getCityDeepLink(input.lat, input.lng, input.address, input.description);
       return deepLink
-        ? { success: true, deepLinkUrl: deepLink.url }
+        ? { success: false, deepLinkUrl: deepLink.url }
         : { success: false, error: 'No deep link available for this location.' };
     }
     default:

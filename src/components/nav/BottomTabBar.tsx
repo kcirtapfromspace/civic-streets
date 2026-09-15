@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 
 const tabs = [
-  { to: '/', label: 'Map', icon: MapPinIcon, end: true },
+  { to: '/map', label: 'Map', icon: MapPinIcon, end: true },
   { to: '/editor', label: 'Editor', icon: PencilRulerIcon, end: false },
   { to: '/hotspots', label: 'Hotspots', icon: FlameIcon, end: false },
   { to: '/account', label: 'Account', icon: UserIcon, end: false },

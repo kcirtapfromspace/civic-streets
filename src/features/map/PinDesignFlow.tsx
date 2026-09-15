@@ -3,6 +3,7 @@ import type maplibregl from 'maplibre-gl';
 import { useMapStore } from './map-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useDrawingStore } from '@/stores/drawing-store';
+import { reverseGeocodeLocation } from '@/lib/api/geocoding';
 
 interface PinDesignFlowProps {
   map: maplibregl.Map | null;
@@ -11,7 +12,7 @@ interface PinDesignFlowProps {
 /**
  * Handles map click events to show a context menu with
  * "Design a Street Here" and "Report a Hotspot" options.
- * Reverse-geocodes the clicked location via Nominatim.
+ * Reverse-geocodes the clicked location through the shared backend proxy.
  */
 export function PinDesignFlow({ map }: PinDesignFlowProps) {
   const openContextMenu = useMapStore((s) => s.openContextMenu);
@@ -66,15 +67,8 @@ export function PinDesignFlow({ map }: PinDesignFlowProps) {
   const reverseGeocode = useCallback(
     async (lat: number, lng: number): Promise<string> => {
       try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-          { headers: { 'Accept-Language': 'en' } },
-        );
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        if (data.display_name) {
-          return data.display_name;
-        }
+        const result = await reverseGeocodeLocation(lat, lng);
+        if (result?.display_name) return result.display_name;
       } catch {
         // Fall back to coordinates
       }
@@ -90,6 +84,7 @@ export function PinDesignFlow({ map }: PinDesignFlowProps) {
 
     const { lat, lng } = contextMenuPosition;
     const address = await reverseGeocode(lat, lng);
+    if (useMapStore.getState().contextMenuPosition !== contextMenuPosition) return;
     const location = { lat, lng, address };
     setSelectedLocation(location);
     closeContextMenu();
@@ -103,6 +98,7 @@ export function PinDesignFlow({ map }: PinDesignFlowProps) {
 
     const { lat, lng } = contextMenuPosition;
     const address = await reverseGeocode(lat, lng);
+    if (useMapStore.getState().contextMenuPosition !== contextMenuPosition) return;
     setSelectedLocation({ lat, lng, address });
     closeContextMenu();
     openReportForm({ lat, lng, address });

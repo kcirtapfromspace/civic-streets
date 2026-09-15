@@ -6,7 +6,7 @@ export function Layout() {
   const location = useLocation();
 
   // Map page is full-viewport — no extra bottom padding for the tab bar
-  const isMapPage = location.pathname === '/';
+  const isMapPage = location.pathname === '/map';
 
   return (
     <div className="flex flex-col h-screen">
@@ -14,7 +14,7 @@ export function Layout() {
       <main className={`flex-1 min-h-0 ${isMapPage ? '' : 'pb-14 lg:pb-0'}`}>
         <Outlet />
       </main>
-      <BottomTabBar className={`lg:hidden fixed bottom-0 left-0 right-0 ${isMapPage ? '' : ''}`} />
+      <BottomTabBar className="lg:hidden fixed bottom-0 left-0 right-0" />
     </div>
   );
 }

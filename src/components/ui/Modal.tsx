@@ -26,7 +26,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
       if (e.key !== 'Tab' || !overlayRef.current) return;
 
       const focusable = overlayRef.current.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        'button:not(:disabled), [href], input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"]):not(:disabled)',
       );
       if (focusable.length === 0) return;
 

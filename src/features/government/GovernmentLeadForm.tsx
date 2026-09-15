@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { Badge, Button, Select } from '@/components/ui';
 import { useAuth } from '@/lib/api/auth';
 import { useGovernmentLeadSubmission } from '@/lib/api/government';
@@ -61,41 +61,22 @@ export function GovernmentLeadForm({
   const { showToast } = useToast();
   const { submitLead, isSubmitting } = useGovernmentLeadSubmission();
 
-  const [jurisdictionName, setJurisdictionName] = useState(initialJurisdictionName);
-  const [workEmail, setWorkEmail] = useState(user?.email ?? '');
-  const [roleTitle, setRoleTitle] = useState(initialRoleTitle);
+  const [jurisdictionDraft, setJurisdictionName] = useState<string | null>(null);
+  const [emailDraft, setWorkEmail] = useState<string | null>(null);
+  const [roleDraft, setRoleTitle] = useState<string | null>(null);
   const [phone, setPhone] = useState('');
-  const [populationBand, setPopulationBand] = useState(initialPopulationBand ?? '');
-  const [notes, setNotes] = useState(initialNotes);
+  const [populationDraft, setPopulationBand] = useState<string | null>(null);
+  const [notesDraft, setNotes] = useState<string | null>(null);
+  const jurisdictionName = jurisdictionDraft ?? initialJurisdictionName;
+  const workEmail = emailDraft ?? user?.email ?? '';
+  const roleTitle = roleDraft ?? initialRoleTitle;
+  const populationBand = populationDraft ?? initialPopulationBand ?? '';
+  const notes = notesDraft ?? initialNotes;
   const [submissionState, setSubmissionState] = useState<{
     status: string;
     leadId: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setJurisdictionName(initialJurisdictionName);
-  }, [initialJurisdictionName]);
-
-  useEffect(() => {
-    setRoleTitle(initialRoleTitle);
-  }, [initialRoleTitle]);
-
-  useEffect(() => {
-    setPopulationBand(initialPopulationBand ?? '');
-  }, [initialPopulationBand]);
-
-  useEffect(() => {
-    if (initialNotes) {
-      setNotes(initialNotes);
-    }
-  }, [initialNotes]);
-
-  useEffect(() => {
-    if (user?.email && !workEmail) {
-      setWorkEmail(user.email);
-    }
-  }, [user?.email, workEmail]);
 
   const requestedFeatureLabel = useMemo(() => {
     if (!requestedFeature) return null;
@@ -262,10 +243,12 @@ function Field({
   type?: React.HTMLInputTypeAttribute;
   required?: boolean;
 }) {
+  const id = useId();
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-slate-600">{label}</label>
+      <label htmlFor={id} className="text-xs font-medium text-slate-600">{label}</label>
       <input
+        id={id}
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}

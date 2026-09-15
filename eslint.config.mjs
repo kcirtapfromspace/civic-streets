@@ -5,7 +5,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist", "node_modules", ".*/**", "convex/_generated/**"],
+    ignores: ["dist", "coverage", "node_modules", ".*/**", "convex/_generated/**"],
   },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],

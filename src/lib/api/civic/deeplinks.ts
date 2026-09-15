@@ -7,6 +7,14 @@ export interface DeepLinkCity {
   prefillSupported: boolean;
 }
 
+// This rectangle is a routing hint, not a municipal boundary check.
+export const DENVER_311_CITY: DeepLinkCity = {
+  name: 'Denver',
+  url: 'https://www.denvergov.org/Online-Services-Hub/Report-an-Issue',
+  bounds: [39.6, -105.1, 39.9, -104.8],
+  prefillSupported: false,
+};
+
 const DEEP_LINK_CITIES: DeepLinkCity[] = [
   {
     name: 'New York City',
@@ -14,12 +22,7 @@ const DEEP_LINK_CITIES: DeepLinkCity[] = [
     bounds: [40.4, -74.3, 40.95, -73.7],
     prefillSupported: false,
   },
-  {
-    name: 'Denver',
-    url: 'https://www.denvergov.org/pocketgov311',
-    bounds: [39.6, -105.1, 39.9, -104.8],
-    prefillSupported: false,
-  },
+  DENVER_311_CITY,
   {
     name: 'San Francisco',
     url: 'https://sf311.org/services',

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 
 // Snap points as viewport-height fractions (from bottom)
 const SNAP_PEEK = 0.3;
@@ -16,20 +16,17 @@ interface MobileMapDrawerProps {
 }
 
 export function MobileMapDrawer({ open, onClose, children }: MobileMapDrawerProps) {
+  if (!open) return null;
+  return <OpenMobileMapDrawer onClose={onClose}>{children}</OpenMobileMapDrawer>;
+}
+
+function OpenMobileMapDrawer({ onClose, children }: Omit<MobileMapDrawerProps, 'open'>) {
   const [snapFraction, setSnapFraction] = useState(SNAP_HALF);
   const dragging = useRef(false);
   const startY = useRef(0);
   const startFraction = useRef(SNAP_HALF);
   const drawerRef = useRef<HTMLDivElement>(null);
   const currentFraction = useRef(SNAP_HALF);
-
-  // Reset to half when opened
-  useEffect(() => {
-    if (open) {
-      setSnapFraction(SNAP_HALF);
-      currentFraction.current = SNAP_HALF;
-    }
-  }, [open]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     dragging.current = true;
@@ -87,8 +84,6 @@ export function MobileMapDrawer({ open, onClose, children }: MobileMapDrawerProp
       drawerRef.current.style.transform = `translateY(${translateY}%)`;
     }
   }, [onClose]);
-
-  if (!open) return null;
 
   const translateY = (1 - snapFraction) * 100;
 

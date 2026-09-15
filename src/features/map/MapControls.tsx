@@ -5,7 +5,9 @@ import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useProposalStore } from '@/stores/proposal-store';
 import { fetchRoadPath } from '@/features/proposal/utils/road-geometry';
 import { useSafetyDataStore } from '@/features/safety-data/safety-data-store';
-import { DATA_SOURCES } from '@/features/safety-data/api';
+import { CrashCoverageStatus } from '@/features/safety-data/CrashCoverageStatus';
+import { useSubmittedPlaceSearch } from '@/lib/api/use-submitted-place-search';
+import type { GeocodingResult } from '@/lib/api/geocoding';
 import {
   MODE_LABELS,
   SEVERITY_LABELS,
@@ -15,7 +17,7 @@ import {
 } from '@/lib/types/safety-data';
 
 const ALL_MODES: CrashMode[] = ['pedestrian', 'cyclist', 'motorist'];
-const ALL_SEVERITIES: CrashSeverity[] = ['fatal', 'severe-injury', 'moderate-injury', 'minor'];
+const ALL_SEVERITIES: CrashSeverity[] = ['fatal', 'severe-injury', 'moderate-injury', 'minor', 'unknown'];
 const MODE_COLORS: Record<CrashMode, string> = {
   pedestrian: '#8B5CF6',
   cyclist: '#10B981',
@@ -24,13 +26,6 @@ const MODE_COLORS: Record<CrashMode, string> = {
 
 interface MapControlsProps {
   map: maplibregl.Map | null;
-}
-
-interface NominatimResult {
-  place_id: number;
-  display_name: string;
-  lat: string;
-  lon: string;
 }
 
 export function MapControls({ map }: MapControlsProps) {
@@ -56,8 +51,6 @@ export function MapControls({ map }: MapControlsProps) {
   // Reactive crash data state
   const crashEnabled = useSafetyDataStore((s) => s.enabled);
   const crashFilters = useSafetyDataStore((s) => s.filters);
-  const crashes = useSafetyDataStore((s) => s.crashes);
-  const crashLoading = useSafetyDataStore((s) => s.isLoading);
   const showCrashHeatmap = useSafetyDataStore((s) => s.showHeatmap);
   const showCrashPoints = useSafetyDataStore((s) => s.showPoints);
   const toggleCrashMode = useSafetyDataStore((s) => s.toggleMode);
@@ -66,45 +59,16 @@ export function MapControls({ map }: MapControlsProps) {
   const toggleCrashPoints = useSafetyDataStore((s) => s.togglePoints);
   const mapZoom = useMapStore((s) => s.zoom);
 
-  const [searchText, setSearchText] = useState('');
-  const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
+  const {
+    query: searchText, setQuery: handleSearchChange, results: suggestions,
+    isLoading: searchLoading, error: searchError, hasSearched: searchHasSearched,
+    search: submitSearch,
+  } = useSubmittedPlaceSearch();
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLayersPanelOpen, setIsLayersPanelOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  // Nominatim search with debounce
-  const searchNominatim = useCallback(async (query: string) => {
-    if (query.length < 3) {
-      setSuggestions([]);
-      return;
-    }
-
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`,
-        { headers: { 'Accept-Language': 'en' } },
-      );
-      if (!res.ok) return;
-      const results: NominatimResult[] = await res.json();
-      setSuggestions(results);
-      setShowSuggestions(results.length > 0);
-    } catch {
-      // Nominatim unavailable
-    }
-  }, []);
-
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      setSearchText(value);
-      clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => searchNominatim(value), 350);
-    },
-    [searchNominatim],
-  );
-
   const handleSelectSuggestion = useCallback(
-    (result: NominatimResult) => {
+    (result: GeocodingResult) => {
       const lat = parseFloat(result.lat);
       const lng = parseFloat(result.lon);
       const address = result.display_name;
@@ -112,11 +76,10 @@ export function MapControls({ map }: MapControlsProps) {
       setCenter({ lat, lng });
       setZoom(17);
       setSelectedLocation({ lat, lng, address });
-      setSearchText(address);
-      setSuggestions([]);
+      handleSearchChange(address);
       setShowSuggestions(false);
     },
-    [setCenter, setZoom, setSelectedLocation],
+    [setCenter, setZoom, setSelectedLocation, handleSearchChange],
   );
 
   // Close suggestions on click outside
@@ -156,7 +119,7 @@ export function MapControls({ map }: MapControlsProps) {
         style={{ maxWidth: '400px', width: 'calc(100% - 32px)' }}
         data-search-container
       >
-        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] ring-1 ring-black/[0.04] flex items-center px-4 py-2.5 gap-2.5">
+        <form onSubmit={(event) => { event.preventDefault(); setShowSuggestions(true); void submitSearch(); }} className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] ring-1 ring-black/[0.04] flex items-center px-4 py-2.5 gap-2.5">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 20 20"
@@ -172,20 +135,25 @@ export function MapControls({ map }: MapControlsProps) {
 
           <input
             ref={searchInputRef}
+            aria-label="Search places"
             type="text"
             value={searchText}
             onChange={(e) => handleSearchChange(e.target.value)}
             onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
             placeholder="Search address or place..."
-            className="flex-1 bg-transparent text-[13px] font-medium text-gray-900 placeholder-gray-300 outline-none"
+            className="min-w-0 flex-1 bg-transparent text-[13px] font-medium text-gray-900 placeholder-gray-300 outline-none"
           />
 
+          <button type="submit" disabled={searchLoading || searchText.trim().length < 3} className="text-xs font-semibold text-blue-700 disabled:opacity-50">
+            {searchLoading ? 'Searching…' : 'Search'}
+          </button>
           {searchText && (
             <button
+              type="button"
+              aria-label="Clear place search"
               onClick={() => {
-                setSearchText('');
+                handleSearchChange('');
                 setSelectedLocation(null);
-                setSuggestions([]);
                 setShowSuggestions(false);
               }}
               className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -200,9 +168,14 @@ export function MapControls({ map }: MapControlsProps) {
               </svg>
             </button>
           )}
-        </div>
+        </form>
 
-        {/* Autocomplete suggestions */}
+        {searchError && <p role="alert" className="rounded-lg bg-white p-3 text-xs text-red-700">{searchError}</p>}
+        {searchHasSearched && !searchLoading && !searchError && !suggestions.length && (
+          <p role="status" className="rounded-lg bg-white p-3 text-xs text-gray-600">No places matched this search. Try a nearby street or choose a location on the map.</p>
+        )}
+
+        {/* Results appear only after a submitted search. */}
         {showSuggestions && suggestions.length > 0 && (
           <div className="bg-white/95 backdrop-blur-xl rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.04] py-1.5 max-h-60 overflow-y-auto animate-fade-up">
             {suggestions.map((result) => (
@@ -215,6 +188,10 @@ export function MapControls({ map }: MapControlsProps) {
               </button>
             ))}
           </div>
+        )}
+
+        {showSuggestions && suggestions.length > 0 && (
+          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="rounded-lg bg-white px-3 py-1 text-[10px] text-gray-600 underline">Search data © OpenStreetMap contributors</a>
         )}
 
         {/* Selected location info bar */}
@@ -455,14 +432,7 @@ export function MapControls({ map }: MapControlsProps) {
             {/* Inline crash filters — shown when crash data is enabled */}
             {crashEnabled && (
               <div className="flex flex-col gap-2.5 pl-1">
-                <div className="text-[10px] text-gray-400">
-                  {crashes.length === 0 && !crashLoading && mapZoom < 11
-                    ? 'Zoom in to see crash data'
-                    : `${crashes.length.toLocaleString()} crashes loaded`}
-                  {crashLoading && (
-                    <span className="ml-1.5 inline-block w-2.5 h-2.5 border border-orange-200 border-t-orange-500 rounded-full animate-spin align-middle" />
-                  )}
-                </div>
+                <CrashCoverageStatus zoom={mapZoom} />
 
                 {/* Display toggles */}
                 <div className="flex flex-col gap-1">
@@ -530,20 +500,6 @@ export function MapControls({ map }: MapControlsProps) {
                   </div>
                 </div>
 
-                {/* Data sources & citations */}
-                <div className="border-t border-gray-100 pt-2">
-                  <div className="text-[9px] font-bold text-gray-300 uppercase tracking-[0.12em] mb-1.5">Sources</div>
-                  <div className="flex flex-col gap-1.5">
-                    {DATA_SOURCES.map((src) => (
-                      <div key={src.id} className="text-[10px] text-gray-400 leading-tight">
-                        <span className="font-medium text-gray-600">{src.city}</span>
-                        {' — '}{src.citation}
-                        <br />
-                        <span className="text-gray-300">{src.dateRange}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </div>
             )}
           </div>

@@ -33,9 +33,9 @@ export function useAuth() {
     getStoredToken,
   );
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionEpoch, setSessionEpoch] = useState(0);
 
   const createAnonymousUser = useMutation(api.users.createAnonymousUser);
-  const upgradeToAuthenticated = useMutation(api.users.upgradeToAuthenticated);
 
   // Query the current user based on session token
   // useQuery returns undefined while loading, null if not found
@@ -44,92 +44,71 @@ export function useAuth() {
     sessionToken ? { sessionToken } : 'skip',
   );
 
-  // Initialize: create anonymous user if no session token exists
+  // Only this effect creates sessions. Clearing an invalid token or logging
+  // out routes through it instead of starting competing creation requests.
   useEffect(() => {
+    let active = true;
     async function init() {
       if (sessionToken) {
-        // We have a token; the useQuery above will load the user
         setIsLoading(false);
         return;
       }
 
+      setIsLoading(true);
       try {
         const result = await createAnonymousUser();
+        if (!active) return;
         if (result.sessionToken) {
           storeToken(result.sessionToken);
           setSessionToken(result.sessionToken);
         }
       } catch (err) {
-        console.error('Failed to create anonymous user:', err);
+        if (active) console.error('Failed to create anonymous user:', err);
       } finally {
-        setIsLoading(false);
+        if (active) setIsLoading(false);
       }
     }
 
-    init();
-  }, [sessionToken, createAnonymousUser]);
+    void init();
+    return () => { active = false; };
+  }, [sessionToken, sessionEpoch, createAnonymousUser]);
 
-  // If user query finishes loading but returns null (invalid token),
-  // create a new anonymous user
   useEffect(() => {
-    async function handleInvalidSession() {
-      if (user === null && sessionToken && !isLoading) {
-        clearToken();
-        setSessionToken(null);
-        setIsLoading(true);
-        try {
-          const result = await createAnonymousUser();
-          if (result.sessionToken) {
-            storeToken(result.sessionToken);
-            setSessionToken(result.sessionToken);
-          }
-        } catch (err) {
-          console.error('Failed to create anonymous user:', err);
-        } finally {
-          setIsLoading(false);
-        }
-      }
+    if (user === null && sessionToken && !isLoading) {
+      clearToken();
+      setSessionToken(null);
+      setIsLoading(true);
     }
+  }, [user, sessionToken, isLoading]);
 
-    handleInvalidSession();
-  }, [user, sessionToken, isLoading, createAnonymousUser]);
+  // The backend deliberately reports false until verified sign-in is configured.
+  // A legacy email field is contact data, not proof of authentication.
+  const isAuthenticated = user?.isAuthenticated ?? false;
 
-  const isAuthenticated = !!user && !!user.email;
-
-  const login = useCallback((provider: string) => {
-    // Placeholder for OAuth flow
-    console.log(`Login with ${provider} — not yet implemented`);
+  const login = useCallback((_provider: string) => {
+    throw new Error('Verified account sign-in is not available yet. You can continue reporting anonymously.');
   }, []);
 
   const logout = useCallback(() => {
     clearToken();
     setSessionToken(null);
+    setIsLoading(true);
+    // Also restart when logout happens while the initial token is still null.
+    setSessionEpoch((epoch) => epoch + 1);
   }, []);
 
   const upgradeAccount = useCallback(
-    async (email: string, provider: string, authId: string) => {
-      if (!sessionToken) {
-        throw new Error('No active session');
-      }
-      const result = await upgradeToAuthenticated({
-        sessionToken,
-        email,
-        authProvider: provider,
-        authId,
-      });
-      if (result.sessionToken) {
-        storeToken(result.sessionToken);
-        setSessionToken(result.sessionToken);
-      }
-      return result.user;
+    async (_email: string, _provider: string, _authId: string) => {
+      // Client-supplied provider claims must never be used to link accounts.
+      throw new Error('Verified account sign-in is not available yet. You can continue reporting anonymously.');
     },
-    [sessionToken, upgradeToAuthenticated],
+    [],
   );
 
   return {
     user: user ?? null,
     sessionToken,
-    isLoading: isLoading || user === undefined,
+    isLoading: isLoading || (!!sessionToken && user === undefined),
     isAuthenticated,
     login,
     logout,

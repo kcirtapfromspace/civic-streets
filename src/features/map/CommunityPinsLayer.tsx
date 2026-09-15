@@ -115,6 +115,11 @@ export function CommunityPinsLayer({ map }: CommunityPinsLayerProps) {
   const designMarkersRef = useRef<maplibregl.Marker[]>([]);
   const popupRef = useRef<maplibregl.Popup | null>(null);
 
+  useEffect(() => () => {
+    popupRef.current?.remove();
+    popupRef.current = null;
+  }, [map]);
+
   const getPopup = () => {
     if (!popupRef.current) {
       popupRef.current = new maplibregl.Popup({
@@ -252,7 +257,10 @@ export function CommunityPinsLayer({ map }: CommunityPinsLayerProps) {
       map.once('styledata', addHeatmap);
     }
 
-    return cleanup;
+    return () => {
+      map.off('styledata', addHeatmap);
+      cleanup();
+    };
   }, [map, showHeatmap, styleVersion, hotspotPins]);
 
   return null;

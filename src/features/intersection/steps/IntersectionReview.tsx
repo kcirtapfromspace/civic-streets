@@ -63,7 +63,7 @@ export function IntersectionReview() {
             {crashSummary.fatalities > 0 && (
               <span className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
-                {crashSummary.fatalities} fatal
+                {crashSummary.fatalities} recorded fatalities
               </span>
             )}
             {crashSummary.severeInjuries > 0 && (

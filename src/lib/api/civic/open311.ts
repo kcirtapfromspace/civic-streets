@@ -12,9 +12,15 @@ export interface Open311Service {
 }
 
 interface Open311ServiceRequest {
-  service_request_id: string;
-  token?: string;
-  status: string;
+  service_request_id?: unknown;
+  token?: unknown;
+  service_notice?: unknown;
+}
+
+function receiptId(value: unknown): string | undefined {
+  if (typeof value === 'string') return value.trim() || undefined;
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) return String(value);
+  return undefined;
 }
 
 /** Fetch available service types from Open311 endpoint. */
@@ -94,15 +100,25 @@ export async function submitToOpen311(input: {
     }
 
     const data: Open311ServiceRequest[] = await res.json();
-    const request = data[0];
+    const request = Array.isArray(data) ? data[0] : undefined;
     if (!request) {
       return { success: false, error: 'No service request returned from Open311.' };
+    }
+    const requestId = receiptId(request.service_request_id);
+    const token = receiptId(request.token);
+    // Blackbox services can acknowledge a request with a notice and no ID.
+    const hasNotice = typeof request.service_notice === 'string' && request.service_notice.trim().length > 0;
+    if (!requestId && !token && !hasNotice) {
+      return { success: false, error: 'Open311 returned no usable confirmation. Check Chicago 311 before submitting again.' };
     }
 
     return {
       success: true,
-      trackingId: request.service_request_id || request.token,
-      trackingUrl: `https://311.chicago.gov/s/servicerequest/${request.service_request_id}`,
+      trackingId: requestId ?? token,
+      // Batch services return a token before they assign a request ID.
+      trackingUrl: requestId
+        ? `https://311.chicago.gov/s/servicerequest/${encodeURIComponent(requestId)}`
+        : undefined,
     };
   } catch (err) {
     return {

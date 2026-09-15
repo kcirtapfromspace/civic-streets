@@ -1,4 +1,5 @@
-// Report Success View — shown after the user sends their report
+// Email handoff view. A mailto link does not confirm delivery or that a
+// configured mail client opened successfully.
 
 import React, { useEffect, useState } from 'react';
 import type { RepInfo } from '@/lib/types';
@@ -25,7 +26,7 @@ export function ReportSuccess({
 
   const repNames = reps.map((r) => r.name).join(', ');
 
-  const shareText = `I just contacted my local representative about street safety at ${address} using Curbwise.`;
+  const shareText = `I prepared a message about street safety at ${address} using Curbwise.`;
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
 
   const handleCopyLink = async () => {
@@ -72,12 +73,13 @@ export function ReportSuccess({
       </div>
 
       <h2 className="text-xl font-semibold text-gray-900 mb-2">
-        Message Sent
+        Your Email Draft Is Ready
       </h2>
       <p className="text-sm text-gray-600 max-w-md mb-6">
         Your message has been prepared for{' '}
-        <span className="font-medium text-gray-800">{repNames}</span>. Thank
-        you for engaging with your local government.
+        <span className="font-medium text-gray-800">{repNames}</span>. If your email app
+        opened, review the draft and send it there. Curbwise cannot confirm that
+        the app opened or that the message was sent or received.
       </p>
 
       {/* Share section */}
@@ -101,7 +103,7 @@ export function ReportSuccess({
                 d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
               />
             </svg>
-            Copy Link
+            Copy Share Text
           </Button>
           <a
             href={twitterUrl}

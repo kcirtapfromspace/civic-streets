@@ -134,7 +134,10 @@ export function ServiceAreaLayer({ map, activeServiceAreas = [] }: ServiceAreaLa
       map.once('styledata', addLayers);
     }
 
-    return cleanup;
+    return () => {
+      map.off('styledata', addLayers);
+      cleanup();
+    };
   }, [map, showServiceAreas, activeServiceAreas, styleVersion]);
 
   return null;

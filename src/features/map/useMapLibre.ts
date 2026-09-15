@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -82,8 +82,11 @@ export function useMapLibre({
   zoom,
   mapType,
 }: UseMapLibreOptions): UseMapLibreReturn {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState<{
+    container: HTMLDivElement | null;
+    map: maplibregl.Map | null;
+    error: string | null;
+  }>({ container: null, map: null, error: null });
   const mapRef = useRef<maplibregl.Map | null>(null);
   const initializedRef = useRef(false);
 
@@ -91,8 +94,9 @@ export function useMapLibre({
   useEffect(() => {
     if (!mapElement || initializedRef.current) return;
 
+    let map: maplibregl.Map | null = null;
     try {
-      const map = new maplibregl.Map({
+      map = new maplibregl.Map({
         container: mapElement,
         style: TILE_STYLES[mapType],
         center: [center.lng, center.lat],
@@ -105,7 +109,7 @@ export function useMapLibre({
       map.addControl(new maplibregl.FullscreenControl(), 'bottom-right');
 
       map.on('load', () => {
-        setIsLoaded(true);
+        setLoaded({ container: mapElement, map, error: null });
       });
 
       map.on('error', (e) => {
@@ -115,11 +119,15 @@ export function useMapLibre({
       mapRef.current = map;
       initializedRef.current = true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load map');
+      // Publish a synchronous failure from the external WebGL constructor to the error UI.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLoaded({ container: mapElement, map: null, error: err instanceof Error ? err.message : 'Failed to load map' });
     }
 
     return () => {
-      // Don't destroy on unmount — React strict mode double-fires
+      map?.remove();
+      mapRef.current = null;
+      initializedRef.current = false;
     };
   }, [mapElement]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -154,8 +162,8 @@ export function useMapLibre({
   }, [mapType]);
 
   return {
-    map: mapRef.current,
-    isLoaded,
-    error,
+    map: loaded.container === mapElement ? loaded.map : null,
+    isLoaded: loaded.container === mapElement && loaded.map !== null,
+    error: loaded.container === mapElement ? loaded.error : null,
   };
 }

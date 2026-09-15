@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useProposalStore } from '@/stores/proposal-store';
 import { getTransformationsForPreset, type TransformationCard } from '@/lib/presets/transformation-cards';
-import type { TemplateDefinition } from '@/lib/types';
+import { loadTemplates } from '@/lib/templates';
 
 const ICON_MAP: Record<TransformationCard['icon'], string> = {
   bike: '🚲',
@@ -16,19 +16,10 @@ export function TransformationPicker() {
   const applyTransformation = useProposalStore((s) => s.applyTransformation);
   const goBack = useProposalStore((s) => s.goBack);
 
-  const templates = useMemo(() => {
-    const templateModules = import.meta.glob('/data/templates/*.json', { eager: true });
-    const loaded = new Map<string, TemplateDefinition>();
-
-    for (const mod of Object.values(templateModules)) {
-      const template = (mod as { default: TemplateDefinition }).default ?? (mod as TemplateDefinition);
-      if (template.id) {
-        loaded.set(template.id, template);
-      }
-    }
-
-    return loaded;
-  }, []);
+  const templates = useMemo(
+    () => new Map(loadTemplates().map((template) => [template.id, template])),
+    [],
+  );
 
   const cards = selectedPreset
     ? getTransformationsForPreset(selectedPreset.suggestedTransformations)

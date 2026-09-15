@@ -26,7 +26,14 @@ interface SaveDesignModalProps {
 
 // ── Component ─────────────────────────────────────────────────────────────
 
-export function SaveDesignModal({
+export function SaveDesignModal(props: SaveDesignModalProps) {
+  const open = useCommunityStore((state) => state.isSaveDesignOpen);
+  const data = useCommunityStore((state) => state.saveDesignData);
+  if (!open) return null;
+  return <SaveDesignForm key={JSON.stringify([data?.title || props.initialTitle, data?.address || props.address])} {...props} />;
+}
+
+function SaveDesignForm({
   initialTitle = '',
   address = '',
   onSave,

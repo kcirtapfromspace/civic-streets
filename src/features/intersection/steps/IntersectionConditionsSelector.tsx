@@ -22,7 +22,7 @@ export function IntersectionConditionsSelector() {
           <span className="text-[11px] text-red-700 font-medium">
             {crashSummary.totalCrashes} crash{crashSummary.totalCrashes !== 1 ? 'es' : ''} nearby
             {crashSummary.fatalities > 0 && (
-              <span className="text-red-900 font-bold"> ({crashSummary.fatalities} fatal)</span>
+              <span className="text-red-900 font-bold"> ({crashSummary.fatalities} recorded fatalities)</span>
             )}
             {crashSummary.pedestrianCrashes > 0 && (
               <span> — {crashSummary.pedestrianCrashes} pedestrian</span>

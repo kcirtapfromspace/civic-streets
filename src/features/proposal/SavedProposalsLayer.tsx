@@ -69,7 +69,10 @@ export function SavedProposalsLayer({ map }: SavedProposalsLayerProps) {
       map.once('styledata', render);
     }
 
-    return cleanup;
+    return () => {
+      map.off('styledata', render);
+      cleanup();
+    };
   }, [map, proposals, styleVersion]);
 
   // Click to reopen in explore mode

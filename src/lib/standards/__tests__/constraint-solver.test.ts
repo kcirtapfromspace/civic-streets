@@ -180,4 +180,54 @@ describe('solveConstraints', () => {
     const total = detailed.elements.reduce((s, el) => s + el.width, 0);
     expect(total).toBeCloseTo(40, 1);
   });
+
+  it.each([
+    [11, true, 0],
+    [12, false, 0],
+    [10, false, 1],
+  ])('reports whether an entirely locked 11-foot allocation fits a %s-foot ROW', (rowWidth, feasible, overage) => {
+    const elements = [makeElement('fixed-lane', 'travel-lane', 11, { locked: true })];
+    const result = solveConstraintsDetailed(elements, rowWidth, standards);
+    expect(result.feasible).toBe(feasible);
+    expect(result.overageWidth).toBe(overage);
+    expect(result.elements[0].width).toBe(11);
+  });
+
+  it('prioritizes the pedestrian minimum over an undersized sidewalk lock even when the street cannot fit', () => {
+    const elements = [
+      makeElement('sidewalk', 'sidewalk', 2, { locked: true }),
+      makeElement('fixed-lane', 'travel-lane', 9, { locked: true }),
+    ];
+    const result = solveConstraintsDetailed(elements, 12, standards);
+    expect(result).toMatchObject({ feasible: false, overageWidth: 1 });
+    expect(result.elements.find((element) => element.id === 'sidewalk')?.width).toBe(4);
+    expect(result.elements.find((element) => element.id === 'fixed-lane')?.width).toBe(9);
+    expect(elements[0].width).toBe(2);
+  });
+
+  it('keeps an element’s existing footprint when its standard is missing and the allocation is impossible', () => {
+    const partial = { ...standards, nacto: { ...standards.nacto, elements: { ...standards.nacto.elements } } };
+    delete partial.nacto.elements.median;
+    const result = solveConstraintsDetailed([
+      makeElement('walk', 'sidewalk', 6),
+      makeElement('island', 'median', 7),
+      makeElement('lane', 'travel-lane', 11, { locked: true }),
+    ], 20, partial);
+    expect(result).toMatchObject({ feasible: false, overageWidth: 2 });
+    expect(result.elements.map((element) => element.width)).toEqual([4, 7, 11]);
+  });
+
+  it('distributes usable width without discarding an element whose standard is not loaded', () => {
+    const partial = { ...standards, nacto: { ...standards.nacto, elements: { ...standards.nacto.elements } } };
+    delete partial.nacto.elements.median;
+    const result = solveConstraintsDetailed([
+      makeElement('walk', 'sidewalk', 4),
+      makeElement('island', 'median', 6),
+    ], 20, partial);
+    expect(result.feasible).toBe(true);
+    expect(result.elements.reduce((sum, element) => sum + element.width, 0)).toBeCloseTo(20);
+    expect(result.elements.find((element) => element.id === 'walk')!.width).toBeGreaterThanOrEqual(4);
+    expect(result.elements.find((element) => element.id === 'island')!.width).toBeGreaterThanOrEqual(6);
+  });
+
 });

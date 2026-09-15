@@ -124,6 +124,9 @@ export async function submitToSeeClickFix(input: {
     }
 
     const data: SeeClickFixIssueResponse = await res.json();
+    if (!data || !Number.isSafeInteger(data.id) || data.id <= 0) {
+      return { success: false, error: 'No valid issue confirmation was returned. Check SeeClickFix before submitting again.' };
+    }
     return {
       success: true,
       trackingId: String(data.id),

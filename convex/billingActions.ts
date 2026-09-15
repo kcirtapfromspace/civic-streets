@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { v } from 'convex/values';
 import { api, internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
+import type { SessionUser } from './users';
 import { action } from './_generated/server';
 import { getPriceLookupKey } from './billing';
 
@@ -32,7 +33,7 @@ function getStripeClient(): Stripe {
 }
 
 type BillingAccountDoc = Doc<'billingAccounts'>;
-type UserDoc = Doc<'users'>;
+type UserDoc = SessionUser;
 
 function getPriceLookupKeyFromEnvironment(
   planKey: 'town_essential',

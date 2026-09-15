@@ -59,7 +59,7 @@ export default function BillingSuccessPage() {
           <Button variant="primary" onClick={() => navigate('/account')}>
             Go to Account
           </Button>
-          <Link to="/">
+          <Link to="/map">
             <Button variant="secondary">Back to Map</Button>
           </Link>
         </div>

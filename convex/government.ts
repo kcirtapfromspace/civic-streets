@@ -187,13 +187,16 @@ async function findLeadByEmailAndJurisdiction(
   ctx: QueryCtx | MutationCtx,
   jurisdictionSlug: string,
   normalizedWorkEmail: string,
+  submittedByUserId: Id<'users'>,
 ) {
   return await ctx.db
     .query('governmentLeads')
     .withIndex('by_jurisdiction_slug_and_normalized_work_email', (q) =>
       q.eq('jurisdictionSlug', jurisdictionSlug).eq('normalizedWorkEmail', normalizedWorkEmail),
     )
-    .unique();
+    .filter((q) => q.eq(q.field('submittedByUserId'), submittedByUserId))
+    .order('desc')
+    .first();
 }
 
 async function buildCoverageSummary(
@@ -343,7 +346,6 @@ export const getGovernmentHubContext = query({
     }
 
     const organizationContext = await getDefaultOrganizationContext(ctx, user._id);
-    const membership = organizationContext?.membership ?? null;
     const organization = organizationContext?.organization ?? null;
 
     const latestLead =
@@ -438,6 +440,7 @@ export const submitGovernmentLead = mutation({
       ctx,
       inferred.slug,
       normalizedWorkEmail,
+      user._id,
     );
     const now = Date.now();
 
@@ -458,7 +461,7 @@ export const submitGovernmentLead = mutation({
       });
     }
 
-    if (existingLead && GOVERNMENT_LEAD_STATUSES.includes(existingLead.status as GovernmentLeadStatus)) {
+    if (existingLead) {
       await ctx.db.patch(existingLead._id, {
         organizationId: existingLead.organizationId ?? organizationContext.organization._id,
         jurisdictionName,
@@ -474,7 +477,7 @@ export const submitGovernmentLead = mutation({
         reportId: args.reportId ?? existingLead.reportId,
         designId: args.designId ?? existingLead.designId,
         status:
-          existingLead.status === 'closed'
+          existingLead.status === 'closed' || !GOVERNMENT_LEAD_STATUSES.includes(existingLead.status as GovernmentLeadStatus)
             ? 'new'
             : existingLead.status,
         submissionCount: existingLead.submissionCount + 1,

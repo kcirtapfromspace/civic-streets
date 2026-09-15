@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Badge, Button, Modal } from '@/components/ui';
 import { useUnsignedOutreach } from '@/lib/api/government';
 import type { JurisdictionSummary } from '@/lib/types/government';
@@ -12,7 +12,17 @@ interface UnsignedJurisdictionOutreachModalProps {
   sourceAction: 'report_to_city' | 'send_to_rep';
 }
 
-export function UnsignedJurisdictionOutreachModal({
+export function UnsignedJurisdictionOutreachModal(props: UnsignedJurisdictionOutreachModalProps) {
+  if (!props.isOpen) return null;
+  const { hotspot, sourceAction } = props;
+  const draftKey = JSON.stringify([
+    sourceAction, hotspot.id, hotspot.title, hotspot.address,
+    hotspot.lat, hotspot.lng, hotspot.category, hotspot.upvotes,
+  ]);
+  return <OpenUnsignedJurisdictionOutreachModal key={draftKey} {...props} />;
+}
+
+function OpenUnsignedJurisdictionOutreachModal({
   isOpen,
   onClose,
   hotspot,
@@ -29,25 +39,6 @@ export function UnsignedJurisdictionOutreachModal({
     };
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    setResult(null);
-    setError(null);
-  }, [
-    isOpen,
-    sourceAction,
-    hotspot.id,
-    hotspot.title,
-    hotspot.address,
-    hotspot.lat,
-    hotspot.lng,
-    hotspot.category,
-    hotspot.upvotes,
-  ]);
 
   const handleQueue = async () => {
     setError(null);

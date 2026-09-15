@@ -1,6 +1,7 @@
 import { MutationCtx } from './_generated/server';
 import { internalMutation } from './_generated/server';
 import { Id } from './_generated/dataModel';
+import { ConvexError } from 'convex/values';
 
 // ── Tier definitions ────────────────────────────────────────────────────
 // Rate limits scale with user reputation to reward good actors.
@@ -36,19 +37,22 @@ export async function checkRateLimit(
   const tier = getTier(reputation);
   const now = Date.now();
 
-  // Fetch all entries for this user + action (index is userId, action, timestamp).
+  // Only the last day affects these limits. Bound reads by the largest count
+  // we need to distinguish an allowed submission from an exhausted daily limit.
+  const oneDayAgo = now - 24 * 60 * 60 * 1000;
   const entries = await ctx.db
     .query('rateLimits')
     .withIndex('by_user_action', (q) =>
-      q.eq('userId', userId).eq('action', action),
+      q.eq('userId', userId).eq('action', action).gt('timestamp', oneDayAgo),
     )
-    .collect();
+    .order('desc')
+    .take(tier.maxPerDay);
 
   // ── Cooldown check ────────────────────────────────────────────────────
   if (entries.length > 0) {
-    const mostRecent = entries[entries.length - 1];
+    const mostRecent = entries[0];
     if (now - mostRecent.timestamp < tier.cooldownMs) {
-      throw new Error('Please wait before submitting another report');
+      throw new ConvexError('Please wait before submitting another report');
     }
   }
 
@@ -56,14 +60,13 @@ export async function checkRateLimit(
   const oneHourAgo = now - 60 * 60 * 1000;
   const hourlyCount = entries.filter((e) => e.timestamp > oneHourAgo).length;
   if (hourlyCount >= tier.maxPerHour) {
-    throw new Error('Hourly report limit reached. Try again later.');
+    throw new ConvexError('Hourly report limit reached. Try again later.');
   }
 
   // ── Daily limit ───────────────────────────────────────────────────────
-  const oneDayAgo = now - 24 * 60 * 60 * 1000;
   const dailyCount = entries.filter((e) => e.timestamp > oneDayAgo).length;
   if (dailyCount >= tier.maxPerDay) {
-    throw new Error('Daily report limit reached. Try again tomorrow.');
+    throw new ConvexError('Daily report limit reached. Try again tomorrow.');
   }
 
   // All checks passed — record this action

@@ -1,5 +1,5 @@
 import { query, mutation } from './_generated/server';
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 import { Doc } from './_generated/dataModel';
 import { QueryCtx, MutationCtx } from './_generated/server';
 
@@ -26,7 +26,7 @@ export async function ensureUser(
   sessionToken: string,
 ): Promise<Doc<'users'>> {
   if (!sessionToken || typeof sessionToken !== 'string') {
-    throw new Error('Invalid session token');
+    throw new ConvexError('Invalid session');
   }
 
   const user = await ctx.db
@@ -35,16 +35,66 @@ export async function ensureUser(
     .unique();
 
   if (!user) {
-    throw new Error('Invalid session: user not found');
+    throw new ConvexError('Invalid session');
   }
 
   return user;
 }
 
+// These projections are deliberate allowlists. Never return a raw user document
+// from a public function: sessionToken, authProvider and authId are private.
+function publicProfile(user: Doc<'users'>) {
+  return {
+    _id: user._id,
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl,
+    reputation: user.reputation,
+    createdAt: user.createdAt,
+  };
+}
+
+const publicProfileValidator = v.object({
+  _id: v.id('users'),
+  displayName: v.string(),
+  avatarUrl: v.optional(v.string()),
+  reputation: v.number(),
+  createdAt: v.number(),
+});
+
+const sessionUserValidator = v.object({
+  ...publicProfileValidator.fields,
+  email: v.optional(v.string()),
+  isAuthenticated: v.literal(false),
+});
+
+function sessionUser(user: Doc<'users'>) {
+  return {
+    ...publicProfile(user),
+    // Legacy email values are contact data, never evidence of a verified login.
+    email: user.email,
+    isAuthenticated: false as const,
+  };
+}
+
+export type SessionUser = ReturnType<typeof sessionUser>;
+
+async function findSessionUser(ctx: QueryCtx, sessionToken: string) {
+  if (!sessionToken) return null;
+  const user = await ctx.db
+    .query('users')
+    .withIndex('by_session', (q) => q.eq('sessionToken', sessionToken))
+    .unique();
+  return user ? sessionUser(user) : null;
+}
+
+const VERIFIED_SIGN_IN_UNAVAILABLE =
+  'Verified account sign-in is not available yet. You can continue reporting with your anonymous session.';
+
 // ── Mutations ───────────────────────────────────────────────────────────────
 
 export const createAnonymousUser = mutation({
   args: {},
+  returns: v.object({ user: sessionUserValidator, sessionToken: v.string() }),
   handler: async (ctx) => {
     const displayName = generateDisplayName();
     const sessionToken = crypto.randomUUID();
@@ -58,7 +108,10 @@ export const createAnonymousUser = mutation({
     });
 
     const user = await ctx.db.get(userId);
-    return { user, sessionToken };
+    if (!user) throw new ConvexError('Unable to create a reporting session');
+    // A newly created token is returned only to the creator, separately from
+    // profile data. Queries never echo stored bearer credentials.
+    return { user: sessionUser(user), sessionToken };
   },
 });
 
@@ -69,65 +122,14 @@ export const upgradeToAuthenticated = mutation({
     authProvider: v.string(),
     authId: v.string(),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
-    const user = await ensureUser(ctx, args.sessionToken);
-
-    // Check if an authenticated user with this provider+id already exists
-    const existingAuth = await ctx.db
-      .query('users')
-      .withIndex('by_auth', (q) =>
-        q.eq('authProvider', args.authProvider).eq('authId', args.authId),
-      )
-      .unique();
-
-    if (existingAuth && existingAuth._id !== user._id) {
-      // Merge anonymous contributions into the existing authenticated account
-      // Transfer hotspots
-      const hotspots = await ctx.db
-        .query('hotspots')
-        .withIndex('by_user', (q) => q.eq('userId', user._id))
-        .collect();
-      for (const hotspot of hotspots) {
-        await ctx.db.patch(hotspot._id, { userId: existingAuth._id });
-      }
-
-      // Transfer designs
-      const designs = await ctx.db
-        .query('designs')
-        .withIndex('by_user', (q) => q.eq('userId', user._id))
-        .collect();
-      for (const design of designs) {
-        await ctx.db.patch(design._id, { userId: existingAuth._id });
-      }
-
-      // Transfer reports
-      const reports = await ctx.db
-        .query('reports')
-        .withIndex('by_user', (q) => q.eq('userId', user._id))
-        .collect();
-      for (const report of reports) {
-        await ctx.db.patch(report._id, { userId: existingAuth._id });
-      }
-
-      // Delete the anonymous user
-      await ctx.db.delete(user._id);
-
-      // Return a new session token for the authenticated user
-      const newSessionToken = crypto.randomUUID();
-      await ctx.db.patch(existingAuth._id, { sessionToken: newSessionToken });
-      const updatedUser = await ctx.db.get(existingAuth._id);
-      return { user: updatedUser, sessionToken: newSessionToken };
-    }
-
-    // Upgrade the current anonymous user in place
-    await ctx.db.patch(user._id, {
-      email: args.email,
-      authProvider: args.authProvider,
-      authId: args.authId,
-    });
-
-    const updatedUser = await ctx.db.get(user._id);
-    return { user: updatedUser, sessionToken: args.sessionToken };
+    await ensureUser(ctx, args.sessionToken);
+    // This endpoint previously trusted caller-supplied provider claims and
+    // could transfer ownership and rotate another account's session token.
+    // Keep it closed until a configured provider supplies a verified identity
+    // via ctx.auth. Even legacy stored email/provider fields are unverified.
+    throw new ConvexError(VERIFIED_SIGN_IN_UNAVAILABLE);
   },
 });
 
@@ -137,27 +139,11 @@ export const updateProfile = mutation({
     displayName: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
-    const user = await ensureUser(ctx, args.sessionToken);
-
-    // Require at least email-authenticated to update profile
-    if (!user.email) {
-      throw new Error('Must be authenticated to update profile');
-    }
-
-    const updates: Partial<{ displayName: string; avatarUrl: string }> = {};
-    if (args.displayName !== undefined) {
-      if (args.displayName.length < 1 || args.displayName.length > 50) {
-        throw new Error('Display name must be 1-50 characters');
-      }
-      updates.displayName = args.displayName;
-    }
-    if (args.avatarUrl !== undefined) {
-      updates.avatarUrl = args.avatarUrl;
-    }
-
-    await ctx.db.patch(user._id, updates);
-    return await ctx.db.get(user._id);
+    await ensureUser(ctx, args.sessionToken);
+    // This authenticated-only feature must not trust self-asserted legacy email.
+    throw new ConvexError(VERIFIED_SIGN_IN_UNAVAILABLE);
   },
 });
 
@@ -165,38 +151,21 @@ export const updateProfile = mutation({
 
 export const getBySession = query({
   args: { sessionToken: v.string() },
-  handler: async (ctx, args) => {
-    if (!args.sessionToken) return null;
-    return await ctx.db
-      .query('users')
-      .withIndex('by_session', (q) => q.eq('sessionToken', args.sessionToken))
-      .unique();
-  },
+  returns: v.union(v.null(), sessionUserValidator),
+  handler: (ctx, args) => findSessionUser(ctx, args.sessionToken),
 });
 
 export const getById = query({
   args: { userId: v.id('users') },
+  returns: v.union(v.null(), publicProfileValidator),
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.userId);
-    if (!user) return null;
-    // Return only public info
-    return {
-      _id: user._id,
-      displayName: user.displayName,
-      avatarUrl: user.avatarUrl,
-      reputation: user.reputation,
-      createdAt: user.createdAt,
-    };
+    return user ? publicProfile(user) : null;
   },
 });
 
 export const getCurrentUser = query({
   args: { sessionToken: v.string() },
-  handler: async (ctx, args) => {
-    if (!args.sessionToken) return null;
-    return await ctx.db
-      .query('users')
-      .withIndex('by_session', (q) => q.eq('sessionToken', args.sessionToken))
-      .unique();
-  },
+  returns: v.union(v.null(), sessionUserValidator),
+  handler: (ctx, args) => findSessionUser(ctx, args.sessionToken),
 });

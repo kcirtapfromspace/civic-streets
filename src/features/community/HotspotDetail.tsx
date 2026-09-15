@@ -13,6 +13,7 @@ import type { MockHotspot } from './mock-data';
 import { MOCK_COMMENTS, MOCK_DESIGNS, MOCK_USERS } from './mock-data';
 import type { MockUser } from './mock-data';
 import { submitCivicReport } from '@/lib/api/civic-report';
+import { getCityDeepLink } from '@/lib/api/civic/deeplinks';
 import { useVoteOnHotspot } from '@/lib/api/use-hotspots';
 import { useJurisdictionSummaryForLocation } from '@/lib/api/government';
 import { useToast } from '@/components/ui/Toast';
@@ -154,6 +155,9 @@ export function HotspotDetail({
       lat: hotspot.lat,
       lng: hotspot.lng,
     });
+  const cityPortal = getCityDeepLink(hotspot.lat, hotspot.lng);
+  const denverPortal = cityPortal?.city === 'Denver' ? cityPortal : null;
+  const denverHelpId = React.useId();
 
   // Civic reporting state
   const [civicStatus, setCivicStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
@@ -164,6 +168,13 @@ export function HotspotDetail({
   >(null);
 
   const handleReportToCity = async () => {
+    // Public city portals do not depend on a Curbwise government contract.
+    // Open synchronously from the click; no report or tracking state is changed.
+    if (denverPortal) {
+      window.open(denverPortal.url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
     if (jurisdictionLoading && !jurisdiction) {
       showToast('Checking jurisdiction coverage...', 'info');
       return;
@@ -377,12 +388,15 @@ export function HotspotDetail({
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                 <polyline points="22,6 12,13 2,6" />
               </svg>
-              Send to My Rep
+              {denverPortal && !jurisdiction?.isSigned
+                ? 'Ask Curbwise for outreach'
+                : 'Send to My Rep'}
             </Button>
             <Button
               variant="secondary"
               onClick={handleReportToCity}
-              disabled={civicStatus === 'submitting'}
+              disabled={!denverPortal && civicStatus === 'submitting'}
+              aria-describedby={denverPortal ? denverHelpId : undefined}
             >
               <svg
                 width="16"
@@ -398,9 +412,21 @@ export function HotspotDetail({
               >
                 <path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16" />
               </svg>
-              {civicStatus === 'submitting' ? 'Submitting...' : 'Report to City'}
+              {denverPortal
+                ? 'Continue at Denver 311'
+                : civicStatus === 'submitting' ? 'Submitting...' : 'Report to City'}
             </Button>
           </div>
+
+          {denverPortal && (
+            <p id={denverHelpId} className="px-5 pt-3 text-xs leading-5 text-gray-600">
+              This is a Curbwise community report. To create a city case, confirm
+              the location is inside the City and County of Denver and complete
+              the form on Denver 311. The portal opens in a new tab; details and
+              photos are not transferred automatically. Curbwise does not submit
+              or track the city case.
+            </p>
+          )}
 
           {!jurisdiction?.isSigned && (
             <div className="mx-5 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
@@ -409,14 +435,15 @@ export function HotspotDetail({
                 Curbwise yet.
               </p>
               <p className="mt-1 text-xs leading-5 text-amber-800">
-                Reporting to the city or representatives will queue an internal
-                outreach request so Curbwise can contact the right offices.
+                {denverPortal
+                  ? 'Ask Curbwise for outreach opens an optional request for internal review. This is separate from submitting a case at Denver 311.'
+                  : 'Reporting to the city or representatives will queue an internal outreach request so Curbwise can contact the right offices.'}
               </p>
             </div>
           )}
 
           {/* Civic report result */}
-          {civicStatus === 'success' && civicResult && (
+          {!denverPortal && civicStatus === 'success' && civicResult && (
             <div className="mx-5 mt-3 rounded-lg bg-green-50 border border-green-200 p-3">
               <p className="text-sm font-medium text-green-800">
                 Report submitted successfully!
@@ -438,7 +465,7 @@ export function HotspotDetail({
               )}
             </div>
           )}
-          {civicStatus === 'error' && civicError && (
+          {!denverPortal && civicStatus === 'error' && civicError && (
             <div className="mx-5 mt-3 rounded-lg bg-red-50 border border-red-200 p-3">
               <p className="text-sm text-red-800">{civicError}</p>
             </div>
@@ -447,7 +474,7 @@ export function HotspotDetail({
           {/* Status Timeline */}
           <div className="px-5 pt-6 pb-2">
             <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
-              Status
+              Community report status
             </h3>
             <StatusTimeline currentStatus={hotspot.status} />
           </div>

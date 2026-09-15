@@ -2,6 +2,56 @@ import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
 export default defineSchema({
+  geocodingCache: defineTable({
+    key: v.string(),
+    results: v.array(v.object({
+      place_id: v.number(), display_name: v.string(), lat: v.string(), lon: v.string(),
+      road: v.optional(v.string()),
+    })),
+    expiresAt: v.number(),
+  })
+    .index('by_key', ['key'])
+    .index('by_expiresAt', ['expiresAt']),
+
+  geocodingLimits: defineTable({
+    key: v.string(),
+    nextAllowedAt: v.number(),
+    windowStartedAt: v.number(),
+    requestCount: v.number(),
+    leaseId: v.optional(v.string()),
+    leaseExpiresAt: v.optional(v.number()),
+  })
+    .index('by_key', ['key'])
+    .index('by_windowStartedAt', ['windowStartedAt']),
+
+  // Additive upload protocol: existing reports/storage remain readable. Only
+  // the server creates ownership records; knowing a storage ID grants no rights.
+  photoUploads: defineTable({
+    userId: v.id('users'),
+    storageId: v.optional(v.id('_storage')),
+    size: v.number(),
+    sha256: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.optional(v.number()),
+    hotspotId: v.optional(v.id('hotspots')),
+  })
+    .index('by_storageId', ['storageId'])
+    .index('by_expiresAt', ['expiresAt']),
+
+  uploadQuotas: defineTable({
+    key: v.string(),
+    count: v.number(),
+    bytes: v.number(),
+    expiresAt: v.optional(v.number()),
+  })
+    .index('by_key', ['key'])
+    .index('by_expiresAt', ['expiresAt']),
+
+  uploadCleanupState: defineTable({
+    key: v.string(),
+    cursor: v.union(v.string(), v.null()),
+  }).index('by_key', ['key']),
+
   // ── Users ──────────────────────────────────────────────────────────────
   // Anonymous-first: every visitor gets a session. Can optionally upgrade
   // to email/OAuth for persistent identity.

@@ -13,6 +13,7 @@ import type * as billingActions from "../billingActions.js";
 import type * as comments from "../comments.js";
 import type * as crons from "../crons.js";
 import type * as designs from "../designs.js";
+import type * as geocoding from "../geocoding.js";
 import type * as government from "../government.js";
 import type * as governmentActions from "../governmentActions.js";
 import type * as governmentShared from "../governmentShared.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   comments: typeof comments;
   crons: typeof crons;
   designs: typeof designs;
+  geocoding: typeof geocoding;
   government: typeof government;
   governmentActions: typeof governmentActions;
   governmentShared: typeof governmentShared;

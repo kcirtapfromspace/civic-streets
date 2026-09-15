@@ -881,7 +881,7 @@ export const handleStripeEvent = internalMutation({
           : null;
         if (billingAccount) {
           const entitlementSummary = mergeEntitlements(
-            billingAccount.entitlementSummary,
+            getDefaultEntitlements(normalizePlanKey(billingAccount.planKey)),
             extractEntitlementSummary(object),
           );
           await upsertBillingAccountSnapshotRecord(ctx, {

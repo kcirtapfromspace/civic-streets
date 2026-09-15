@@ -17,9 +17,6 @@ const TemplateGalleryModal = lazy(() =>
   import('@/features/gallery').then((m) => ({ default: m.TemplateGalleryModal })),
 );
 
-const IntersectionFlow = lazy(() =>
-  import('@/features/intersection/IntersectionFlow').then((m) => ({ default: m.IntersectionFlow })),
-);
 
 function LoadingSpinner() {
   return (
@@ -50,8 +47,6 @@ function EditorPageInner() {
   const { id } = useParams<{ id: string }>();
   const currentStreet = useStreetStore((s) => s.currentStreet);
   const [editorMode, setEditorMode] = useState<'street' | 'intersection'>('street');
-  const intersectionStep = useIntersectionStore((s) => s.step);
-  const intersectionName = useIntersectionStore((s) => s.intersectionName);
 
   // If we have an :id param but no street loaded yet, show loading state
   // (In Phase 1, this will fetch from Convex)
@@ -157,6 +152,7 @@ function IntersectionEditor() {
               </div>
               <button
                 onClick={reset}
+                aria-label="Reset intersection review"
                 className="text-gray-300 hover:text-gray-500 transition-colors p-1.5 -mr-1.5 rounded-full hover:bg-gray-100"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">

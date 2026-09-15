@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "total": {
+    "lines": {
+      "total": 6370,
+      "covered": 6318
+    },
+    "statements": {
+      "total": 7333,
+      "covered": 7238
+    },
+    "functions": {
+      "total": 1933,
+      "covered": 1926
+    },
+    "branches": {
+      "total": 5169,
+      "covered": 4981
+    }
+  },
+  "files": {}
+}

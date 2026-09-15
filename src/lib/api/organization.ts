@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from './auth';
@@ -79,6 +79,7 @@ export function useOrganizationContext(
   const { sessionToken } = useAuth();
   const bootstrap = useMutation(api.organizations.bootstrapCurrentOrganization);
   const didBootstrapRef = useRef(false);
+  const [bootstrapFailure, setBootstrapFailure] = useState<{ sessionToken: string; message: string } | null>(null);
   const rawContext = useQuery(
     api.organizations.getCurrentOrganizationContext,
     sessionToken ? { sessionToken } : 'skip',
@@ -98,18 +99,27 @@ export function useOrganizationContext(
       return;
     }
     didBootstrapRef.current = true;
-    void bootstrap({ sessionToken });
+    void bootstrap({ sessionToken }).catch((error: unknown) => {
+      setBootstrapFailure({
+        sessionToken,
+        message: error instanceof Error ? error.message : 'Organization setup unavailable',
+      });
+    });
   }, [bootstrap, bootstrapIfMissing, rawContext, sessionToken]);
 
   const organization = useMemo(
     () => normalizeOrganizationContext(rawContext),
     [rawContext],
   );
+  const organizationError = bootstrapIfMissing && rawContext === null && bootstrapFailure?.sessionToken === sessionToken
+    ? bootstrapFailure.message
+    : null;
 
   return {
     organization,
+    organizationError,
     organizationLoading: sessionToken
-      ? rawContext === undefined || (bootstrapIfMissing && rawContext === null)
+      ? rawContext === undefined || (bootstrapIfMissing && rawContext === null && !organizationError)
       : false,
   };
 }

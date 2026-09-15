@@ -1,9 +1,14 @@
-import React, { useState, useCallback, useRef, useId, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useId, useMemo } from 'react';
+import { ConvexError } from 'convex/values';
 import { Button } from '@/components/ui';
 import type { IssueGroup, IssueType, HotspotSeverity } from '@/lib/types/community';
 import { ISSUE_GROUP_LABELS, ISSUE_GROUP_COLORS, SEVERITY_LABELS } from '@/lib/types/community';
-import { ISSUE_TYPES, getIssueTypesByGroup, getIssueTypeConfig, ISSUE_GROUP_ICONS } from '@/lib/config/issue-types';
-import { processImages, type ProcessedImage, type PhotoExifData } from '../../lib/images/process-image';
+import { getIssueTypesByGroup, getIssueTypeConfig, ISSUE_GROUP_ICONS } from '@/lib/config/issue-types';
+import { processImages, type ProcessedImage } from '../../lib/images/process-image';
+import { MAX_PHOTO_BYTES, MAX_REPORT_PHOTOS, PHOTO_CONTENT_TYPE } from '../../../shared/photo-upload';
+
+const MAX_SOURCE_PHOTO_BYTES = 10 * 1024 * 1024;
+const SOURCE_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 // ── Severity colors ───────────────────────────────────────────────────────
 
@@ -41,7 +46,7 @@ interface IssueReportFormProps {
   initialAddress?: string;
   initialLat?: number;
   initialLng?: number;
-  onSubmit?: (data: IssueReportFormData) => void;
+  onSubmit: (data: IssueReportFormData) => void | Promise<void>;
   onCancel?: () => void;
 }
 
@@ -90,8 +95,23 @@ export function IssueReportForm({
   // Image processing pipeline
   const [isProcessingImages, setIsProcessingImages] = useState(false);
   const [processedImages, setProcessedImages] = useState<ProcessedImage[]>([]);
+  const processingImagesRef = useRef(false);
+  const previewUrlsRef = useRef(new Set<string>());
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    const previewUrls = previewUrlsRef.current;
+    return () => {
+      mountedRef.current = false;
+      previewUrls.forEach((url) => URL.revokeObjectURL(url));
+      previewUrls.clear();
+    };
+  }, []);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const addressId = useId();
   const titleId = useId();
   const descId = useId();
@@ -107,7 +127,7 @@ export function IssueReportForm({
     if (!selectedType) return '';
     const config = getIssueTypeConfig(selectedType);
     if (!config) return '';
-    const shortAddr = address.split(',')[0] || 'this location';
+    const shortAddr = address.split(',')[0].trim() || 'this location';
     return `${config.label} near ${shortAddr}`;
   }, [selectedType, address]);
 
@@ -141,20 +161,39 @@ export function IssueReportForm({
   // ── Photo handling ──────────────────────────────────────────────────
 
   const processFiles = useCallback(async (files: FileList | File[]) => {
-    const imageFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    if (processingImagesRef.current) return;
+    const imageFiles = Array.from(files);
     if (imageFiles.length === 0) return;
+    if (processedImages.length + imageFiles.length > MAX_REPORT_PHOTOS) {
+      setPhotoError('A report can include up to three photos. Remove a photo before adding another.');
+      return;
+    }
+    if (imageFiles.some((file) => !SOURCE_PHOTO_TYPES.includes(file.type) || file.size === 0 || file.size > MAX_SOURCE_PHOTO_BYTES)) {
+      setPhotoError('Choose JPEG, PNG, or WebP photos up to 10 MiB each.');
+      return;
+    }
 
+    processingImagesRef.current = true;
     setIsProcessingImages(true);
+    setPhotoError(null);
     try {
       const results = await processImages(imageFiles);
+      if (!mountedRef.current) return;
+      if (results.some(({ blob }) => blob.size === 0 || blob.size > MAX_PHOTO_BYTES || blob.type !== PHOTO_CONTENT_TYPE)) {
+        throw new Error('Prepared photo exceeds upload limits');
+      }
       setProcessedImages((prev) => [...prev, ...results]);
       // Also create preview URLs for display
       const previewUrls = results.map((r) => URL.createObjectURL(r.blob));
+      previewUrls.forEach((url) => previewUrlsRef.current.add(url));
       setPhotoDataUrls((prev) => [...prev, ...previewUrls]);
+    } catch {
+      setPhotoError('A photo could not be prepared. Please try adding it again.');
     } finally {
+      processingImagesRef.current = false;
       setIsProcessingImages(false);
     }
-  }, []);
+  }, [processedImages.length]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -180,9 +219,14 @@ export function IssueReportForm({
   );
 
   const removePhoto = useCallback((index: number) => {
+    const url = photoDataUrls[index];
+    if (url) {
+      URL.revokeObjectURL(url);
+      previewUrlsRef.current.delete(url);
+    }
     setPhotoDataUrls((prev) => prev.filter((_, i) => i !== index));
     setProcessedImages((prev) => prev.filter((_, i) => i !== index));
-  }, []);
+  }, [photoDataUrls]);
 
   // ── Navigation ──────────────────────────────────────────────────────
 
@@ -195,28 +239,36 @@ export function IssueReportForm({
   // ── Submit ──────────────────────────────────────────────────────────
 
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!selectedGroup || !selectedType) return;
+      if (!selectedGroup || !selectedType || !address.trim() || isProcessingImages || submittingRef.current) return;
 
+      submittingRef.current = true;
       setIsSubmitting(true);
+      setSubmissionError(null);
       const finalTitle = (titleEdited && title.trim()) ? title.trim() : autoTitle;
-      onSubmit?.({
-        location: { lat: initialLat, lng: initialLng, address: address.trim() },
-        group: selectedGroup,
-        issueType: selectedType,
-        photoDataUrls,
-        severity,
-        isBlocking,
-        title: finalTitle,
-        description: description.trim(),
-        processedImages,
-        honeypotValue,
-        formOpenedAt,
-      });
-      setIsSubmitting(false);
+      try {
+        await onSubmit({
+          location: { lat: initialLat, lng: initialLng, address: address.trim() },
+          group: selectedGroup,
+          issueType: selectedType,
+          photoDataUrls,
+          severity,
+          isBlocking,
+          title: finalTitle,
+          description: description.trim(),
+          processedImages,
+          honeypotValue,
+          formOpenedAt,
+        });
+      } catch (error) {
+        setSubmissionError(reportErrorMessage(error));
+      } finally {
+        submittingRef.current = false;
+        setIsSubmitting(false);
+      }
     },
-    [selectedGroup, selectedType, titleEdited, title, autoTitle, address, initialLat, initialLng, photoDataUrls, severity, isBlocking, description, onSubmit, processedImages, honeypotValue, formOpenedAt],
+    [selectedGroup, selectedType, titleEdited, title, autoTitle, address, initialLat, initialLng, photoDataUrls, severity, isBlocking, description, onSubmit, processedImages, honeypotValue, formOpenedAt, isProcessingImages],
   );
 
   // ── Step indicator ──────────────────────────────────────────────────
@@ -226,8 +278,10 @@ export function IssueReportForm({
   return (
     <form
       onSubmit={handleSubmit}
+      aria-busy={isSubmitting}
       className="bg-white rounded-lg shadow-lg max-w-lg w-full mx-auto"
     >
+      <fieldset disabled={isSubmitting} className="min-w-0">
       {/* Header */}
       <div className="px-5 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
@@ -238,6 +292,10 @@ export function IssueReportForm({
             Step {step} of 3
           </span>
         </div>
+        <p className="mt-2 text-xs text-gray-600">
+          Community reports are open in the Denver and Chicago pilot areas.
+          Sending a report to a city is a separate step.
+        </p>
         {/* Step dots */}
         <div className="flex gap-1.5 mt-2">
           {stepLabels.map((label, i) => (
@@ -317,14 +375,15 @@ export function IssueReportForm({
                     : 'Take a photo of the problem'}
                 </span>
                 <span className="text-xs text-gray-400 mt-0.5">
-                  Tap to take photo or upload &middot; Photo recommended
+                  Tap to take photo or upload &middot; New reporters need at least one photo
                 </span>
+                <span className="text-xs text-gray-400 mt-0.5">Up to 3 photos &middot; JPEG, PNG, or WebP &middot; 10 MiB each</span>
               </div>
 
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 capture="environment"
                 multiple
                 onChange={handleFileInput}
@@ -354,6 +413,7 @@ export function IssueReportForm({
               {isProcessingImages && (
                 <p className="text-xs text-gray-500 mt-1">Compressing photos...</p>
               )}
+              {photoError && <p role="alert" className="text-xs text-red-700 mt-2">{photoError}</p>}
             </div>
 
             {/* Location */}
@@ -616,6 +676,13 @@ export function IssueReportForm({
         )}
       </div>
 
+      {submissionError && (
+        <div role="alert" className="mx-5 mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800">
+          <p>{submissionError}</p>
+          <p className="mt-1">Your draft is still here. Review it and try again.</p>
+        </div>
+      )}
+
       {/* Footer navigation */}
       <div className="px-5 py-4 border-t border-gray-200 flex gap-2 justify-between">
         <div>
@@ -636,7 +703,7 @@ export function IssueReportForm({
             <Button
               type="button"
               variant="primary"
-              disabled={step === 1 ? !canAdvanceStep1 : !canAdvanceStep2}
+              disabled={isProcessingImages || (step === 1 ? !canAdvanceStep1 : !canAdvanceStep2)}
               onClick={goNext}
             >
               Next
@@ -649,7 +716,7 @@ export function IssueReportForm({
                   Cancel
                 </Button>
               )}
-              <Button type="submit" variant="primary" disabled={isSubmitting || !canAdvanceStep2}>
+              <Button type="submit" variant="primary" disabled={isSubmitting || isProcessingImages || !canAdvanceStep2}>
                 {isSubmitting ? 'Submitting...' : 'Submit Report'}
               </Button>
             </>
@@ -659,14 +726,24 @@ export function IssueReportForm({
             <Button
               type="submit"
               variant="ghost"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isProcessingImages}
               className="text-xs"
             >
-              Skip details & submit
+              {isSubmitting ? 'Submitting...' : 'Skip details & submit'}
             </Button>
           )}
         </div>
       </div>
+      </fieldset>
     </form>
   );
+}
+
+function reportErrorMessage(error: unknown): string {
+  const fallback = 'Your report could not be saved. Please try again.';
+  if (error instanceof ConvexError) {
+    return typeof error.data === 'string' && error.data.trim() ? error.data : fallback;
+  }
+  if (!(error instanceof Error) || error.message.startsWith('[CONVEX')) return fallback;
+  return error.message.split('\n')[0] || 'Your report could not be saved. Please try again.';
 }

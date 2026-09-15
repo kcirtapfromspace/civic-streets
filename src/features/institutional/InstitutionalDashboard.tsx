@@ -354,6 +354,7 @@ export function InstitutionalDashboard({
   const serviceAreas = useServiceAreas(effectiveOrgId || undefined);
 
   const [selectedAreaId, setSelectedAreaId] = useState<string>('');
+  const [openedAt] = useState(Date.now);
 
   // Auto-select the first service area once loaded
   const activeAreaId =
@@ -389,9 +390,9 @@ export function InstitutionalDashboard({
   );
 
   const thisWeekCount = useMemo(() => {
-    const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const oneWeekAgo = openedAt - 7 * 24 * 60 * 60 * 1000;
     return sortedHotspots.filter((h) => h.createdAt >= oneWeekAgo).length;
-  }, [sortedHotspots]);
+  }, [sortedHotspots, openedAt]);
 
   // Loading: service areas haven't resolved yet
   const areasLoading = serviceAreas === undefined && !!effectiveOrgId;

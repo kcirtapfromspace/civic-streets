@@ -11,7 +11,7 @@ const SCREENSHOT_INTERSECTION = '/demo-screenshots/12-intersection-review.png';
 const DATA_SOURCES = [
   { city: 'New York City', source: 'NYC OpenData / NYPD', range: '2012-present' },
   { city: 'Chicago', source: 'City of Chicago / CPD E-Crash', range: '2015-present' },
-  { city: 'Nationwide', source: 'NHTSA FARS', range: '2020-2023' },
+  { city: 'Denver', source: 'Denver Police Department', range: 'Previous 5 calendar years + current year' },
 ];
 
 const FEATURES = [
@@ -310,7 +310,7 @@ export default function LandingPage() {
           </div>
           <p className="text-xs text-slate-500">
             Street safety workspace built on public crash data from NYC, Chicago,
-            and NHTSA.
+            and Denver.
           </p>
         </div>
       </footer>

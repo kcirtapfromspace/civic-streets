@@ -10,7 +10,7 @@ export default function NotFoundPage() {
           The page you are looking for does not exist or has been moved.
         </p>
         <Link
-          to="/"
+          to="/map"
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>

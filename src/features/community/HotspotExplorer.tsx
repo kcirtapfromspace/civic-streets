@@ -11,13 +11,11 @@ import type { Bounds } from './explorer-store';
 import { HotspotCardList } from './HotspotCardList';
 import { ExplorerMinimap } from './ExplorerMinimap';
 import { SearchThisArea } from './SearchThisArea';
-import { DrawingTool } from './DrawingTool';
 import { SavedAreas, promptAndSaveArea } from './SavedAreas';
 import type { SavedArea } from './SavedAreas';
 import { filterByPolygon } from '@/lib/utils/point-in-polygon';
 import { MobileMapDrawer } from './MobileMapDrawer';
 import type { HotspotPin } from '@/lib/types/community';
-import type maplibregl from 'maplibre-gl';
 
 // ── Filter options ────────────────────────────────────────────────────────
 
@@ -73,7 +71,6 @@ export function HotspotExplorer({ onSelectHotspot }: HotspotExplorerProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(20);
   const pendingBoundsRef = useRef<Bounds | null>(null);
-  const minimapRef = useRef<maplibregl.Map | null>(null);
 
   // ── Data ──────────────────────────────────────────────────────────────
 
@@ -353,6 +350,8 @@ export function HotspotExplorer({ onSelectHotspot }: HotspotExplorerProps) {
         onPinClick={handlePinClick}
         onPinHover={(id) => setHoveredHotspot(id ?? null)}
         onBoundsChange={handleBoundsChange}
+        onPolygonComplete={handlePolygonComplete}
+        onClearPolygon={handleClearPolygon}
       />
 
       {/* Search this area overlay */}
@@ -361,8 +360,6 @@ export function HotspotExplorer({ onSelectHotspot }: HotspotExplorerProps) {
         onSearch={handleSearchThisArea}
       />
 
-      {/* Drawing tool — positioned bottom-left */}
-      {/* DrawingTool needs the map instance; for now render placeholder until map ref is available */}
     </div>
   );
 

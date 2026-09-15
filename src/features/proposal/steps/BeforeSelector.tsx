@@ -31,7 +31,7 @@ export function BeforeSelector() {
     });
     if (nearby.length === 0) return null;
     const fatal = nearby.filter((c) => c.severity === 'fatal').length;
-    const injuries = nearby.filter((c) => c.injuries > 0).length;
+    const injuries = nearby.filter((c) => c.injuries !== null && c.injuries > 0).length;
     return { total: nearby.length, fatal, injuries };
   }, [location, crashes]);
 
@@ -51,12 +51,12 @@ export function BeforeSelector() {
         <div className="bg-red-50 rounded-xl px-3.5 py-2.5 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-red-500" />
           <span className="text-[11px] text-red-700 font-medium">
-            {nearbyCrashSummary.total} crash{nearbyCrashSummary.total !== 1 ? 'es' : ''} nearby
+            {nearbyCrashSummary.total} recorded crash{nearbyCrashSummary.total !== 1 ? 'es' : ''} nearby
             {nearbyCrashSummary.fatal > 0 && (
               <span className="text-red-900 font-bold"> ({nearbyCrashSummary.fatal} fatal)</span>
             )}
             {nearbyCrashSummary.injuries > 0 && (
-              <span>, {nearbyCrashSummary.injuries} with injuries</span>
+              <span>, {nearbyCrashSummary.injuries} with recorded injuries</span>
             )}
           </span>
         </div>

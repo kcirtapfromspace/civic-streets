@@ -32,6 +32,12 @@ export const save = mutation({
   handler: async (ctx, args) => {
     const user = await ensureUser(ctx, args.sessionToken);
     const organizationContext = await ensureOrganizationForUser(ctx, user);
+    if (args.workspaceId) {
+      const workspace = await ctx.db.get(args.workspaceId);
+      if (!workspace || workspace.organizationId !== organizationContext.organization._id) {
+        throw new Error('Not authorized to use this workspace');
+      }
+    }
 
     // Input validation
     if (args.title.length < 1 || args.title.length > 200) {
@@ -40,10 +46,10 @@ export const save = mutation({
     if (args.description.length > 5000) {
       throw new Error('Description must be at most 5000 characters');
     }
-    if (args.lat !== undefined && (args.lat < -90 || args.lat > 90)) {
+    if (args.lat !== undefined && (!Number.isFinite(args.lat) || args.lat < -90 || args.lat > 90)) {
       throw new Error('Latitude must be between -90 and 90');
     }
-    if (args.lng !== undefined && (args.lng < -180 || args.lng > 180)) {
+    if (args.lng !== undefined && (!Number.isFinite(args.lng) || args.lng < -180 || args.lng > 180)) {
       throw new Error('Longitude must be between -180 and 180');
     }
 
@@ -135,14 +141,14 @@ export const vote = mutation({
     value: v.number(),
   },
   handler: async (ctx, args) => {
-    await ensureUser(ctx, args.sessionToken);
+    const user = await ensureUser(ctx, args.sessionToken);
 
     if (args.value !== 1 && args.value !== -1) {
       throw new Error('Vote value must be +1 or -1');
     }
 
     const design = await ctx.db.get(args.designId);
-    if (!design) {
+    if (!design || (design.visibility === 'private' && design.userId !== user._id)) {
       throw new Error('Design not found');
     }
 
@@ -275,12 +281,14 @@ export const getByHotspot = query({
 });
 
 export const getByUser = query({
-  args: { userId: v.id('users') },
+  args: { userId: v.id('users'), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const user = args.sessionToken ? await ensureUser(ctx, args.sessionToken) : null;
+    const designs = await ctx.db
       .query('designs')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
       .order('desc')
       .collect();
+    return designs.filter((design) => design.visibility !== 'private' || user?._id === design.userId);
   },
 });

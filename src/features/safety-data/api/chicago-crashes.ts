@@ -1,4 +1,6 @@
-import type { NormalizedCrash, CrashMode, CrashSeverity, DataSourceConfig } from '@/lib/types/safety-data';
+import type { NormalizedCrash, CrashMode, CrashSeverity, DataSourceConfig, CrashBounds, CrashDateRange, CrashFetchResult } from '@/lib/types/safety-data';
+
+import { socrataDateFilter, validateBounds } from './validation';
 
 const CHI_ENDPOINT = 'https://data.cityofchicago.org/resource/85ca-t3if.json';
 
@@ -50,13 +52,16 @@ function normalizeCrash(raw: ChicagoRawCrash): NormalizedCrash | null {
 }
 
 async function fetchChicagoCrashes(
-  bounds: { south: number; west: number; north: number; east: number },
-): Promise<NormalizedCrash[]> {
+  bounds: CrashBounds,
+  dateRange?: CrashDateRange | null,
+): Promise<CrashFetchResult> {
+  validateBounds(bounds);
   const where = [
     `latitude >= ${bounds.south}`,
     `latitude <= ${bounds.north}`,
     `longitude >= ${bounds.west}`,
     `longitude <= ${bounds.east}`,
+    ...socrataDateFilter(dateRange),
   ].join(' AND ');
 
   const params = new URLSearchParams({
@@ -65,11 +70,16 @@ async function fetchChicagoCrashes(
     $order: 'crash_date DESC',
   });
 
-  const res = await fetch(`${CHI_ENDPOINT}?${params}`);
+  const res = await fetch(`${CHI_ENDPOINT}?${params}`, { signal: AbortSignal.timeout(20_000) });
   if (!res.ok) throw new Error(`Chicago API ${res.status}`);
 
   const raw: ChicagoRawCrash[] = await res.json();
-  return raw.map(normalizeCrash).filter((c): c is NormalizedCrash => c !== null);
+  if (!Array.isArray(raw)) throw new Error('Chicago crash data returned an unexpected response.');
+  const crashes = raw.map(normalizeCrash).filter((c): c is NormalizedCrash => c !== null);
+  const warnings: string[] = [];
+  if (raw.length >= 1000) warnings.push('Results may be incomplete: this source returns at most 1,000 records per view. Zoom in or shorten the date range.');
+  if (crashes.length < raw.length) warnings.push(`${raw.length - crashes.length} records had no usable map coordinates.`);
+  return { crashes, warnings };
 }
 
 export const chicagoSource: DataSourceConfig = {
@@ -77,6 +87,8 @@ export const chicagoSource: DataSourceConfig = {
   name: 'Chicago Traffic Crashes',
   bounds: [41.6445, -87.9401, 42.0230, -87.5240], // [south, west, north, east]
   fetch: fetchChicagoCrashes,
+  coverage: 'municipal',
+  coverageNote: 'City records only; neighboring municipalities are not included. Requests are limited to 1,000 records.',
   city: 'Chicago',
   citation: 'City of Chicago Data Portal, Chicago Police Department E-Crash',
   dateRange: '2015–present',

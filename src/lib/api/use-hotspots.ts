@@ -1,15 +1,16 @@
 import { useMemo, useCallback, useState, useRef, useEffect } from 'react';
-import { useQuery, useMutation, usePaginatedQuery } from 'convex/react';
+import { useQuery, useMutation, useAction, usePaginatedQuery } from 'convex/react';
+import { ConvexError } from 'convex/values';
 import { api } from '../../../convex/_generated/api';
+import type { Id } from '../../../convex/_generated/dataModel';
+import { MAX_PHOTO_BYTES, MAX_REPORT_PHOTOS, PHOTO_CONTENT_TYPE } from '../../../shared/photo-upload';
 import { convexAvailable } from './convex-provider';
 import { MOCK_HOTSPOTS as COMMUNITY_MOCK_HOTSPOTS } from '@/features/community/mock-data';
 import { MOCK_HOTSPOTS as MAP_MOCK_HOTSPOTS } from '@/features/map/mock-data';
 import { useLocalHotspotsStore } from '@/stores/local-hotspots-store';
-import { collectClientMeta } from './fingerprint';
 import type { MockHotspot } from '@/features/community/mock-data';
 import type { HotspotPin, HotspotCategory, HotspotSeverity, HotspotStatus, IssueGroup, IssueType } from '@/lib/types/community';
-import { computeLocationVerification } from '../images/process-image';
-import type { PhotoExifData, ProcessedImage } from '../images/process-image';
+import type { PhotoExifData } from '../images/process-image';
 
 const SESSION_KEY = 'curbwise-session';
 function getSessionToken(): string {
@@ -168,7 +169,7 @@ function useHotspotsByBoundsConvex(bounds?: {
 
 function useCreateHotspotConvex() {
   const createMutation = useMutation(api.hotspots.create);
-  const generateUploadUrl = useMutation(api.storage.generateUploadUrl);
+  const uploadPhoto = useAction(api.storage.uploadPhoto);
 
   return useCallback(
     async (data: {
@@ -189,41 +190,46 @@ function useCreateHotspotConvex() {
     }) => {
       const sessionToken = getSessionToken();
       if (!sessionToken) {
-        console.error('[useCreateHotspot] No session token');
-        return;
+        throw new Error('Your reporting session is still getting ready. Wait a moment and try again.');
       }
 
-      // Upload compressed images to Convex storage
-      let photoStorageIds: string[] | undefined;
-      let photoExifData: PhotoExifData[] | undefined;
+      const images = data.processedImages ?? [];
+      if (images.length > MAX_REPORT_PHOTOS) {
+        throw new Error('A report can include up to three photos.');
+      }
+      for (const image of images) {
+        if (image.blob.size === 0 || image.blob.size > MAX_PHOTO_BYTES || image.blob.type !== PHOTO_CONTENT_TYPE) {
+          throw new Error('A photo could not be prepared. Please add it again.');
+        }
+      }
+
+      // The action validates and owns the received bytes; arbitrary storage IDs
+      // and browser-only preview URLs cannot become another user's report photo.
+      let photoStorageIds: Id<'_storage'>[] | undefined;
 
       if (data.processedImages && data.processedImages.length > 0) {
-        const uploadResults = await Promise.all(
-          data.processedImages.map(async (img) => {
-            const uploadUrl = await generateUploadUrl();
-            const result = await fetch(uploadUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': img.blob.type || 'image/jpeg' },
-              body: img.blob,
+        const uploadResults = await Promise.all(images.map(async (img) => {
+          try {
+            const storageId = await uploadPhoto({
+              sessionToken,
+              bytes: await img.blob.arrayBuffer(),
+              contentType: img.blob.type,
             });
-            const { storageId } = await result.json();
+            if (typeof storageId !== 'string' || !storageId) throw new Error('Missing photo ID');
             return storageId;
-          })
-        );
+          } catch (error) {
+            if (error instanceof ConvexError) throw error;
+            throw Object.assign(new Error('A photo could not be uploaded. Please try again.'), { cause: error });
+          }
+        }));
         photoStorageIds = uploadResults;
-        photoExifData = data.processedImages
-          .map((img) => img.exif)
-          .filter((e): e is PhotoExifData => e !== null);
       }
 
-      // Compute location verification from EXIF GPS vs reported lat/lng
-      let locationVerification: { photoHasGps: boolean; distanceMeters?: number; status: string } | undefined;
-      if (photoExifData && photoExifData.length > 0) {
-        locationVerification = computeLocationVerification(data.lat, data.lng, photoExifData);
-      }
-
-      // Collect client metadata
-      const clientMeta = data.formOpenedAt ? collectClientMeta(data.formOpenedAt) : undefined;
+      // Only send the timing needed for the submission check. Hidden photo GPS,
+      // capture time and device fingerprints are not report fields.
+      const clientMeta = data.formOpenedAt
+        ? { formDurationMs: Math.max(0, Date.now() - data.formOpenedAt) }
+        : undefined;
 
       return createMutation({
         sessionToken,
@@ -234,10 +240,10 @@ function useCreateHotspotConvex() {
         lat: data.lat,
         lng: data.lng,
         address: data.address,
-        photoUrls: data.photoUrls,
-        photoStorageIds: photoStorageIds as any,
-        photoExifData,
-        locationVerification,
+        // New reports only use server-owned uploads. Legacy reports still read
+        // their existing URLs, but callers cannot add arbitrary external URLs.
+        photoUrls: [],
+        photoStorageIds,
         issueGroup: data.issueGroup,
         issueType: data.issueType,
         isBlocking: data.isBlocking,
@@ -245,7 +251,7 @@ function useCreateHotspotConvex() {
         honeypot: data.honeypotValue,
       });
     },
-    [createMutation, generateUploadUrl],
+    [createMutation, uploadPhoto],
   );
 }
 

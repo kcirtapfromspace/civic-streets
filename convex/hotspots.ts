@@ -1,8 +1,25 @@
 import { query, mutation } from './_generated/server';
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 import { ensureUser } from './users';
 import { checkRateLimit } from './rateLimit';
-import { resolveStorageUrls } from './storage';
+import { claimPhotoUploads, resolveStorageUrls } from './storage';
+import type { Doc } from './_generated/dataModel';
+import { findReportingArea } from '../shared/reporting-areas';
+import { MAX_REPORT_PHOTOS } from '../shared/photo-upload';
+
+/** Explicit public projection: hidden photo GPS/time and device data stay private. */
+function publicHotspot(h: Doc<'hotspots'>) {
+  return {
+    _id: h._id, _creationTime: h._creationTime, userId: h.userId,
+    title: h.title, description: h.description, category: h.category,
+    severity: h.severity, lat: h.lat, lng: h.lng, address: h.address,
+    photoUrls: h.photoUrls, photoStorageIds: h.photoStorageIds,
+    issueGroup: h.issueGroup, issueType: h.issueType, isBlocking: h.isBlocking,
+    upvotes: h.upvotes, commentCount: h.commentCount, status: h.status,
+    designId: h.designId, civicReportId: h.civicReportId, civicReportUrl: h.civicReportUrl,
+    accessibilitySubtype: h.accessibilitySubtype, createdAt: h.createdAt, updatedAt: h.updatedAt,
+  };
+}
 
 // ── Geometry Helpers ────────────────────────────────────────────────────────
 
@@ -67,14 +84,14 @@ export const create = mutation({
 
     // ── Anti-abuse checks ─────────────────────────────────────────────────
 
-    // Honeypot check — silently return fake ID if bot detected
+    // Do not return a success-shaped ID when no report was saved.
     if (args.honeypot) {
-      return 'fake_bot_detected' as any;
+      throw new ConvexError('Unable to submit this report. Please try again.');
     }
 
     // Form timing check — reject suspiciously fast submissions
     if (args.clientMeta?.formDurationMs !== undefined && args.clientMeta.formDurationMs < 3000) {
-      throw new Error('Please take more time to fill out the report');
+      throw new ConvexError('Please take more time to fill out the report');
     }
 
     // Rate limiting
@@ -82,11 +99,12 @@ export const create = mutation({
 
     // ── Input validation ──────────────────────────────────────────────────
 
-    if (args.title.length < 1 || args.title.length > 200) {
-      throw new Error('Title must be 1-200 characters');
+    if (args.title.trim().length < 1 || args.title.length > 200) {
+      throw new ConvexError('Title must be 1-200 characters');
     }
-    if (args.description.length < 1 || args.description.length > 5000) {
-      throw new Error('Description must be 1-5000 characters');
+    // The reporting form explicitly lets residents skip additional details.
+    if (args.description.length > 5000) {
+      throw new ConvexError('Description must be 5000 characters or fewer');
     }
 
     const validCategories = [
@@ -99,27 +117,31 @@ export const create = mutation({
       'other',
     ];
     if (!validCategories.includes(args.category)) {
-      throw new Error(`Invalid category: ${args.category}`);
+      throw new ConvexError('Choose a valid report category');
     }
 
     const validSeverities = ['low', 'medium', 'high', 'critical'];
     if (!validSeverities.includes(args.severity)) {
-      throw new Error(`Invalid severity: ${args.severity}`);
+      throw new ConvexError('Choose a valid report severity');
     }
 
-    if (args.lat < -90 || args.lat > 90) {
-      throw new Error('Latitude must be between -90 and 90');
+    if (!Number.isFinite(args.lat) || args.lat < -90 || args.lat > 90) {
+      throw new ConvexError('Latitude must be a finite number between -90 and 90');
     }
-    if (args.lng < -180 || args.lng > 180) {
-      throw new Error('Longitude must be between -180 and 180');
+    if (!Number.isFinite(args.lng) || args.lng < -180 || args.lng > 180) {
+      throw new ConvexError('Longitude must be a finite number between -180 and 180');
     }
 
-    // Chicago metro bounds
-    if (args.lat < 41.6 || args.lat > 42.1) {
-      throw new Error('Location must be within the Chicago metro area');
+    if (!findReportingArea(args.lat, args.lng)) {
+      throw new ConvexError('Reporting is currently open in the Denver and Chicago metro areas. Choose a location in either area.');
     }
-    if (args.lng < -88.0 || args.lng > -87.4) {
-      throw new Error('Location must be within the Chicago metro area');
+
+    if (args.photoUrls?.length) {
+      throw new ConvexError('Please upload photos through this report form instead of supplying photo URLs.');
+    }
+    const photoStorageIds = args.photoStorageIds ?? [];
+    if (photoStorageIds.length > MAX_REPORT_PHOTOS || new Set(photoStorageIds).size !== photoStorageIds.length) {
+      throw new ConvexError('A report can include up to three different photos.');
     }
 
     // ── Duplicate detection ───────────────────────────────────────────────
@@ -128,8 +150,9 @@ export const create = mutation({
     const oneHourAgo = Date.now() - 60 * 60 * 1000;
     const userRecentHotspots = await ctx.db
       .query('hotspots')
-      .withIndex('by_user', (q) => q.eq('userId', user._id))
-      .collect();
+      .withIndex('by_user', (q) => q.eq('userId', user._id).gte('_creationTime', oneHourAgo))
+      // The highest rate tier allows at most 10 reports/hour.
+      .take(40);
 
     const duplicate = userRecentHotspots.find((h) => {
       if (h.createdAt < oneHourAgo) return false;
@@ -141,15 +164,14 @@ export const create = mutation({
     });
 
     if (duplicate) {
-      throw new Error('You already reported a similar issue nearby. Consider upvoting the existing report.');
+      throw new ConvexError('You already reported a similar issue nearby. Consider upvoting the existing report.');
     }
 
     // ── Photo requirement for new users ───────────────────────────────────
 
-    const hasPhotos = (args.photoStorageIds && args.photoStorageIds.length > 0) ||
-                      (args.photoUrls && args.photoUrls.length > 0);
+    const hasPhotos = photoStorageIds.length > 0;
     if (user.reputation < 10 && !hasPhotos) {
-      throw new Error('New reporters must include at least one photo');
+      throw new ConvexError('New reporters must include at least one photo');
     }
 
     // ── Insert hotspot ────────────────────────────────────────────────────
@@ -164,10 +186,7 @@ export const create = mutation({
       lat: args.lat,
       lng: args.lng,
       address: args.address,
-      photoUrls: args.photoUrls,
-      photoStorageIds: args.photoStorageIds,
-      photoExifData: args.photoExifData,
-      locationVerification: args.locationVerification,
+      photoStorageIds,
       issueGroup: args.issueGroup,
       issueType: args.issueType,
       isBlocking: args.isBlocking,
@@ -178,16 +197,14 @@ export const create = mutation({
       updatedAt: now,
     });
 
-    // ── Store report metadata ─────────────────────────────────────────────
+    // Ownership validation and attachment commit atomically with the report.
+    await claimPhotoUploads(ctx, user._id, photoStorageIds, hotspotId);
+
+    // Keep timing for abuse review, not hidden photo GPS or device fingerprints.
 
     if (args.clientMeta) {
       await ctx.db.insert('reportMetadata', {
         hotspotId,
-        userAgent: args.clientMeta.userAgent,
-        screenResolution: args.clientMeta.screenResolution,
-        timezone: args.clientMeta.timezone,
-        language: args.clientMeta.language,
-        platform: args.clientMeta.platform,
         formDurationMs: args.clientMeta.formDurationMs,
         createdAt: now,
       });
@@ -354,9 +371,9 @@ export const list = query({
       filtered.map(async (h) => {
         if (h.photoStorageIds && h.photoStorageIds.length > 0) {
           const resolvedUrls = await resolveStorageUrls(ctx, h.photoStorageIds);
-          return { ...h, photoUrls: resolvedUrls };
+          return { ...publicHotspot(h), photoUrls: resolvedUrls };
         }
-        return h;
+        return publicHotspot(h);
       }),
     );
 
@@ -383,7 +400,7 @@ export const getById = query({
     // Include author info
     const author = await ctx.db.get(hotspot.userId);
     return {
-      ...hotspot,
+      ...publicHotspot(hotspot),
       photoUrls,
       author: author
         ? {
@@ -422,9 +439,9 @@ export const getByBounds = query({
       filtered.map(async (h) => {
         if (h.photoStorageIds && h.photoStorageIds.length > 0) {
           const resolvedUrls = await resolveStorageUrls(ctx, h.photoStorageIds);
-          return { ...h, photoUrls: resolvedUrls };
+          return { ...publicHotspot(h), photoUrls: resolvedUrls };
         }
-        return h;
+        return publicHotspot(h);
       }),
     );
   },
@@ -444,9 +461,9 @@ export const getByUser = query({
       hotspots.map(async (h) => {
         if (h.photoStorageIds && h.photoStorageIds.length > 0) {
           const resolvedUrls = await resolveStorageUrls(ctx, h.photoStorageIds);
-          return { ...h, photoUrls: resolvedUrls };
+          return { ...publicHotspot(h), photoUrls: resolvedUrls };
         }
-        return h;
+        return publicHotspot(h);
       }),
     );
   },
@@ -498,9 +515,9 @@ export const getByServiceArea = query({
         filtered.map(async (h) => {
           if (h.photoStorageIds && h.photoStorageIds.length > 0) {
             const resolvedUrls = await resolveStorageUrls(ctx, h.photoStorageIds);
-            return { ...h, photoUrls: resolvedUrls };
+            return { ...publicHotspot(h), photoUrls: resolvedUrls };
           }
-          return h;
+          return publicHotspot(h);
         }),
       );
     }
@@ -516,9 +533,9 @@ export const getByServiceArea = query({
         filtered.map(async (h) => {
           if (h.photoStorageIds && h.photoStorageIds.length > 0) {
             const resolvedUrls = await resolveStorageUrls(ctx, h.photoStorageIds);
-            return { ...h, photoUrls: resolvedUrls };
+            return { ...publicHotspot(h), photoUrls: resolvedUrls };
           }
-          return h;
+          return publicHotspot(h);
         }),
       );
     }

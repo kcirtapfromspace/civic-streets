@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from './auth';
@@ -263,8 +263,10 @@ export function useBilling(): UseBillingResult {
   const [billingError, setBillingError] = useState<string | null>(null);
   const [isStartingCheckout, setIsStartingCheckout] = useState(false);
   const [isOpeningPortal, setIsOpeningPortal] = useState(false);
+  const billingRequest = useRef(0);
 
   const refreshBillingState = useCallback(async () => {
+    const request = ++billingRequest.current;
     if (!sessionToken) {
       setBillingState(LOCAL_BILLING_STATE);
       setBillingStateLoading(false);
@@ -278,22 +280,27 @@ export function useBilling(): UseBillingResult {
         sessionToken,
       });
       const normalized = normalizeBillingState(result);
-      setBillingState(normalized);
-      setBillingError(null);
+      if (request === billingRequest.current) {
+        setBillingState(normalized);
+        setBillingError(null);
+      }
       return normalized;
     } catch (error) {
-      setBillingState(LOCAL_BILLING_STATE);
-      setBillingError(
-        error instanceof Error ? error.message : 'Billing state unavailable',
-      );
+      if (request === billingRequest.current) {
+        setBillingState(LOCAL_BILLING_STATE);
+        setBillingError(
+          error instanceof Error ? error.message : 'Billing state unavailable',
+        );
+      }
       return LOCAL_BILLING_STATE;
     } finally {
-      setBillingStateLoading(false);
+      if (request === billingRequest.current) setBillingStateLoading(false);
     }
   }, [convex, sessionToken]);
 
   useEffect(() => {
     void refreshBillingState();
+    return () => { billingRequest.current += 1; };
   }, [refreshBillingState]);
 
   const startCheckout = useCallback(async () => {

@@ -2,8 +2,9 @@ import { useEffect, useRef, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import { useSafetyDataStore } from './safety-data-store';
 import { useStyleReload } from '@/features/map/useStyleReload';
-import { SEVERITY_WEIGHTS, SEVERITY_COLORS } from '@/lib/types/safety-data';
+import { SEVERITY_WEIGHTS, SEVERITY_COLORS, SEVERITY_LABELS } from '@/lib/types/safety-data';
 import type { NormalizedCrash } from '@/lib/types/safety-data';
+import { DATA_SOURCES } from './api';
 
 interface CrashDataLayerProps {
   map: maplibregl.Map | null;
@@ -22,6 +23,7 @@ export function CrashDataLayer({ map }: CrashDataLayerProps) {
   const showPoints = useSafetyDataStore((s) => s.showPoints);
   const filters = useSafetyDataStore((s) => s.filters);
   const fetchForBounds = useSafetyDataStore((s) => s.fetchForBounds);
+  const resetViewport = useSafetyDataStore((s) => s.resetViewport);
   const styleVersion = useStyleReload(map);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -31,10 +33,10 @@ export function CrashDataLayer({ map }: CrashDataLayerProps) {
     if (!map || !enabled) return;
 
     const onMoveEnd = () => {
-      const zoom = map.getZoom();
-      if (zoom < MIN_ZOOM) return;
-
       clearTimeout(debounceRef.current);
+      const zoom = map.getZoom();
+      if (zoom < MIN_ZOOM) { resetViewport(); return; }
+
       debounceRef.current = setTimeout(() => {
         const bounds = map.getBounds();
         fetchForBounds({
@@ -52,7 +54,7 @@ export function CrashDataLayer({ map }: CrashDataLayerProps) {
       map.off('moveend', onMoveEnd);
       clearTimeout(debounceRef.current);
     };
-  }, [map, enabled, fetchForBounds]);
+  }, [map, enabled, fetchForBounds, resetViewport]);
 
   const getFiltered = useCallback((): NormalizedCrash[] => {
     return crashes.filter((c) => {
@@ -93,7 +95,10 @@ export function CrashDataLayer({ map }: CrashDataLayerProps) {
             weight: SEVERITY_WEIGHTS[c.severity],
             fatalities: c.fatalities,
             injuries: c.injuries,
+            injuryCountScope: c.injuryCountScope ?? 'all',
             date: c.date,
+            sourceId: c.source,
+            severityLabel: SEVERITY_LABELS[c.severity],
             modes: c.modes.join(', '),
             color: SEVERITY_COLORS[c.severity],
           },
@@ -155,6 +160,7 @@ export function CrashDataLayer({ map }: CrashDataLayerProps) {
     if (!map || !enabled || !showPoints) return;
 
     const onClick = (e: maplibregl.MapMouseEvent) => {
+      if (!map.getLayer(POINTS_LAYER)) return;
       const features = map.queryRenderedFeatures(e.point, { layers: [POINTS_LAYER] });
       if (!features.length) return;
 
@@ -174,7 +180,7 @@ export function CrashDataLayer({ map }: CrashDataLayerProps) {
       dot.style.cssText = `display:inline-block;width:8px;height:8px;border-radius:50%;background:${severityColor}`;
       const label = document.createElement('span');
       label.style.cssText = `font-size:11px;font-weight:600;color:${severityColor};text-transform:uppercase`;
-      label.textContent = String(props.severity);
+      label.textContent = String(props.severityLabel);
       header.appendChild(dot);
       header.appendChild(label);
       container.appendChild(header);
@@ -190,8 +196,10 @@ export function CrashDataLayer({ map }: CrashDataLayerProps) {
         container.appendChild(div);
       };
 
-      addLine('Date:', String(props.date));
+      addLine(props.sourceId === 'denver' ? 'Date (UTC):' : 'Date:', String(props.date));
       addLine('Modes:', String(props.modes));
+      const source = DATA_SOURCES.find((item) => item.id === props.sourceId);
+      if (source) addLine('Source:', source.name);
 
       if (Number(props.fatalities) > 0) {
         const div = document.createElement('div');
@@ -202,8 +210,11 @@ export function CrashDataLayer({ map }: CrashDataLayerProps) {
       if (Number(props.injuries) > 0) {
         const div = document.createElement('div');
         div.style.cssText = 'font-size:12px;color:#EA580C';
-        div.textContent = `${props.injuries} injuries`;
+        div.textContent = `${props.injuries} ${props.injuryCountScope === 'serious-only' ? 'serious injuries' : 'injuries'}`;
         container.appendChild(div);
+      }
+      if (props.injuryCountScope === 'serious-only') {
+        addLine('Injury coverage:', 'Other injury counts are not supplied.');
       }
 
       new maplibregl.Popup({ closeButton: true, maxWidth: '280px' })

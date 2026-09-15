@@ -34,6 +34,9 @@ export const create = mutation({
       if (!parent) {
         throw new Error('Parent comment not found');
       }
+      if (parent.hotspotId !== args.hotspotId || parent.designId !== args.designId) {
+        throw new Error('Parent comment belongs to another discussion');
+      }
     }
 
     // Validate target exists
@@ -45,7 +48,7 @@ export const create = mutation({
     }
     if (args.designId) {
       const design = await ctx.db.get(args.designId);
-      if (!design) {
+      if (!design || (design.visibility === 'private' && design.userId !== user._id)) {
         throw new Error('Design not found');
       }
     }
@@ -185,12 +188,18 @@ export const listByHotspot = query({
 export const listByDesign = query({
   args: {
     designId: v.id('designs'),
+    sessionToken: v.optional(v.string()),
     paginationOpts: v.object({
       numItems: v.number(),
       cursor: v.union(v.string(), v.null()),
     }),
   },
   handler: async (ctx, args) => {
+    const design = await ctx.db.get(args.designId);
+    const user = args.sessionToken ? await ensureUser(ctx, args.sessionToken) : null;
+    if (!design || (design.visibility === 'private' && design.userId !== user?._id)) {
+      return { page: [], continueCursor: '', isDone: true };
+    }
     const result = await ctx.db
       .query('comments')
       .withIndex('by_design', (q) => q.eq('designId', args.designId))

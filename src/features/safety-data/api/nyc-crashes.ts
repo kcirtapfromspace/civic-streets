@@ -1,4 +1,6 @@
-import type { NormalizedCrash, CrashMode, CrashSeverity, DataSourceConfig } from '@/lib/types/safety-data';
+import type { NormalizedCrash, CrashMode, CrashSeverity, DataSourceConfig, CrashBounds, CrashDateRange, CrashFetchResult } from '@/lib/types/safety-data';
+
+import { socrataDateFilter, validateBounds } from './validation';
 
 const NYC_ENDPOINT = 'https://data.cityofnewyork.us/resource/h9gi-nx95.json';
 
@@ -38,10 +40,9 @@ function normalizeCrash(raw: NYCRawCrash): NormalizedCrash | null {
   }
   if (modes.length === 0) modes.push('motorist');
 
-  let severity: CrashSeverity = 'minor';
+  // Counts of injured people do not establish how serious their injuries were.
+  let severity: CrashSeverity = 'unknown';
   if (fatalities > 0) severity = 'fatal';
-  else if (injuries >= 3) severity = 'severe-injury';
-  else if (injuries >= 1) severity = 'moderate-injury';
 
   return {
     id: `nyc-${raw.collision_id}`,
@@ -57,13 +58,16 @@ function normalizeCrash(raw: NYCRawCrash): NormalizedCrash | null {
 }
 
 async function fetchNYCCrashes(
-  bounds: { south: number; west: number; north: number; east: number },
-): Promise<NormalizedCrash[]> {
+  bounds: CrashBounds,
+  dateRange?: CrashDateRange | null,
+): Promise<CrashFetchResult> {
+  validateBounds(bounds);
   const where = [
     `latitude >= ${bounds.south}`,
     `latitude <= ${bounds.north}`,
     `longitude >= ${bounds.west}`,
     `longitude <= ${bounds.east}`,
+    ...socrataDateFilter(dateRange),
   ].join(' AND ');
 
   const params = new URLSearchParams({
@@ -72,11 +76,16 @@ async function fetchNYCCrashes(
     $order: 'crash_date DESC',
   });
 
-  const res = await fetch(`${NYC_ENDPOINT}?${params}`);
+  const res = await fetch(`${NYC_ENDPOINT}?${params}`, { signal: AbortSignal.timeout(20_000) });
   if (!res.ok) throw new Error(`NYC API ${res.status}`);
 
   const raw: NYCRawCrash[] = await res.json();
-  return raw.map(normalizeCrash).filter((c): c is NormalizedCrash => c !== null);
+  if (!Array.isArray(raw)) throw new Error('NYC crash data returned an unexpected response.');
+  const crashes = raw.map(normalizeCrash).filter((c): c is NormalizedCrash => c !== null);
+  const warnings: string[] = [];
+  if (raw.length >= 1000) warnings.push('Results may be incomplete: this source returns at most 1,000 records per view. Zoom in or shorten the date range.');
+  if (crashes.length < raw.length) warnings.push(`${raw.length - crashes.length} records had no usable map coordinates.`);
+  return { crashes, warnings };
 }
 
 export const nycSource: DataSourceConfig = {
@@ -84,6 +93,8 @@ export const nycSource: DataSourceConfig = {
   name: 'NYC Motor Vehicle Collisions',
   bounds: [40.4961, -74.2557, 40.9176, -73.7004], // [south, west, north, east]
   fetch: fetchNYCCrashes,
+  coverage: 'municipal',
+  coverageNote: 'City records only; neighboring municipalities are not included. Requests are limited to 1,000 records. Injury severity cannot be determined from injury counts, so nonfatal records use unknown severity.',
   city: 'New York City',
   citation: 'NYC OpenData, NYPD Motor Vehicle Collisions',
   dateRange: '2012–present',

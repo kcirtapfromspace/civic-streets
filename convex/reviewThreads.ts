@@ -54,6 +54,12 @@ export const create = mutation({
       args.projectId,
       user._id,
     );
+    if (args.workspaceId) {
+      const workspace = await ctx.db.get(args.workspaceId);
+      if (!workspace || workspace.organizationId !== project.organizationId) {
+        throw new Error('Not authorized to use this workspace');
+      }
+    }
 
     const now = Date.now();
     const threadId = await ctx.db.insert('reviewThreads', {

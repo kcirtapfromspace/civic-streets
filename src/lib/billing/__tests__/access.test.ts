@@ -108,3 +108,36 @@ describe('billing access', () => {
     expect(hasActiveBillingStatus('canceled')).toBe(false);
   });
 });
+
+describe('enterprise access follows billing status and explicit entitlements', () => {
+  it.each(['none', 'inactive', 'pending', 'past_due', 'canceled', 'incomplete', 'unpaid'] as const)(
+    'denies enterprise features when the retained plan has %s status', (status) => {
+      const state = createBillingState({
+        planKey: 'agency_enterprise', status, source: 'remote',
+        // Even a stale positive flag cannot override an inactive subscription.
+        entitlements: { ...createBillingState().entitlements, brandedExports: true, privateProjects: true, auditLogs: true },
+      });
+      expect(canAccessBillingFeature(state, 'pdf_export')).toBe(false);
+      expect(canAccessBillingFeature(state, 'private_projects')).toBe(false);
+      expect(canAccessBillingFeature(state, 'audit_logs')).toBe(false);
+    },
+  );
+
+  it.each(['active', 'trialing'] as const)(
+    'allows only provisioned enterprise features for %s accounts', (status) => {
+      const base = createBillingState({ planKey: 'agency_enterprise', status, source: 'remote' });
+      const provisioned = {
+        ...base,
+        entitlements: { ...base.entitlements, brandedExports: true, privateProjects: true, auditLogs: true },
+      };
+      expect(canAccessBillingFeature(provisioned, 'pdf_export')).toBe(true);
+      expect(canAccessBillingFeature(provisioned, 'private_projects')).toBe(true);
+      expect(canAccessBillingFeature(provisioned, 'audit_logs')).toBe(true);
+      expect(canAccessBillingFeature(provisioned, 'review_threads')).toBe(false);
+      const revoked = { ...provisioned, entitlements: { ...provisioned.entitlements, brandedExports: false, auditLogs: false } };
+      expect(canAccessBillingFeature(revoked, 'pdf_export')).toBe(false);
+      expect(canAccessBillingFeature(revoked, 'audit_logs')).toBe(false);
+      expect(canAccessBillingFeature(revoked, 'private_projects')).toBe(true);
+    },
+  );
+});

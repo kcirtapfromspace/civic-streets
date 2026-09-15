@@ -1,10 +1,11 @@
-// Report Builder — multi-step wizard for composing and sending reports to reps
-// Steps: 1. Context → 2. Find Reps → 3. Compose → 4. Review & Send
+// Report Builder — multi-step wizard for preparing email drafts to representatives
+// Steps: 1. Context → 2. Find Reps → 3. Compose → 4. Review & Draft
 
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Badge } from '@/components/ui';
 import { useReportStore, type ReportStep } from './report-store';
+import { buildEmailDraftUrl } from './official-contacts';
 import { RepLookup } from './RepLookup';
 import { ReportSuccess } from './ReportSuccess';
 import { generateReportSubject, generateReportBody } from './templates';
@@ -32,7 +33,7 @@ const STEP_LABELS: Record<ReportStep, string> = {
   1: 'Context',
   2: 'Find Your Reps',
   3: 'Compose Message',
-  4: 'Review & Send',
+  4: 'Review & Draft',
 };
 
 // ── Progress indicator ─────────────────────────────────────────────────────
@@ -494,14 +495,10 @@ function StepReview({ onSent }: { onSent: () => void }) {
     setStep,
   } = useReportStore();
 
+  const mailtoUrl = buildEmailDraftUrl(selectedReps, subject, body);
   const handleSendEmail = () => {
-    const toAddresses = selectedReps
-      .filter((r) => r.email)
-      .map((r) => r.email!)
-      .join(',');
-
-    const mailtoUrl = `mailto:${toAddresses}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(mailtoUrl, '_blank');
+    if (!mailtoUrl) return;
+    window.open(mailtoUrl, '_blank', 'noopener,noreferrer');
     onSent();
   };
 
@@ -521,7 +518,7 @@ function StepReview({ onSent }: { onSent: () => void }) {
           Review Your Message
         </h3>
         <p className="text-sm text-gray-500">
-          Double-check everything before sending.
+          Double-check the recipients and message. You will send it yourself in your email app.
         </p>
       </div>
 
@@ -611,7 +608,7 @@ function StepReview({ onSent }: { onSent: () => void }) {
           </svg>
           Copy to Clipboard
         </Button>
-        <Button variant="primary" onClick={handleSendEmail}>
+        <Button variant="primary" onClick={handleSendEmail} disabled={!mailtoUrl}>
           <svg
             className="w-4 h-4 mr-1.5"
             fill="none"
@@ -626,7 +623,7 @@ function StepReview({ onSent }: { onSent: () => void }) {
               d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
             />
           </svg>
-          Send via Email
+          Open Email Draft
         </Button>
       </div>
     </div>
@@ -647,19 +644,14 @@ export function ReportBuilder({
 
   // Initialize address from props on mount
   React.useEffect(() => {
-    if (initialAddress && !address) {
+    if ((initialAddress && !address) || (design && !designId) || (hotspot && !hotspotId)) {
+      // Apply both links together; separate writes use the same stale render
+      // values and can erase the design while linking the hotspot.
       setContext(
-        design?.id ?? null,
-        hotspot?.id ?? null,
-        initialAddress,
+        designId ?? design?.id ?? null,
+        hotspotId ?? hotspot?.id ?? null,
+        address || initialAddress,
       );
-    }
-    // Auto-link design/hotspot if provided
-    if (design && !designId) {
-      setContext(design.id, hotspotId, address || initialAddress);
-    }
-    if (hotspot && !hotspotId) {
-      setContext(designId, hotspot.id, address || initialAddress);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
