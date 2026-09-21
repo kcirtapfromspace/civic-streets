@@ -7,7 +7,7 @@ const { processImages } = vi.hoisted(() => ({ processImages: vi.fn() }));
 vi.mock('../../../lib/images/process-image', () => ({ processImages }));
 
 function choose(files: File[]) {
-  const { container } = render(<IssueReportForm onSubmit={vi.fn()} onCancel={vi.fn()} />);
+  const { container } = render(<IssueReportForm initialLat={39.74} initialLng={-104.99} onSubmit={vi.fn()} onCancel={vi.fn()} />);
   fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files } });
 }
 

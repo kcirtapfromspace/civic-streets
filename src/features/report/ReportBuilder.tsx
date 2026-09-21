@@ -1,6 +1,8 @@
 // Report Builder — multi-step wizard for preparing email drafts to representatives
 // Steps: 1. Context → 2. Find Reps → 3. Compose → 4. Review & Draft
 
+import { findReportingArea } from '../../../shared/reporting-areas';
+import { useMapStore } from '@/features/map/map-store';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Badge } from '@/components/ui';
@@ -641,6 +643,9 @@ export function ReportBuilder({
   const { step, address, selectedReps, setContext, designId, hotspotId, reset } =
     useReportStore();
   const [sent, setSent] = React.useState(false);
+  const selectedLocation = useMapStore((state) => state.selectedLocation);
+  const location = hotspot ?? design ?? selectedLocation;
+  const reportingAllowed = Boolean(location && findReportingArea(location.lat, location.lng));
 
   // Initialize address from props on mount
   React.useEffect(() => {
@@ -666,7 +671,7 @@ export function ReportBuilder({
   }, [reset]);
 
   // Success view
-  if (sent) {
+  if (sent && reportingAllowed) {
     return (
       <div className="max-w-2xl mx-auto">
         <ReportSuccess
@@ -705,16 +710,22 @@ export function ReportBuilder({
         )}
       </div>
 
+      {!reportingAllowed && (
+        <p role="alert" className="mb-4 text-sm text-amber-800">
+          Reporting tools are available in Chicago, Denver, and New York City.
+          {' '}<a href="/map" className="underline">Choose a location on the map</a> to continue.
+        </p>
+      )}
       {/* Progress */}
       <StepIndicator currentStep={step} />
 
       {/* Step content */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <fieldset disabled={!reportingAllowed} className="bg-white rounded-lg border border-gray-200 p-6">
         {step === 1 && <StepContext hotspot={hotspot} design={design} />}
-        {step === 2 && <StepFindReps />}
-        {step === 3 && <StepCompose hotspot={hotspot} design={design} />}
-        {step === 4 && <StepReview onSent={handleSent} />}
-      </div>
+        {reportingAllowed && step === 2 && <StepFindReps />}
+        {reportingAllowed && step === 3 && <StepCompose hotspot={hotspot} design={design} />}
+        {reportingAllowed && step === 4 && <StepReview onSent={handleSent} />}
+      </fieldset>
     </div>
   );
 }

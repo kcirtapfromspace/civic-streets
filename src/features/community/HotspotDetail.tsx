@@ -1,3 +1,4 @@
+import { findReportingArea } from '../../../shared/reporting-areas';
 import React, { useState } from 'react';
 import { Badge, Button } from '@/components/ui';
 import {
@@ -158,6 +159,7 @@ export function HotspotDetail({
   const cityPortal = getCityDeepLink(hotspot.lat, hotspot.lng);
   const denverPortal = cityPortal?.city === 'Denver' ? cityPortal : null;
   const denverHelpId = React.useId();
+  const reportingAllowed = Boolean(findReportingArea(hotspot.lat, hotspot.lng));
 
   // Civic reporting state
   const [civicStatus, setCivicStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
@@ -347,6 +349,11 @@ export function HotspotDetail({
             </div>
           )}
 
+          {!reportingAllowed && (
+            <p className="px-5 pt-4 text-sm text-amber-800">
+              Reporting tools are available in Chicago, Denver, and New York City.
+            </p>
+          )}
           {/* Action buttons */}
           <div className="px-5 pt-4 flex flex-wrap gap-2">
             <Button
@@ -372,6 +379,7 @@ export function HotspotDetail({
             <Button
               variant="secondary"
               onClick={handleSendToRep}
+              disabled={!reportingAllowed}
             >
               <svg
                 width="16"
@@ -395,7 +403,7 @@ export function HotspotDetail({
             <Button
               variant="secondary"
               onClick={handleReportToCity}
-              disabled={!denverPortal && civicStatus === 'submitting'}
+              disabled={!reportingAllowed || (!denverPortal && civicStatus === 'submitting')}
               aria-describedby={denverPortal ? denverHelpId : undefined}
             >
               <svg

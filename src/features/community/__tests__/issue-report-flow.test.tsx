@@ -33,10 +33,26 @@ afterEach(() => {
 });
 
 describe('community issue draft and submission', () => {
+  it.each([[34.05, -118.24], [42.36, -71.06], [0, 0]])('blocks reporting outside the pilots (%s, %s)', (lat, lng) => {
+    const submit = vi.fn();
+    const { container } = render(<IssueReportForm initialLat={lat} initialLng={lng} initialAddress="Selected place" onSubmit={submit} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('You can search anywhere in the US');
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+    fireEvent.submit(container.querySelector('form')!);
+    expect(submit).not.toHaveBeenCalled();
+  });
+  it.each([[39.74, -104.99], [41.88, -87.63], [40.71, -74.01]])('allows the reporting tools in a pilot (%s, %s)', (lat, lng) => {
+    render(<IssueReportForm initialLat={lat} initialLng={lng} initialAddress="Selected place" onSubmit={vi.fn()} />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
+    choosePothole();
+    expect(screen.getByRole('button', { name: 'Skip details & submit' })).toBeEnabled();
+  });
+
   it('requires location and an issue, supports back/cancel, and derives severity from issue type and blocking', async () => {
     const submit = vi.fn().mockResolvedValue(undefined),
       cancel = vi.fn();
-    const { container } = render(<IssueReportForm onSubmit={submit} onCancel={cancel} />);
+    const { container } = render(<IssueReportForm initialLat={39.74} initialLng={-104.99} onSubmit={submit} onCancel={cancel} />);
     expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
     fireEvent.submit(container.querySelector('form')!);
     expect(submit).not.toHaveBeenCalled();
@@ -68,7 +84,7 @@ describe('community issue draft and submission', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Skip details & submit' }));
     await waitFor(() => expect(submit).toHaveBeenCalledOnce());
     expect(submit.mock.calls[0][0]).toMatchObject({
-      location: { lat: 0, lng: 0, address: 'Colfax, Denver' },
+      location: { lat: 39.74, lng: -104.99, address: 'Colfax, Denver' },
       group: 'sidewalk',
       issueType: 'no-curb-ramp',
       severity: 'low',
@@ -135,7 +151,7 @@ describe('community issue draft and submission', () => {
     ],
     ['unstructured provider failure', 'Your report could not be saved. Please try again.'],
   ])('shows safe actionable feedback for a rejected report', async (error, message) => {
-    render(<IssueReportForm initialAddress="Denver" onSubmit={vi.fn().mockRejectedValue(error)} />);
+    render(<IssueReportForm initialLat={39.74} initialLng={-104.99} initialAddress="Denver" onSubmit={vi.fn().mockRejectedValue(error)} />);
     choosePothole();
     fireEvent.click(screen.getByRole('button', { name: 'Skip details & submit' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(message);
@@ -143,7 +159,7 @@ describe('community issue draft and submission', () => {
   });
   it('uses the suggested title when a user clears an edited title', async () => {
     const submit = vi.fn().mockResolvedValue(undefined);
-    render(<IssueReportForm initialAddress="Colfax, Denver" onSubmit={submit} />);
+    render(<IssueReportForm initialLat={39.74} initialLng={-104.99} initialAddress="Colfax, Denver" onSubmit={submit} />);
     choosePothole();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), { target: { value: ' ' } });
@@ -155,7 +171,7 @@ describe('community issue draft and submission', () => {
 
 describe('issue photo preparation interactions', () => {
   it('releases prepared previews when the form closes and does not create previews for late decoding results', async () => {
-    const first = render(<IssueReportForm initialAddress="Denver" onSubmit={vi.fn()} />);
+    const first = render(<IssueReportForm initialLat={39.74} initialLng={-104.99} initialAddress="Denver" onSubmit={vi.fn()} />);
     fireEvent.change(first.container.querySelector('input[type="file"]')!, {
       target: { files: [sourcePhoto] },
     });
@@ -169,7 +185,7 @@ describe('issue photo preparation interactions', () => {
           finish = resolve;
         }),
     );
-    const second = render(<IssueReportForm initialAddress="Denver" onSubmit={vi.fn()} />);
+    const second = render(<IssueReportForm initialLat={39.74} initialLng={-104.99} initialAddress="Denver" onSubmit={vi.fn()} />);
     fireEvent.change(second.container.querySelector('input[type="file"]')!, {
       target: { files: [sourcePhoto] },
     });
@@ -185,7 +201,7 @@ describe('issue photo preparation interactions', () => {
           finish = resolve;
         }),
     );
-    const { container } = render(<IssueReportForm initialAddress="Denver" onSubmit={vi.fn()} />);
+    const { container } = render(<IssueReportForm initialLat={39.74} initialLng={-104.99} initialAddress="Denver" onSubmit={vi.fn()} />);
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     const drop = screen.getByRole('button', { name: 'Upload photos by clicking or dragging' });
     const picker = vi.spyOn(input, 'click');
@@ -221,7 +237,7 @@ describe('issue photo preparation interactions', () => {
       .mockRejectedValueOnce(new Error('Decode failed'))
       .mockResolvedValueOnce([{ ...photo(), blob: new Blob(['svg'], { type: 'image/svg+xml' }) }])
       .mockResolvedValueOnce([photo()]);
-    const { container } = render(<IssueReportForm initialAddress="Denver" onSubmit={vi.fn()} />);
+    const { container } = render(<IssueReportForm initialLat={39.74} initialLng={-104.99} initialAddress="Denver" onSubmit={vi.fn()} />);
     const input = container.querySelector('input[type="file"]')!;
     fireEvent.change(input, { target: { files: [sourcePhoto] } });
     expect(await screen.findByRole('alert')).toHaveTextContent('A photo could not be prepared.');

@@ -40,6 +40,40 @@ afterEach(() => {
 });
 
 describe('shared geocoding proxy', () => {
+  it.each([
+    [' 80211 ', '80211', 'Denver', '39.77', '-105.02'],
+    ['60601', '60601', 'Chicago', '41.88', '-87.62'],
+    ['10001', '10001', 'New York City', '40.75', '-73.99'],
+    ['02108', '02108', 'Boston', '42.36', '-71.06'],
+    ['90210', '90210', 'Beverly Hills', '34.09', '-118.41'],
+    ['99501', '99501', 'Anchorage', '61.21', '-149.88'],
+    ['96813', '96813', 'Honolulu', '21.31', '-157.85'],
+    ['00901', '00901', 'San Juan', '18.46', '-66.11'],
+    ['80211-1234', '80211', 'Denver', '39.77', '-105.02'],
+  ])('searches US ZIP %s independently of reporting coverage', async (query, zip, city, lat, lon) => {
+    const { t, first, second } = await setup();
+    fetchMock.mockResolvedValueOnce(response([{ ...place, display_name: city, lat, lon }]));
+    const results = await t.action(api.geocoding.search, { sessionToken: first, query });
+    expect(results).toMatchObject([{ display_name: city, lat, lon }]);
+    const url = new URL(fetchMock.mock.calls[0][0]);
+    expect(url.searchParams.get('postalcode')).toBe(zip);
+    expect(url.searchParams.get('countrycodes')).toBe('us,pr,vi,gu,as,mp');
+    expect(url.searchParams.has('q')).toBe(false);
+    expect(url.searchParams.has('viewbox')).toBe(false);
+    expect(await t.action(api.geocoding.search, { sessionToken: second, query: zip })).toEqual(results);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('does not reuse one ZIP code result for a different ZIP', async () => {
+    const { t, first } = await setup();
+    await t.action(api.geocoding.search, { sessionToken: first, query: '80211' });
+    vi.advanceTimersByTime(1101);
+    fetchMock.mockResolvedValueOnce(response([{ ...place, display_name: 'Boston' }]));
+    expect(await t.action(api.geocoding.search, { sessionToken: first, query: '02108' }))
+      .toMatchObject([{ display_name: 'Boston' }]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('uses a fixed provider route, application identity, no redirects, and sanitized results', async () => {
     const { t, first } = await setup();
     const results = await t.action(api.geocoding.search, {

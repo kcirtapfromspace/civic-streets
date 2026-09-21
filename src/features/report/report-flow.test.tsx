@@ -1,3 +1,4 @@
+import { useMapStore } from '@/features/map/map-store';
 import '@testing-library/jest-dom/vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -59,6 +60,7 @@ function addOffice() {
 }
 
 beforeEach(() => {
+  useMapStore.setState({ selectedLocation: { lat: 39.74, lng: -104.99, address: 'Denver' } });
   useReportStore.getState().reset();
   access.canAccess = false;
   vi.spyOn(window, 'open').mockReturnValue(null);
@@ -72,6 +74,20 @@ afterEach(() => {
 });
 
 describe('resident email-draft flow', () => {
+  it.each([null, { lat: 34.05, lng: -118.24, address: 'Los Angeles' }])('gates all wizard tools without an eligible map location: %s', (selectedLocation) => {
+    useMapStore.setState({ selectedLocation });
+    useReportStore.setState({ step: 4, address: 'Denver', selectedReps: [office], subject: 'Issue', body: 'Please review.' });
+    renderWizard();
+    expect(screen.getByRole('alert')).toHaveTextContent('Chicago, Denver, and New York City');
+    expect(screen.queryByRole('button', { name: 'Open Email Draft' })).not.toBeInTheDocument();
+    expect(window.open).not.toHaveBeenCalled();
+  });
+  it('does not use an eligible map selection to unlock an unsupported linked report', () => {
+    renderWizard({ hotspot: { ...hotspot, lat: 34.05, lng: -118.24 } });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+  });
+
   it('requires a location and recipient, preserves edits across steps, and opens only the reviewed draft', () => {
     renderWizard();
     expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();

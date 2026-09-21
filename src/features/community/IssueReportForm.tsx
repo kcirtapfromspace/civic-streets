@@ -7,6 +7,8 @@ import { getIssueTypesByGroup, getIssueTypeConfig, ISSUE_GROUP_ICONS } from '@/l
 import { processImages, type ProcessedImage } from '../../lib/images/process-image';
 import { MAX_PHOTO_BYTES, MAX_REPORT_PHOTOS, PHOTO_CONTENT_TYPE } from '../../../shared/photo-upload';
 
+import { findReportingArea } from '../../../shared/reporting-areas';
+
 const MAX_SOURCE_PHOTO_BYTES = 10 * 1024 * 1024;
 const SOURCE_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
@@ -230,7 +232,8 @@ export function IssueReportForm({
 
   // ── Navigation ──────────────────────────────────────────────────────
 
-  const canAdvanceStep1 = address.trim().length > 0;
+  const reportingAllowed = Boolean(findReportingArea(initialLat, initialLng));
+  const canAdvanceStep1 = reportingAllowed && address.trim().length > 0;
   const canAdvanceStep2 = selectedGroup !== null && selectedType !== null;
 
   const goNext = useCallback(() => setStep((s) => Math.min(s + 1, 3)), []);
@@ -241,7 +244,7 @@ export function IssueReportForm({
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!selectedGroup || !selectedType || !address.trim() || isProcessingImages || submittingRef.current) return;
+      if (!reportingAllowed || !selectedGroup || !selectedType || !address.trim() || isProcessingImages || submittingRef.current) return;
 
       submittingRef.current = true;
       setIsSubmitting(true);
@@ -268,7 +271,7 @@ export function IssueReportForm({
         setIsSubmitting(false);
       }
     },
-    [selectedGroup, selectedType, titleEdited, title, autoTitle, address, initialLat, initialLng, photoDataUrls, severity, isBlocking, description, onSubmit, processedImages, honeypotValue, formOpenedAt, isProcessingImages],
+    [reportingAllowed, selectedGroup, selectedType, titleEdited, title, autoTitle, address, initialLat, initialLng, photoDataUrls, severity, isBlocking, description, onSubmit, processedImages, honeypotValue, formOpenedAt, isProcessingImages],
   );
 
   // ── Step indicator ──────────────────────────────────────────────────
@@ -282,6 +285,11 @@ export function IssueReportForm({
       className="bg-white rounded-lg shadow-lg max-w-lg w-full mx-auto"
     >
       <fieldset disabled={isSubmitting} className="min-w-0">
+      {!reportingAllowed && (
+        <p role="alert" className="px-5 pt-4 text-sm text-amber-800">
+          You can search anywhere in the US. To report a problem, choose a map location in Chicago, Denver, or New York City.
+        </p>
+      )}
       {/* Header */}
       <div className="px-5 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
@@ -293,7 +301,7 @@ export function IssueReportForm({
           </span>
         </div>
         <p className="mt-2 text-xs text-gray-600">
-          Community reports are open in the Denver and Chicago pilot areas.
+          Community reports are open in the Chicago, Denver, and New York City pilot areas.
           Sending a report to a city is a separate step.
         </p>
         {/* Step dots */}

@@ -224,3 +224,14 @@ it('opens the street editor and ignores an old reverse-geocode result after the 
   expect(useMapStore.getState().reportFormOpen).toBe(false);
   expect(useMapStore.getState().selectedLocation?.address).toBe('Broadway, Denver');
 });
+
+it('keeps design available but disables reporting outside pilot areas', () => {
+  useMapStore.getState().openContextMenu({ lat: 34.05, lng: -118.24, x: 10, y: 10 });
+  render(<PinDesignFlow map={null} />);
+  expect(screen.getByRole('button', { name: /Design a Street Here/ })).toBeEnabled();
+  const report = screen.getByRole('button', { name: /Report a Hotspot/ });
+  expect(report).toBeDisabled();
+  fireEvent.click(report);
+  expect(useMapStore.getState().reportFormOpen).toBe(false);
+  expect(services.reverse).not.toHaveBeenCalled();
+});

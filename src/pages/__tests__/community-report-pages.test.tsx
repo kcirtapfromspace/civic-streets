@@ -159,7 +159,7 @@ describe('report route context', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.getByRole('status')).toHaveTextContent('/hotspots');
   });
-  it('starts an unlinked report with an editable blank address', () => {
+  it('requires an eligible map location for an unlinked report', () => {
     lookup.mockReturnValue({ hotspot: null, isLoading: false });
     render(
       <MemoryRouter initialEntries={['/report']}>
@@ -168,7 +168,8 @@ describe('report route context', () => {
     );
     expect(lookup).toHaveBeenCalledWith(undefined);
     expect(screen.getByRole('textbox')).toHaveValue('');
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Denver Union Station' } });
-    expect(useReportStore.getState().address).toBe('Denver Union Station');
+    expect(screen.getByRole('textbox')).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Choose a location on the map');
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
   });
 });

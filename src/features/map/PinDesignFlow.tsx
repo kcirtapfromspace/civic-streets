@@ -5,6 +5,8 @@ import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useDrawingStore } from '@/stores/drawing-store';
 import { reverseGeocodeLocation } from '@/lib/api/geocoding';
 
+import { findReportingArea } from '../../../shared/reporting-areas';
+
 interface PinDesignFlowProps {
   map: maplibregl.Map | null;
 }
@@ -143,6 +145,7 @@ export function PinDesignFlow({ map }: PinDesignFlowProps) {
 
         <button
           onClick={handleReportHotspot}
+          disabled={!findReportingArea(contextMenuPosition.lat, contextMenuPosition.lng)}
           className="w-full text-left px-4 py-3 hover:bg-red-50 transition-colors flex items-center gap-3 group"
         >
           <span className="flex items-center justify-center w-8 h-8 rounded-full bg-red-100 text-red-600 group-hover:bg-red-200 transition-colors">
@@ -164,7 +167,9 @@ export function PinDesignFlow({ map }: PinDesignFlowProps) {
               Report a Hotspot
             </div>
             <div className="text-xs text-gray-500">
-              Flag a safety concern
+              {findReportingArea(contextMenuPosition.lat, contextMenuPosition.lng)
+                ? 'Flag a safety concern'
+                : 'Reporting: Chicago, Denver, and NYC only'}
             </div>
           </div>
         </button>

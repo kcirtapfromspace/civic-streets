@@ -40,6 +40,20 @@ afterEach(() => {
 });
 
 describe('community report detail actions', () => {
+  it('disables city and representative reporting for an older report outside the pilots', () => {
+    const rep = vi.fn();
+    render(<ToastProvider><HotspotDetail hotspot={{ ...hotspot, lat: 34.05, lng: -118.24 }} onSendToRep={rep} /></ToastProvider>);
+    const cityButton = screen.getByRole('button', { name: 'Report to City' });
+    const repButton = screen.getByRole('button', { name: 'Send to My Rep' });
+    expect(cityButton).toBeDisabled();
+    expect(repButton).toBeDisabled();
+    fireEvent.click(cityButton);
+    fireEvent.click(repButton);
+    expect(submit).not.toHaveBeenCalled();
+    expect(rep).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Design a Fix' })).toBeEnabled();
+  });
+
   it('routes report actions with the correct identity and displays photos, linked designs, and community status', () => {
     const back = vi.fn(),
       design = vi.fn(),

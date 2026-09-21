@@ -5,6 +5,9 @@ describe('community pilot reporting coverage', () => {
   it.each([
     ['Denver', 'denver', 39.7392, -104.9903],
     ['Denver airport', 'denver', 39.8561, -104.6737],
+    ['Manhattan', 'nyc', 40.71, -74.01],
+    ['Staten Island', 'nyc', 40.58, -74.15],
+    ['Queens', 'nyc', 40.73, -73.8],
     ['Chicago', 'chicago', 41.881, -87.629],
   ])('recognizes %s', (_name, id, lat, lng) => {
     expect(findReportingArea(lat, lng)?.id).toBe(id);
@@ -33,6 +36,7 @@ describe('community pilot reporting coverage', () => {
         [41.8, -87.4],
       ],
     ],
+    ['nyc', [[40.49, -74.26], [40.92, -73.7], [40.7, -74.26], [40.7, -73.7]]],
   ] as const)('includes the approved boundary coordinates for %s', (id, points) => {
     for (const [lat, lng] of points) expect(findReportingArea(lat, lng)?.id).toBe(id);
   });
@@ -56,6 +60,7 @@ describe('community pilot reporting coverage', () => {
         [41.8, -87.3999],
       ],
     ],
+    ['NYC', [[40.4899, -74], [40.9201, -74], [40.7, -74.2601], [40.7, -73.6999]]],
   ] as const)('excludes points immediately outside each %s boundary', (_name, points) => {
     for (const [lat, lng] of points) expect(findReportingArea(lat, lng)).toBeUndefined();
   });

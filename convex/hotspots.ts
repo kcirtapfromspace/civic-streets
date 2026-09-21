@@ -133,7 +133,7 @@ export const create = mutation({
     }
 
     if (!findReportingArea(args.lat, args.lng)) {
-      throw new ConvexError('Reporting is currently open in the Denver and Chicago metro areas. Choose a location in either area.');
+      throw new ConvexError('Reporting is currently open in the Chicago, Denver, and New York City pilot areas. Choose a location in one of these areas.');
     }
 
     if (args.photoUrls?.length) {

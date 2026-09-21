@@ -37,8 +37,13 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('community reporting in Denver and Chicago', () => {
+describe('community reporting in Chicago, Denver, and NYC', () => {
   it.each([
+    ['Manhattan', 40.71, -74.01],
+    ['Brooklyn', 40.65, -73.95],
+    ['Queens', 40.73, -73.8],
+    ['Bronx', 40.85, -73.86],
+    ['Staten Island', 40.58, -74.15],
     ['downtown Denver', 39.7392, -104.9903],
     ['Denver airport', 39.8561, -104.6737],
     ['northeast Denver', 39.87, -104.7],
@@ -98,7 +103,8 @@ describe('community reporting in Denver and Chicago', () => {
 
   it.each([
     ['Los Angeles', 34.05, -118.24],
-    ['New York', 40.71, -74.01],
+    ['Boston', 42.36, -71.06],
+    ['outside NYC pilot', 40.93, -73.9],
     ['mixed city coordinates', 39.7392, -87.629],
     ['north of Denver pilot', 40.0001, -104.99],
     ['east of Denver pilot', 39.74, -104.5499],
@@ -114,7 +120,7 @@ describe('community reporting in Denver and Chicago', () => {
         lat,
         lng,
       }),
-    ).rejects.toThrow('Denver and Chicago metro areas');
+    ).rejects.toThrow('Chicago, Denver, and New York City pilot areas');
     expect(await t.run((ctx) => ctx.db.query('hotspots').take(1))).toEqual([]);
     // A rejected report must not consume a successful-submission allowance.
     expect(await t.run((ctx) => ctx.db.query('rateLimits').take(1))).toEqual([]);

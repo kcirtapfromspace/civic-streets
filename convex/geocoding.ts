@@ -183,7 +183,7 @@ async function requestGeocoding(
   const url = new URL(route, base);
   url.search = params.toString();
   const cacheParams = new URLSearchParams(params);
-  if (route === 'search') cacheParams.set('q', (params.get('q') ?? '').toLowerCase());
+  if (route === 'search' && params.has('q')) cacheParams.set('q', (params.get('q') ?? '').toLowerCase());
   const key = `${url.origin}${url.pathname}:${cacheParams.toString()}`;
   const reservation: Reservation = await ctx.runMutation(internal.geocoding.reserve, { sessionToken, key });
   if (reservation.kind === 'cached') return reservation.results;
@@ -233,9 +233,18 @@ export const search = action({
   returns: v.array(resultValidator),
   handler: async (ctx, args): Promise<GeocodingResult[]> => {
     const query = normalizeQuery(args.query);
-    return requestGeocoding(ctx, args.sessionToken, configuredBaseUrl(), 'search', new URLSearchParams({
-      format: 'jsonv2', q: query, limit: '5', addressdetails: '1',
-    }));
+    const params = new URLSearchParams({
+      format: 'jsonv2', limit: '5', addressdetails: '1',
+    });
+    // ZIP codes are US postal areas, not ambiguous worldwide place names.
+    // Keep leading zeroes; ZIP+4 searches locate the parent five-digit area.
+    if (/^\d{5}(-\d{4})?$/.test(query)) {
+      params.set('postalcode', query.slice(0, 5));
+      params.set('countrycodes', 'us,pr,vi,gu,as,mp');
+    } else {
+      params.set('q', query);
+    }
+    return requestGeocoding(ctx, args.sessionToken, configuredBaseUrl(), 'search', params);
   },
 });
 

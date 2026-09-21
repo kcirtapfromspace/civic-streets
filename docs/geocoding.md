@@ -2,6 +2,12 @@
 
 The application sends submitted place searches and deliberate map selections to Convex. It does not call a public geocoder directly or request suggestions on every keystroke. Search errors stay visible; reverse lookup failures leave coordinate locations or an unnamed road.
 
+## Nationwide ZIP search and pilot reporting
+
+US five-digit ZIP codes use a structured postal-code lookup limited to the US and its territories, without a reporting-area or viewport restriction. Leading zeroes are preserved; ZIP+4 input resolves to its five-digit area. Other place and address searches retain free-text lookup. Results depend on provider data; this is not a complete USPS delivery-point directory.
+
+Reporting is independently restricted to the Chicago, Denver, and New York City pilot envelopes in `shared/reporting-areas.ts`. NYC includes all five boroughs. As with the existing Chicago and Denver pilots, these rectangular envelopes are approximate community coverage, not municipal boundaries. The backend rejects reports outside these areas; map, issue-form, report-detail, and representative-wizard controls also gate reporting. Searching or designing elsewhere stays available.
+
 ## Operator configuration
 
 Set **GEOCODING_BASE_URL** in the backend environment after selecting a provider and accepting its terms. It must be a Nominatim-compatible HTTPS origin, optionally ending in `/nominatim/`. Credentials, query strings, redirects, local/IP destinations, custom ports, and arbitrary paths are rejected. No upstream is selected by default. `VITE_CONVEX_URL` connects the frontend to Convex; no geocoder key belongs in the browser.
@@ -20,6 +26,15 @@ Switching a compatible provider requires changing the backend environment value.
 - Only `/search` and `/reverse` routes are constructed server-side. Upstream receives a Curbwise User-Agent and no session token. Results are reduced to place ID, label, coordinates, and optional road name.
 
 Anonymous sessions are freely issued; their quotas alone cannot prevent someone creating many sessions. The global lease still bounds upstream traffic. At sustained demand, configure a provider with capacity appropriate to the application rather than increasing public Nominatim traffic.
+
+## Live configuration and rollout — September 21, 2026
+
+- Operator approved public Nominatim for nationwide ZIP search. Set `GEOCODING_BASE_URL=https://nominatim.openstreetmap.org` on `chatty-puffin-875`, the backend confirmed in the live frontend bundle.
+- Deployed ZIP-aware search and the Chicago/Denver/NYC backend reporting gate with `npx convex dev --once --typecheck enable --tail-logs disable`. The separate production deployment was not changed.
+- Live browser verification: `80211` returned Denver and selected coordinates approximately 39.7665, -105.0203; `02108` returned Beacon Hill, Boston with its leading zero preserved.
+- Live backend validation accepted Chicago, Denver, and NYC geography, then stopped on the required-photo check. Boston was rejected by the pilot-area gate. No test reports or messages were published.
+- UI gates are implemented and built locally, but publishing them is blocked by an expired Render CLI token (`render login` required). The backend gate is already enforced for the existing frontend.
+- Node 24: `npm run check` passed (952 tests, 86 application test files, all 202 production files passing strict coverage, backend typecheck, production build). Coverage baseline ratcheted after the passing run. Scoped lint and diff whitespace checks passed.
 
 ## Verification
 
