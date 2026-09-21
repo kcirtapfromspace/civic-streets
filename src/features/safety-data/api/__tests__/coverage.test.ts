@@ -8,11 +8,13 @@ const ok = (data: unknown) => ({ ok: true, json: async () => data });
 
 describe('crash source selection and outcomes', () => {
   beforeEach(() => {
+    vi.stubEnv('VITE_CONVEX_URL', '');
     crashCache.clear();
     fetchMock.mockReset();
     vi.stubGlobal('fetch', fetchMock);
   });
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });

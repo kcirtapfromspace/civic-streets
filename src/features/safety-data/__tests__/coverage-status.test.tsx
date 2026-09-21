@@ -11,6 +11,7 @@ const ok = (data: unknown) => ({ ok: true, json: async () => data });
 
 describe('visible crash coverage and request state', () => {
   beforeEach(() => {
+    vi.stubEnv('VITE_CONVEX_URL', '');
     useSafetyDataStore.getState().clearAll();
     useSafetyDataStore.getState().clearDateRange();
     useSafetyDataStore.getState().setEnabled(true);
@@ -18,6 +19,7 @@ describe('visible crash coverage and request state', () => {
     vi.stubGlobal('fetch', fetchMock);
   });
   afterEach(() => {
+    vi.unstubAllEnvs();
     cleanup();
     vi.unstubAllGlobals();
     useSafetyDataStore.getState().setEnabled(false);
@@ -194,4 +196,11 @@ describe('visible crash coverage and request state', () => {
     rerender(<CrashCoverageStatus zoom={13} />);
     expect(screen.getByText('Crash data has not been checked for this view.')).toBeInTheDocument();
   });
+});
+
+it('shows backend archive history and freshness alongside source coverage', () => {
+  useSafetyDataStore.setState({ enabled: true, coverage: 'municipal', sources: [{ sourceId: 'denver', status: 'loaded', count: 0, warnings: [], history: { months: [], latestRecord: '2026-09-01', lastSuccess: 1 } }] });
+  render(<CrashCoverageStatus zoom={13} />);
+  expect(screen.getByRole('region', { name: 'Denver monthly crash history' })).toBeInTheDocument();
+  expect(screen.getByText('One-year archive · monthly imports')).toBeInTheDocument();
 });

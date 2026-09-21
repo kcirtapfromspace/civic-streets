@@ -34,7 +34,7 @@ export function CrashFilterPanel() {
 
   return (
     <div className="absolute top-4 left-[420px] z-10 animate-fade-up">
-      <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.04] p-3.5 flex flex-col gap-3 min-w-[200px]">
+      <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.04] p-3.5 flex flex-col gap-3 min-w-[200px] max-h-[calc(100dvh-120px)] overflow-y-auto overscroll-contain">
         <div className="flex items-center justify-between">
           <div className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.15em]">
             Crash Data

@@ -1,3 +1,4 @@
+import { CrashTimeline } from './CrashTimeline';
 import { DATA_SOURCES } from './api';
 import { useSafetyDataStore } from './safety-data-store';
 
@@ -35,7 +36,8 @@ export function CrashCoverageStatus({ zoom }: { zoom: number }) {
             return (
               <div key={source.id} className="border-t border-gray-100 pt-2">
                 <a href={source.url} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-700 underline">{source.name}</a>
-                <p>{source.dateRange}</p>
+                <p>{result.history ? 'One-year archive · monthly imports' : source.dateRange}</p>
+                {result.history && <CrashTimeline history={result.history} city={source.city} />}
                 <p>{source.coverageNote}</p>
                 {result.status === 'error' && <p className="text-red-700">Source unavailable: {result.error}</p>}
                 {result.warnings.map((warning) => <p key={warning} className="text-amber-800">{warning}</p>)}

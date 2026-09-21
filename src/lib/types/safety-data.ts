@@ -1,3 +1,4 @@
+import type { CrashHistory } from '../../../shared/crash-history';
 export type CrashMode = 'pedestrian' | 'cyclist' | 'motorist';
 export type CrashSeverity = 'fatal' | 'severe-injury' | 'moderate-injury' | 'minor' | 'unknown';
 
@@ -5,11 +6,13 @@ export interface CrashBounds { south: number; west: number; north: number; east:
 export interface CrashDateRange { start: string; end: string }
 export interface CrashFetchResult {
   crashes: NormalizedCrash[];
+  history?: CrashHistory;
   /** Incomplete results, unavailable fields, or source query limits. */
   warnings?: string[];
 }
 export interface CrashSourceResult {
   sourceId: string;
+  history?: CrashHistory;
   status: 'loaded' | 'partial' | 'error';
   count: number;
   warnings: string[];

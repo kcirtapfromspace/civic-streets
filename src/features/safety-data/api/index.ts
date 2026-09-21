@@ -1,3 +1,6 @@
+import { ConvexHttpClient } from 'convex/browser';
+import { api } from '../../../../convex/_generated/api';
+import type { CrashCity } from '../../../../shared/crash-history';
 import type { CrashBounds, CrashDateRange, CrashSourceResult, CrashViewportResult, DataSourceConfig, NormalizedCrash } from '@/lib/types/safety-data';
 import { nycSource } from './nyc-crashes';
 import { chicagoSource } from './chicago-crashes';
@@ -31,7 +34,12 @@ export async function fetchCrashesForViewport(bounds: CrashBounds, dateRange?: C
     try {
       let result = crashCache.get(key);
       if (!result) {
-        result = await source.fetch(clipped, dateRange);
+        const url = import.meta.env.VITE_CONVEX_URL as string | undefined;
+        result = url && source.coverage === 'municipal'
+          ? await new ConvexHttpClient(url.replace(/\/+$/, '')).query(api.crashArchive.viewport, {
+            source: source.id as CrashCity, bounds: clipped, ...(dateRange ? { dateRange } : {}),
+          })
+          : await source.fetch(clipped, dateRange);
         crashCache.set(key, result);
       }
       const crashes = result.crashes.filter((crash) => inBounds(crash.lat, crash.lng, bounds)
@@ -39,7 +47,7 @@ export async function fetchCrashesForViewport(bounds: CrashBounds, dateRange?: C
       const warnings = result.warnings ?? [];
       const status: CrashSourceResult = {
         sourceId: source.id, status: warnings.length ? 'partial' : 'loaded',
-        count: crashes.length, warnings,
+        count: crashes.length, warnings, ...(result.history ? { history: result.history } : {}),
       };
       return { crashes, status };
     } catch (error) {

@@ -11,6 +11,10 @@
 import type * as billing from "../billing.js";
 import type * as billingActions from "../billingActions.js";
 import type * as comments from "../comments.js";
+import type * as crashArchive from "../crashArchive.js";
+import type * as crashImport from "../crashImport.js";
+import type * as crashProvider from "../crashProvider.js";
+import type * as crashValidators from "../crashValidators.js";
 import type * as crons from "../crons.js";
 import type * as designs from "../designs.js";
 import type * as geocoding from "../geocoding.js";
@@ -37,6 +41,10 @@ declare const fullApi: ApiFromModules<{
   billing: typeof billing;
   billingActions: typeof billingActions;
   comments: typeof comments;
+  crashArchive: typeof crashArchive;
+  crashImport: typeof crashImport;
+  crashProvider: typeof crashProvider;
+  crashValidators: typeof crashValidators;
   crons: typeof crons;
   designs: typeof designs;
   geocoding: typeof geocoding;

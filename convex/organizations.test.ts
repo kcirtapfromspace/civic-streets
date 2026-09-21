@@ -270,6 +270,6 @@ describe('backend registration', () => {
       ]),
     );
     // Real Convex execution above depends on schema indexes and runtime registration.
-    expect(Object.keys(jobs)).toHaveLength(3);
+    expect(Object.keys(jobs)).toHaveLength(4);
   });
 });

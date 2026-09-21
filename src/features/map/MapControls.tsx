@@ -323,7 +323,7 @@ export function MapControls({ map }: MapControlsProps) {
 
         {/* Layers panel */}
         {isLayersPanelOpen && (
-          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.04] p-3.5 flex flex-col gap-3 min-w-[200px] animate-fade-up">
+          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.04] p-3.5 flex flex-col gap-3 w-[min(340px,calc(100vw-32px))] max-h-[calc(100dvh-260px)] overflow-y-auto overscroll-contain animate-fade-up">
             <div className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.15em]">
               Map Layers
             </div>

@@ -1,7 +1,21 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
+import { city, crash } from './crashValidators';
 
 export default defineSchema({
+  // Additive crash archive. In-flight generations are never visible to readers.
+  crashMonths: defineTable({
+    source: city, month: v.string(), run: v.string(), offset: v.number(),
+    startedAt: v.number(), status: v.union(v.literal('syncing'), v.literal('ready'), v.literal('error')),
+    count: v.number(), fatalities: v.number(), skipped: v.number(), latest: v.optional(v.string()),
+    activeRun: v.optional(v.string()), activeCount: v.optional(v.number()),
+    activeFatalities: v.optional(v.number()), activeSkipped: v.optional(v.number()),
+    activeLatest: v.optional(v.string()), syncedAt: v.optional(v.number()), error: v.optional(v.string()),
+  }).index('by_source_and_month', ['source', 'month']),
+  crashRecords: defineTable({ run: v.string(), record: crash })
+    .index('by_run_and_id', ['run', 'record.id'])
+    .index('by_run_and_lat', ['run', 'record.lat']),
+
   geocodingCache: defineTable({
     key: v.string(),
     results: v.array(v.object({

@@ -7,6 +7,7 @@ import { useMapStore } from '@/features/map/map-store';
 
 describe('crash filter controls', () => {
   beforeEach(() => {
+    vi.stubEnv('VITE_CONVEX_URL', '');
     useSafetyDataStore.getState().setEnabled(false);
     useSafetyDataStore.getState().clearAll();
     useSafetyDataStore.setState({
@@ -21,6 +22,7 @@ describe('crash filter controls', () => {
     useMapStore.getState().setZoom(13);
   });
   afterEach(() => {
+    vi.unstubAllEnvs();
     cleanup();
     useSafetyDataStore.getState().setEnabled(false);
     vi.unstubAllGlobals();

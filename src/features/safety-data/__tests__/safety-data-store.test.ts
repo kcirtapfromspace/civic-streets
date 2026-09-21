@@ -24,6 +24,7 @@ const response = (id: string) => ({
 
 describe('safety data state across user actions', () => {
   beforeEach(() => {
+    vi.stubEnv('VITE_CONVEX_URL', '');
     useSafetyDataStore.getState().setEnabled(false);
     useSafetyDataStore.getState().clearAll();
     useSafetyDataStore.setState({
@@ -39,6 +40,7 @@ describe('safety data state across user actions', () => {
     vi.stubGlobal('fetch', fetchMock);
   });
   afterEach(() => {
+    vi.unstubAllEnvs();
     useSafetyDataStore.getState().setEnabled(false);
     vi.unstubAllGlobals();
   });
