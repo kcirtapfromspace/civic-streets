@@ -7,8 +7,8 @@ import { CRASH_CITIES, historyMonths, monthRange } from '../shared/crash-history
 const DAY = 86400000;
 const LEASE = 60 * 60 * 1000;
 export const startDaily = internalMutation({
-  args: {},
-  handler: async (ctx) => {
+  args: { retryErrors: v.optional(v.boolean()) },
+  handler: async (ctx, args) => {
     const now = Date.now(), months = historyMonths(now);
     let queued = 0;
     for (const source of CRASH_CITIES) {
@@ -21,9 +21,9 @@ export const startDaily = internalMutation({
       if (existing.some(row => months.includes(row.month) && row.status === 'syncing' && now - row.startedAt < LEASE)) continue;
       for (const month of months) {
         const old = existing.find(row => row.month === month);
-        if (old?.status === 'error' && now - old.startedAt < DAY) continue;
+        if (old?.status === 'error' && !args.retryErrors && now - old.startedAt < DAY) continue;
         // Reconcile recent months daily; older completed months monthly for revisions.
-        if (old?.syncedAt && now - old.syncedAt < (months.indexOf(month) < 2 ? DAY : 30 * DAY)) continue;
+        if (old?.status !== 'error' && old?.syncedAt && now - old.syncedAt < (months.indexOf(month) < 2 ? DAY : 30 * DAY)) continue;
         if (old && old.run !== old.activeRun) await ctx.scheduler.runAfter(0, internal.crashArchive.cleanupRun, { run: old.run });
         const fields = { source, month, run: crypto.randomUUID(), offset: 0, startedAt: now,
           status: 'syncing' as const, count: 0, fatalities: 0, skipped: 0, latest: undefined, error: undefined };

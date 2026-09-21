@@ -14,7 +14,7 @@ The backend owns ingestion. Browser clients query the archive when `VITE_CONVEX_
 - Source incident IDs deduplicate records within a generation. Multiple Denver involved-party rows merge road-user modes and take maximum incident casualty counts instead of summing the same incident repeatedly.
 - Replacing a completed month incorporates provider corrections and removals. Old generations are cleaned in 250-row batches. This is not a revision-history store: it preserves crash occurrence history, not every version of every publisher record.
 - The daily Convex cron starts at 06:30 UTC. Current and previous months refresh daily; older months refresh every 30 days. Missing months backfill newest first. One active month per city, at least one second between pages. Each completed or failed month schedules the next eligible partition; failed months wait until the following day before retrying.
-- Imports are bounded to one hour and 100,000 raw rows per month; exceeding either fails the generation rather than publishing truncated totals. Publisher requests time out after 20 seconds. Existing data remains available.
+- Imports are bounded to one hour and 100,000 raw rows per month; exceeding either fails the generation rather than publishing truncated totals. Publisher requests time out after 20 seconds; a failed page is retried twice with a short scheduled delay before the month is marked failed. Existing data remains available.
 - Partitions outside the twelve-month window are removed. No community data is changed.
 
 ## Map and timeline
@@ -32,6 +32,8 @@ After backend deployment, start ingestion with:
 ```sh
 npx convex run crashArchive:startDaily '{}'
 ```
+
+To explicitly retry failed months without waiting for the next daily run, use `npx convex run crashArchive:startDaily '{"retryErrors":true}'`. Active imports remain protected from overlap.
 
 Inspect `crashMonths` through the Convex dashboard or CLI for partition progress. `startDaily` is internal: anonymous clients cannot trigger imports or write archive records. Re-running it while work is active is safe. On rollback, restore the prior frontend while leaving these additive tables intact; do not delete community records or fabricate imported records.
 

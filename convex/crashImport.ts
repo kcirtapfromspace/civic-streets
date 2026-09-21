@@ -4,14 +4,18 @@ import { internal } from './_generated/api';
 import { fetchArchivePage } from './crashProvider';
 import type { Doc } from './_generated/dataModel';
 export const page = internalAction({
-  args: { id: v.id('crashMonths'), run: v.string(), offset: v.number() },
-  handler: async (ctx, args) => {
+  args: { id: v.id('crashMonths'), run: v.string(), offset: v.number(), attempt: v.optional(v.number()) },
+  handler: async (ctx, { attempt = 0, ...args }) => {
     const work: Doc<'crashMonths'> | null = await ctx.runQuery(internal.crashArchive.work, args);
     if (!work) return;
     try {
       const result = await fetchArchivePage(work.source, work.month, args.offset);
       await ctx.runMutation(internal.crashArchive.savePage, { ...args, ...result });
     } catch (error) {
+      if (attempt < 2) {
+        await ctx.scheduler.runAfter((attempt + 1) * 5000, internal.crashImport.page, { ...args, attempt: attempt + 1 });
+        return;
+      }
       await ctx.runMutation(internal.crashArchive.fail, { id: args.id, run: args.run,
         error: error instanceof Error ? error.message : 'Crash import failed' });
     }

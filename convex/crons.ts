@@ -15,6 +15,6 @@ crons.interval(
   internal.rateLimit.purgeOldRateLimits,
 );
 
-crons.cron('refresh crash archive', '30 6 * * *', internal.crashArchive.startDaily);
+crons.cron('refresh crash archive', '30 6 * * *', internal.crashArchive.startDaily, {});
 
 export default crons;

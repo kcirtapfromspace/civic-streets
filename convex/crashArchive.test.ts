@@ -126,14 +126,28 @@ describe('atomic monthly archive',()=>{
   expect((await t.run(ctx=>ctx.db.get(id)))?.status).toBe('ready');
   await t.run(ctx=>ctx.db.patch(id,{status:'syncing',run:'next'}));
   vi.stubGlobal('fetch',vi.fn().mockRejectedValue('offline'));
-  await t.action(internal.crashImport.page,{id,run:'next',offset:0});
+  await t.action(internal.crashImport.page,{id,run:'next',offset:0,attempt:2});
   expect((await t.run(ctx=>ctx.db.get(id)))?.error).toBe('Crash import failed');
   await t.run(ctx=>ctx.db.patch(id,{status:'syncing',run:'last'}));
   vi.stubGlobal('fetch',vi.fn().mockRejectedValue(new Error('offline')));
-  await t.action(internal.crashImport.page,{id,run:'last',offset:0});
+  await t.action(internal.crashImport.page,{id,run:'last',offset:0,attempt:2});
   expect((await t.run(ctx=>ctx.db.get(id)))?.error).toBe('offline');
   await t.mutation(internal.crashArchive.startDaily,{});
   expect((await t.run(ctx=>ctx.db.get(id)))?.run).toBe('last');
+  await t.run(async ctx=>{for(const row of await ctx.db.query('crashMonths').take(40)) if(row._id!==id) await ctx.db.patch(row._id,{status:'ready',syncedAt:now});});
+  await t.mutation(internal.crashArchive.startDaily,{retryErrors:true});
+  expect((await t.run(ctx=>ctx.db.get(id)))?.run).not.toBe('last');
+ });
+ it('retries transient publisher errors without publishing a partial month',async()=>{
+  const t=setup(),id=await seed(t);
+  vi.stubGlobal('fetch',vi.fn().mockRejectedValue(new Error('timeout')));
+  await t.action(internal.crashImport.page,{id,run:'run',offset:0});
+  expect((await t.run(ctx=>ctx.db.get(id)))?.status).toBe('syncing');
+  await t.action(internal.crashImport.page,{id,run:'run',offset:0,attempt:1});
+  expect((await t.run(ctx=>ctx.db.get(id)))?.status).toBe('syncing');
+  vi.stubGlobal('fetch',vi.fn().mockResolvedValue(new Response(JSON.stringify({features:[]}))));
+  await t.action(internal.crashImport.page,{id,run:'run',offset:0,attempt:2});
+  expect((await t.run(ctx=>ctx.db.get(id)))?.status).toBe('ready');
  });
  it('uses a bounded calendar window across year boundaries',()=>{
   expect(historyMonths(Date.parse('2026-01-01'))).toHaveLength(12);
