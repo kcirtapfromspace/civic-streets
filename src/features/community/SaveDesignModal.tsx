@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useId } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal, Button, Select } from '@/components/ui';
+import { captureAnalytics } from '@/lib/analytics';
 import { useCommunityStore } from './community-store';
 import { useHotspotsList } from '@/lib/api/use-hotspots';
 import { getGovernmentContactHref, useBillingAccess } from '@/lib/billing/access';
@@ -87,6 +88,10 @@ function SaveDesignForm({
         address: effectiveAddress,
         linkedHotspotId,
         privacy,
+      });
+      captureAnalytics('design_saved', {
+        privacy,
+        has_linked_hotspot: Boolean(linkedHotspotId),
       });
       setIsSaving(false);
       closeSaveDesign();

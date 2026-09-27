@@ -10,6 +10,12 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    watch: {
+      // 1Password's mounted .env emits file events when its secrets are read.
+      ignored: ['**/.env'],
+    },
+  },
   build: {
     outDir: 'dist',
   },

@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConvexError } from 'convex/values';
 import { IssueReportForm } from '../IssueReportForm';
 
-const { processImages } = vi.hoisted(() => ({ processImages: vi.fn() }));
+const { processImages, captureAnalytics } = vi.hoisted(() => ({ processImages: vi.fn(), captureAnalytics: vi.fn() }));
+vi.mock('@/lib/analytics', () => ({ captureAnalytics }));
 vi.mock('@/lib/images/process-image', () => ({ processImages }));
 const sourcePhoto = new File(['jpeg'], 'crossing.jpg', { type: 'image/jpeg' });
 const photo = () => ({
@@ -18,6 +19,7 @@ function choosePothole() {
   fireEvent.click(screen.getByRole('button', { name: 'Pothole' }));
 }
 beforeEach(() => {
+  captureAnalytics.mockClear();
   processImages.mockReset().mockResolvedValue([photo()]);
   vi.stubGlobal(
     'URL',
@@ -90,6 +92,10 @@ describe('community issue draft and submission', () => {
       severity: 'low',
       isBlocking: true,
     });
+    expect(captureAnalytics).toHaveBeenCalledExactlyOnceWith('issue_report_submitted', {
+      issue_group: 'sidewalk', issue_type: 'no-curb-ramp', severity: 'low',
+      is_blocking: true, photo_count: 0,
+    });
   });
   it('preserves a custom draft on failure, blocks duplicate submissions while pending, and retries without stale errors', async () => {
     let rejectFirst: (error: Error) => void = () => {};
@@ -126,6 +132,7 @@ describe('community issue draft and submission', () => {
     fireEvent.submit(container.querySelector('form')!);
     expect(submit).toHaveBeenCalledOnce();
     await act(async () => rejectFirst(new Error('Please sign in again.\nInternal stack trace')));
+    expect(captureAnalytics).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toHaveTextContent('Please sign in again.');
     expect(screen.getByRole('alert')).not.toHaveTextContent('Internal stack trace');
     expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue(
@@ -134,6 +141,7 @@ describe('community issue draft and submission', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Submit Report' }));
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
     expect(submit).toHaveBeenCalledTimes(2);
+    expect(captureAnalytics).toHaveBeenCalledOnce();
     expect(submit.mock.calls[1][0]).toMatchObject({
       title: 'Large pothole at crossing',
       description: 'Wheelchair route blocked',
@@ -155,6 +163,7 @@ describe('community issue draft and submission', () => {
     choosePothole();
     fireEvent.click(screen.getByRole('button', { name: 'Skip details & submit' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(message);
+    expect(captureAnalytics).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Skip details & submit' })).toBeEnabled();
   });
   it('uses the suggested title when a user clears an edited title', async () => {

@@ -10,6 +10,7 @@ import {
 } from '@/lib/billing/plans';
 import type { BillingFeatureKey } from '@/lib/billing/access';
 import { useToast } from '@/components/ui/Toast';
+import { captureAnalytics } from '@/lib/analytics';
 
 export default function PricingPage() {
   const [searchParams] = useSearchParams();
@@ -34,6 +35,7 @@ export default function PricingPage() {
   const handleTownCheckout = async () => {
     try {
       await startCheckout();
+      captureAnalytics('checkout_started');
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : 'Unable to start checkout',
@@ -54,6 +56,7 @@ export default function PricingPage() {
   };
 
   const handleContactSales = (planName: string) => {
+    captureAnalytics('sales_contact_opened', { plan_name: planName });
     window.location.href = `mailto:sales@curbwise.dev?subject=${encodeURIComponent(`Curbwise ${planName}`)}`;
   };
 

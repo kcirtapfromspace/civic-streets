@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { captureAnalytics } from '@/lib/analytics';
 
 type VoteState = 'up' | 'down' | null;
 
@@ -29,14 +30,22 @@ export function VoteButton({
     (vote === 'down' ? -1 : 0);
 
   const handleUpvote = useCallback(() => {
+    captureAnalytics('community_vote_cast', {
+      vote_direction: 'up',
+      vote_action: vote === 'up' ? 'removed' : vote ? 'changed' : 'cast',
+    });
     setVote((prev) => (prev === 'up' ? null : 'up'));
     onVote?.(1);
-  }, [onVote]);
+  }, [onVote, vote]);
 
   const handleDownvote = useCallback(() => {
+    captureAnalytics('community_vote_cast', {
+      vote_direction: 'down',
+      vote_action: vote === 'down' ? 'removed' : vote ? 'changed' : 'cast',
+    });
     setVote((prev) => (prev === 'down' ? null : 'down'));
     onVote?.(-1);
-  }, [onVote]);
+  }, [onVote, vote]);
 
   const containerClass = horizontal
     ? 'flex flex-row items-center gap-1'

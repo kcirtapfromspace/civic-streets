@@ -1,6 +1,7 @@
 import { useIntersectionStore } from '@/stores/intersection-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { IMPROVEMENT_BY_ID, CATEGORY_LABELS, COMPLEXITY_COLORS, COMPLEXITY_LABELS } from '@/lib/presets/intersection-improvements';
+import { captureAnalytics } from '@/lib/analytics';
 
 export function IntersectionReview() {
   const intersectionName = useIntersectionStore((s) => s.intersectionName);
@@ -14,6 +15,11 @@ export function IntersectionReview() {
   if (!conditions) return null;
 
   const handleDone = () => {
+    captureAnalytics('intersection_proposal_completed', {
+      improvement_count: selectedImprovements.length,
+      traffic_control: conditions.trafficControl,
+      crossing_type: conditions.crossingType,
+    });
     reset();
     exitToExplore();
   };

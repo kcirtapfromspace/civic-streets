@@ -7,13 +7,15 @@ import { ToastProvider } from '@/components/ui/Toast';
 import { MOCK_HOTSPOTS } from '@/features/community/mock-data';
 import type { JurisdictionSummary } from '@/lib/types/government';
 
-const { auth, lead, outreach, submitLead, queue } = vi.hoisted(() => ({
+const { auth, lead, outreach, submitLead, queue, captureAnalytics } = vi.hoisted(() => ({
   auth: vi.fn(),
   lead: vi.fn(),
   outreach: vi.fn(),
   submitLead: vi.fn(),
   queue: vi.fn(),
+  captureAnalytics: vi.fn(),
 }));
+vi.mock('@/lib/analytics', () => ({ captureAnalytics }));
 vi.mock('@/lib/api/auth', () => ({ useAuth: auth }));
 vi.mock('@/lib/api/government', () => ({
   useGovernmentLeadSubmission: lead,
@@ -79,6 +81,9 @@ describe('government onboarding request', () => {
       designId: 'd1',
     });
     expect(screen.getByRole('status')).toHaveTextContent('Curbwise will follow up');
+    expect(captureAnalytics).toHaveBeenCalledExactlyOnceWith('government_onboarding_requested', {
+      source_surface: 'account', has_requested_feature: true,
+    });
   });
   it('accepts late defaults without overwriting a user-edited draft and permits replacing an account email', () => {
     auth.mockReturnValue({ user: null });
@@ -130,9 +135,13 @@ describe('government onboarding request', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Request municipal onboarding' }));
     expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(captureAnalytics).not.toHaveBeenCalled();
     expect(screen.getByRole('textbox', { name: 'Jurisdiction' })).toHaveValue('Denver');
     fireEvent.click(screen.getByRole('button', { name: 'Request municipal onboarding' }));
     expect(await screen.findByText('Lead status: new · Ref pending')).toBeInTheDocument();
+    expect(captureAnalytics).toHaveBeenCalledExactlyOnceWith('government_onboarding_requested', {
+      source_surface: 'landing', has_requested_feature: false,
+    });
     expect(submitLead.mock.calls[1][0]).toMatchObject({
       phone: undefined,
       populationBand: undefined,

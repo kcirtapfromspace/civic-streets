@@ -6,6 +6,7 @@ import { useSavedProposalsStore } from '@/stores/saved-proposals-store';
 import { useCommunityStore } from '@/features/community/community-store';
 import { generatePDF } from '@/features/export';
 import { loadStandards, validateStreet } from '@/lib/standards/validator';
+import { captureAnalytics } from '@/lib/analytics';
 
 const CrossSectionSVG = lazy(() =>
   import('@/features/renderer/CrossSectionSVG').then((m) => ({
@@ -55,6 +56,7 @@ export function ProposalReview() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      captureAnalytics('proposal_pdf_exported');
     } catch {
       setPdfError('The PDF could not be generated. Please try again.');
     } finally {
@@ -65,6 +67,9 @@ export function ProposalReview() {
   const handleDone = () => {
     const proposal = useProposalStore.getState().getProposal();
     if (proposal) useSavedProposalsStore.getState().saveProposal(proposal);
+    captureAnalytics('proposal_completed', {
+      element_count: afterStreet.elements.length,
+    });
     setStreet(afterStreet);
     setBeforeStreet(beforeStreet);
 

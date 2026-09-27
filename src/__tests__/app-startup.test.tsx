@@ -12,12 +12,20 @@ import { useExplorerStore } from '@/features/community/explorer-store';
 import { useReportStore } from '@/features/report/report-store';
 import { mapFixture } from '@/features/community/__tests__/map-fixture';
 
-const { backend, auth, provider, refresh } = vi.hoisted(() => ({
+const { backend, auth, provider, refresh, posthogInit, posthogIdentify, analyticsIdentity } = vi.hoisted(() => ({
   backend: { available: true },
   auth: vi.fn(),
   provider: vi.fn(),
   refresh: vi.fn(),
+  posthogInit: vi.fn(),
+  posthogIdentify: vi.fn(),
+  analyticsIdentity: { userId: undefined as string | undefined },
 }));
+vi.mock('posthog-js', () => ({ default: {
+  init: posthogInit,
+  identify: posthogIdentify,
+  get_property: () => analyticsIdentity.userId,
+} }));
 vi.mock('@/lib/api/convex-provider', () => ({
   get convexAvailable() {
     return backend.available;
@@ -70,6 +78,8 @@ vi.mock('@/features/map/MapView', () => ({ MapView: () => <h1>Interactive map</h
 
 beforeEach(() => {
   vi.clearAllMocks();
+  analyticsIdentity.userId = undefined;
+  posthogIdentify.mockImplementation((userId: string) => { analyticsIdentity.userId = userId; });
   backend.available = true;
   auth.mockReturnValue({ user: null, isLoading: false });
   useStreetStore.setState(useStreetStore.getInitialState());
@@ -84,6 +94,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
 
@@ -95,6 +106,11 @@ async function visit(path: string, expectedHeading: string | RegExp) {
 }
 
 describe('application routes with real page boundaries', () => {
+  it('waits for authentication to settle before changing the analytics identity', async () => {
+    auth.mockReturnValue({ user: null, isLoading: true });
+    await visit('/account', 'Your account');
+    expect(posthogIdentify).not.toHaveBeenCalled();
+  });
   it('loads the marketing page without application navigation, then opens the live map through its CTA', async () => {
     await visit('/', /Find the dangerous block/);
     expect(screen.queryByRole('navigation', { name: 'Main navigation' })).not.toBeInTheDocument();
@@ -160,6 +176,8 @@ describe('application routes with real page boundaries', () => {
 });
 
 it('mounts the real app through the production root and backend provider', async () => {
+  vi.stubEnv('VITE_POSTHOG_KEY', 'phc_startup_fixture');
+  auth.mockReturnValue({ user: { _id: 'startup-user', email: 'private@example.test' }, isLoading: false });
   window.history.replaceState({}, '', '/startup-not-found');
   const host = document.createElement('div');
   host.id = 'root';
@@ -179,6 +197,11 @@ it('mounts the real app through the production root and backend provider', async
     expect(rootSpy).toHaveBeenCalledOnce();
     expect(rootSpy).toHaveBeenCalledWith(host);
     expect(provider).toHaveBeenCalled();
+    await waitFor(() => expect(posthogInit).toHaveBeenCalledOnce());
+    expect(posthogInit).toHaveBeenCalledWith('phc_startup_fixture', expect.objectContaining({
+      capture_pageview: 'history_change',
+    }));
+    expect(posthogIdentify).toHaveBeenCalledExactlyOnceWith('startup-user');
     expect(auth).toHaveBeenCalled();
     expect(host).toContainElement(screen.getByRole('navigation', { name: 'Main navigation' }));
   } finally {

@@ -15,6 +15,7 @@ import type { ReportTemplateInput } from './templates';
 import type { HotspotPin, DesignPin } from '@/lib/types';
 import { HOTSPOT_CATEGORY_LABELS } from '@/lib/types';
 import { getGovernmentContactHref, useBillingAccess } from '@/lib/billing/access';
+import { captureAnalytics } from '@/lib/analytics';
 
 // ── Props ──────────────────────────────────────────────────────────────────
 
@@ -500,6 +501,10 @@ function StepReview({ onSent }: { onSent: () => void }) {
   const mailtoUrl = buildEmailDraftUrl(selectedReps, subject, body);
   const handleSendEmail = () => {
     if (!mailtoUrl) return;
+    captureAnalytics('report_email_draft_opened', {
+      recipient_count: selectedReps.length,
+      includes_pdf: includePdf,
+    });
     window.open(mailtoUrl, '_blank', 'noopener,noreferrer');
     onSent();
   };

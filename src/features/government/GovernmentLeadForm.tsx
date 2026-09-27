@@ -3,6 +3,7 @@ import { Badge, Button, Select } from '@/components/ui';
 import { useAuth } from '@/lib/api/auth';
 import { useGovernmentLeadSubmission } from '@/lib/api/government';
 import { useToast } from '@/components/ui/Toast';
+import { captureAnalytics } from '@/lib/analytics';
 import type { BillingFeatureKey } from '@/lib/billing/access';
 
 const POPULATION_OPTIONS = [
@@ -105,6 +106,10 @@ export function GovernmentLeadForm({
       setSubmissionState({
         status: typeof result?.status === 'string' ? result.status : 'new',
         leadId: typeof result?.leadId === 'string' ? result.leadId : 'pending',
+      });
+      captureAnalytics('government_onboarding_requested', {
+        source_surface: sourceSurface,
+        has_requested_feature: Boolean(requestedFeature),
       });
       showToast('Curbwise will follow up with your jurisdiction setup request.', 'success');
     } catch (submissionError) {

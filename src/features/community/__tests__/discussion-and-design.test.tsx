@@ -6,8 +6,12 @@ import { DesignCard } from '../DesignCard';
 import { VoteButton } from '../VoteButton';
 import { MOCK_DESIGNS, type MockComment } from '../mock-data';
 
+const { captureAnalytics } = vi.hoisted(() => ({ captureAnalytics: vi.fn() }));
+vi.mock('@/lib/analytics', () => ({ captureAnalytics }));
+
 afterEach(() => {
   cleanup();
+  captureAnalytics.mockClear();
   vi.restoreAllMocks();
 });
 
@@ -82,6 +86,14 @@ describe('design cards and voting', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Downvote' }));
     expect(screen.getByLabelText('8 votes')).toBeInTheDocument();
     expect(onVote.mock.calls).toEqual([[1], [1], [-1], [1], [-1], [-1]]);
+    expect(captureAnalytics.mock.calls).toEqual([
+      ['community_vote_cast', { vote_direction: 'up', vote_action: 'cast' }],
+      ['community_vote_cast', { vote_direction: 'up', vote_action: 'removed' }],
+      ['community_vote_cast', { vote_direction: 'down', vote_action: 'cast' }],
+      ['community_vote_cast', { vote_direction: 'up', vote_action: 'changed' }],
+      ['community_vote_cast', { vote_direction: 'down', vote_action: 'changed' }],
+      ['community_vote_cast', { vote_direction: 'down', vote_action: 'removed' }],
+    ]);
   });
   it.each([
     [30_000, 'just now'],

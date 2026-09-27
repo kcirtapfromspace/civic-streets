@@ -6,6 +6,7 @@ import { COMMON_ROW_WIDTHS, UNITS } from '@/lib/constants';
 import { Button, Select, Tooltip } from '@/components/ui';
 import type { FunctionalClass, StreetDirection } from '@/lib/types';
 import { useBillingAccess } from '@/lib/billing/access';
+import { captureAnalytics } from '@/lib/analytics';
 
 const FUNCTIONAL_CLASS_OPTIONS = [
   { value: 'local', label: 'Local' },
@@ -62,6 +63,7 @@ export function Toolbar() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      captureAnalytics('street_design_pdf_exported');
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'PDF export failed';

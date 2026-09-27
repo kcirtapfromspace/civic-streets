@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef, useId, useMemo } from 'react';
 import { ConvexError } from 'convex/values';
 import { Button } from '@/components/ui';
+import { captureAnalytics } from '@/lib/analytics';
 import type { IssueGroup, IssueType, HotspotSeverity } from '@/lib/types/community';
 import { ISSUE_GROUP_LABELS, ISSUE_GROUP_COLORS, SEVERITY_LABELS } from '@/lib/types/community';
 import { getIssueTypesByGroup, getIssueTypeConfig, ISSUE_GROUP_ICONS } from '@/lib/config/issue-types';
@@ -263,6 +264,13 @@ export function IssueReportForm({
           processedImages,
           honeypotValue,
           formOpenedAt,
+        });
+        captureAnalytics('issue_report_submitted', {
+          issue_group: selectedGroup,
+          issue_type: selectedType,
+          severity,
+          is_blocking: isBlocking,
+          photo_count: photoDataUrls.length,
         });
       } catch (error) {
         setSubmissionError(reportErrorMessage(error));

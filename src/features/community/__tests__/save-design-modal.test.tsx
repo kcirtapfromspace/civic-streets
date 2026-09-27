@@ -6,7 +6,8 @@ import { SaveDesignModal } from '../SaveDesignModal';
 import { useCommunityStore } from '../community-store';
 import { MOCK_HOTSPOTS } from '../mock-data';
 
-const { access, organization } = vi.hoisted(() => ({ access: vi.fn(), organization: vi.fn() }));
+const { access, organization, captureAnalytics } = vi.hoisted(() => ({ access: vi.fn(), organization: vi.fn(), captureAnalytics: vi.fn() }));
+vi.mock('@/lib/analytics', () => ({ captureAnalytics }));
 vi.mock('@/lib/api/use-hotspots', () => ({ useHotspotsList: () => ({ hotspots: MOCK_HOTSPOTS }) }));
 vi.mock('@/lib/billing/access', async (original) => ({
   ...(await original<object>()),
@@ -24,6 +25,7 @@ function CurrentLocation() {
 }
 
 beforeEach(() => {
+  captureAnalytics.mockClear();
   useCommunityStore.setState(useCommunityStore.getInitialState());
   access.mockReturnValue({ canAccess: true, contactHref: '/government/contact' });
   organization.mockReturnValue({
@@ -67,6 +69,9 @@ describe('save design dialog', () => {
       linkedHotspotId: 'h1',
       privacy: 'private',
     });
+    expect(captureAnalytics).toHaveBeenCalledExactlyOnceWith('design_saved', {
+      privacy: 'private', has_linked_hotspot: true,
+    });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     act(() =>
       useCommunityStore
@@ -93,6 +98,7 @@ describe('save design dialog', () => {
     });
     fireEvent.submit(screen.getByRole('textbox', { name: 'Design Title' }).closest('form')!);
     expect(save).not.toHaveBeenCalled();
+    expect(captureAnalytics).not.toHaveBeenCalled();
     fireEvent.change(screen.getByRole('textbox', { name: 'Design Title' }), {
       target: { value: 'Crossing' },
     });
