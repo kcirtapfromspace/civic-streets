@@ -2,20 +2,20 @@
   "version": 1,
   "total": {
     "lines": {
-      "total": 6563,
-      "covered": 6511
+      "total": 6556,
+      "covered": 6505
     },
     "statements": {
-      "total": 7592,
-      "covered": 7497
+      "total": 7583,
+      "covered": 7489
     },
     "functions": {
-      "total": 1971,
-      "covered": 1964
+      "total": 1972,
+      "covered": 1965
     },
     "branches": {
-      "total": 5529,
-      "covered": 5342
+      "total": 5547,
+      "covered": 5361
     }
   },
   "files": {}

@@ -1,358 +1,503 @@
+import { useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Badge, Button } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { useBilling } from '@/lib/api/billing';
 import { useOrganizationContext } from '@/lib/api/organization';
 import { useGovernmentHub } from '@/lib/api/government';
 import { useToast } from '@/components/ui/Toast';
-import {
-  BILLING_FEATURE_LABELS,
-  hasActiveBillingStatus,
-  type BillingFeatureKey,
-} from '@/lib/billing/access';
+import { BILLING_FEATURE_LABELS, type BillingFeatureKey } from '@/lib/billing/access';
+import type { BillingStatus } from '@/lib/billing/types';
 import { getPlanByKey } from '@/lib/billing/plans';
 import { GovernmentLeadForm } from '@/features/government/GovernmentLeadForm';
+import './account.css';
+
+const BILLING_STATUS: Record<BillingStatus, { label: string; description: string }> = {
+  none: {
+    label: 'Free plan',
+    description: 'Your everyday tools for better streets. No subscription needed.',
+  },
+  inactive: {
+    label: 'Inactive',
+    description: 'Your government plan is inactive. Public civic tools remain free.',
+  },
+  pending: {
+    label: 'Setting up',
+    description: 'Your government plan is being set up. We’ll update its status here.',
+  },
+  trialing: { label: 'Trial', description: 'Your government plan is in its trial period.' },
+  active: { label: 'Active', description: 'Your government plan is active.' },
+  past_due: {
+    label: 'Payment overdue',
+    description: 'A payment needs attention. Review your billing details to resolve it.',
+  },
+  canceled: {
+    label: 'Canceled',
+    description: 'Your government plan has ended. Public civic tools remain free.',
+  },
+  incomplete: {
+    label: 'Setup incomplete',
+    description: 'Your billing setup is incomplete. Review your billing details to continue.',
+  },
+  unpaid: {
+    label: 'Payment needed',
+    description: 'Payment is needed to restore your government plan.',
+  },
+};
 
 function formatDate(value: string | null): string {
-  if (!value) return 'Not set';
-  const date = new Date(value);
+  if (!value) return 'Not scheduled';
+  const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function formatCoverageStatus(value: string | null | undefined): string {
-  switch (value) {
-    case 'pilot':
-      return 'Pilot';
-    case 'active':
-      return 'Active';
-    case 'outreach':
-      return 'Outreach';
-    case 'paused':
-      return 'Paused';
-    default:
-      return 'Unsigned';
-  }
-}
-
-function getCoverageBadgeVariant(value: string | null | undefined) {
-  if (value === 'active' || value === 'pilot') return 'success' as const;
-  if (value === 'outreach') return 'warning' as const;
-  if (value === 'paused') return 'default' as const;
-  return 'default' as const;
-}
-
-function getBillingStatusCopy(status: ReturnType<typeof useBilling>['billingState']['status']): string {
-  if (status === 'active' || status === 'trialing') {
-    return 'Contract billing is live.';
-  }
-  if (status === 'pending') {
-    return 'Provisioning is still syncing.';
-  }
-  if (status === 'past_due') {
-    return 'There is a billing issue to resolve.';
-  }
-  if (status === 'canceled') {
-    return 'Contract access is not currently active.';
-  }
-  return 'Public civic access is active. Government onboarding has not been provisioned yet.';
+function readableStatus(value: string): string {
+  return value.replace(/_/g, ' ').replace(/^./, (letter) => letter.toUpperCase());
 }
 
 export default function AccountPage() {
   const [searchParams] = useSearchParams();
   const { showToast } = useToast();
-  const { billingState, billingStateLoading, billingError, openPortal } = useBilling();
+  const {
+    user,
+    isLoadingAuth,
+    billingState,
+    billingStateLoading,
+    billingError,
+    isOpeningPortal,
+    openPortal,
+    refreshBillingState,
+  } = useBilling();
   const { organization, organizationLoading, organizationError } = useOrganizationContext({
     bootstrapIfMissing: true,
   });
   const { hub, isLoading: governmentHubLoading } = useGovernmentHub();
-
-  const currentPlan = getPlanByKey(billingState.planKey);
-  const hasLivePaidPlan = hasActiveBillingStatus(billingState.status);
-  const requestedFeatureKey = searchParams.get('feature') as BillingFeatureKey | null;
-  const requestedFeatureLabel = requestedFeatureKey
-    ? BILLING_FEATURE_LABELS[requestedFeatureKey]
-    : null;
+  const [portalPending, setPortalPending] = useState(false);
+  const governmentIntent = searchParams.get('intent') === 'government';
+  const feature = searchParams.get('feature');
+  const requestedFeatureKey =
+    feature && Object.prototype.hasOwnProperty.call(BILLING_FEATURE_LABELS, feature)
+      ? (feature as BillingFeatureKey)
+      : undefined;
+  const isFreePlan = billingState.planKey === 'civic_free';
+  const planStatus =
+    BILLING_STATUS[isFreePlan && billingState.status === 'inactive' ? 'none' : billingState.status];
+  const hasGovernmentDetails =
+    !isFreePlan ||
+    Boolean(hub?.coverage || hub?.latestLead) ||
+    Boolean(organization && organization.organizationType !== 'individual');
+  const displayName = user?.displayName || 'Community member';
+  const coverageLabel = hub?.coverage ? readableStatus(hub.coverage.status) : 'Not connected';
+  const renewalDate =
+    billingState.organization?.contractRenewalDate ?? billingState.currentPeriodEnd;
 
   const handleManageBilling = async () => {
+    setPortalPending(true);
     try {
       await openPortal();
     } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : 'Unable to open billing portal',
-        'error',
-      );
+      showToast(error instanceof Error ? error.message : 'Unable to open billing portal', 'error');
+    } finally {
+      setPortalPending(false);
     }
   };
 
   return (
-    <div className="min-h-full bg-stone-50">
-      <div className="mx-auto max-w-6xl px-4 py-10 lg:px-8">
-        <div className="grid gap-6 lg:grid-cols-[1.18fr_0.82fr]">
-          <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
-            <div className="border-b border-slate-200 bg-[linear-gradient(135deg,#0f172a,#1e293b_55%,#334155)] px-6 py-7 text-white">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="space-y-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55">
-                    Account
-                  </p>
-                  <h1 className="text-3xl font-semibold tracking-tight">
-                    Jurisdiction status
-                  </h1>
-                  <p className="max-w-2xl text-sm leading-6 text-white/72">
-                    Manage contract state, jurisdiction coverage, and onboarding
-                    requests from one place.
-                  </p>
-                </div>
-                <Badge variant={hasLivePaidPlan ? 'success' : 'default'}>
-                  {billingState.status}
-                </Badge>
-              </div>
+    <div className="account-page">
+      <div className="account-shell">
+        <header className="account-heading">
+          <div>
+            <p className="account-eyebrow">A little care. Better streets.</p>
+            <h1>Your account</h1>
+            <p>Your place in the Curbwise community.</p>
+          </div>
+          <Link className="account-text-link" to="/map">
+            Back to map <span aria-hidden="true">↗</span>
+          </Link>
+        </header>
 
-              {searchParams.get('intent') === 'government' && (
-                <div className="mt-5 rounded-2xl border border-white/12 bg-white/8 px-4 py-3 text-sm text-white/88 backdrop-blur">
-                  {requestedFeatureLabel
-                    ? `Need ${requestedFeatureLabel}? Tell us about the jurisdiction and we will scope the right setup.`
-                    : 'Tell us about the jurisdiction and the workflow you need. We will follow up directly.'}
-                </div>
+        <section className="account-profile" aria-label="Your profile" aria-busy={isLoadingAuth}>
+          <div className="account-avatar" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path
+                d="m7 25 5-18h8l5 18M16 10v3m0 4v3m0 4v1"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+          <div className="account-profile-copy">
+            {isLoadingAuth ? (
+              <p className="account-loading" role="status">
+                Loading your profile…
+              </p>
+            ) : (
+              <h2>{displayName}</h2>
+            )}
+            <p>{user?.isAuthenticated ? user.email : 'Your community profile on this browser'}</p>
+          </div>
+          <span className="account-status">
+            {user?.isAuthenticated ? 'Signed in' : 'Guest profile'}
+          </span>
+          {!user?.isAuthenticated && (
+            <p className="account-session-note">
+              No sign-up needed. Keep using this browser to return to your profile. It won’t carry
+              over to other devices.
+            </p>
+          )}
+        </section>
+
+        {organizationError && (
+          <p role="alert" className="account-alert">
+            {organizationError}
+          </p>
+        )}
+
+        <div className="account-content-grid">
+          <section
+            className="account-plan account-panel"
+            aria-labelledby="account-plan-heading"
+            aria-busy={billingStateLoading}
+          >
+            <div className="account-section-heading">
+              <h2 id="account-plan-heading">Your plan</h2>
+              {!billingStateLoading && !billingError && (
+                <span className={`account-status ${isFreePlan ? 'account-status-blue' : ''}`}>
+                  {planStatus.label}
+                </span>
               )}
             </div>
-
-            <div className="px-6 py-6">
-              {organizationError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{organizationError}</p>}
-              <div className="grid gap-4 md:grid-cols-3">
-                <MetricCard
-                  label="Current plan"
-                  value={billingStateLoading ? 'Loading...' : currentPlan?.name ?? 'Civic Free'}
-                  detail={getBillingStatusCopy(billingState.status)}
-                />
-                <MetricCard
-                  label="Coverage"
-                  value={
-                    governmentHubLoading
-                      ? 'Loading...'
-                      : formatCoverageStatus(hub?.coverage?.status)
-                  }
-                  detail={
-                    hub?.coverage?.displayName
-                      ? hub.coverage.displayName
-                      : 'No jurisdiction linked yet'
-                  }
-                />
-                <MetricCard
-                  label="Procurement"
-                  value={organization?.procurementState ?? 'none'}
-                  detail={
-                    billingState.organization?.invoiceMode ??
-                    organization?.invoiceMode ??
-                    'self_serve'
-                  }
-                />
+            {billingStateLoading ? (
+              <div className="account-plan-loading" role="status">
+                <span className="account-skeleton account-skeleton-title" />
+                <span className="account-skeleton" />
+                <span className="sr-only">Loading your plan…</span>
               </div>
-
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <InfoCard
-                  title="Organization"
-                  rows={[
-                    ['Organization', organizationLoading ? 'Loading...' : organization?.name ?? 'Not provisioned yet'],
-                    ['Jurisdiction', organization?.jurisdictionName ?? hub?.latestLead?.jurisdictionName ?? 'Not set'],
-                    ['Workspace', organization?.workspaceName ?? 'Shared Workspace'],
-                    ['Role', organization?.memberRole ?? 'owner'],
-                  ]}
-                />
-                <InfoCard
-                  title="Contract"
-                  rows={[
-                    ['Renewal', formatDate(billingState.organization?.contractRenewalDate ?? billingState.currentPeriodEnd)],
-                    ['Billing email', billingState.billingEmail ?? 'Pending provisioning'],
-                    ['Portal', billingState.customerPortalEnabled ? 'Enabled' : 'Not enabled'],
-                    ['Backend sync', billingError ? 'Needs review' : 'Healthy'],
-                  ]}
-                />
+            ) : billingError ? (
+              <div className="account-plan-error">
+                <p role="alert">We couldn’t load your plan. {billingError}</p>
+                <Button onClick={() => void refreshBillingState()}>Try again</Button>
               </div>
-
-              <div className="mt-6 flex flex-wrap gap-3">
+            ) : (
+              <>
+                <div className="account-plan-title">
+                  <h3>{getPlanByKey(billingState.planKey)?.name}</h3>
+                  {isFreePlan && (
+                    <span>
+                      $0 <span>/ always</span>
+                    </span>
+                  )}
+                </div>
+                <p className="account-plan-description">{planStatus.description}</p>
+                <ul className="account-included" aria-label="Included in your plan">
+                  {[
+                    ['Report street issues', billingState.entitlements.publicIssueReports],
+                    [
+                      'Create and share public proposals',
+                      billingState.entitlements.publicProposals,
+                    ],
+                    ['Explore community hotspots', billingState.entitlements.publicHotspots],
+                  ]
+                    .filter(([, enabled]) => enabled)
+                    .map(([label]) => (
+                      <li key={String(label)}>
+                        <span aria-hidden="true">✓</span>
+                        {label}
+                      </li>
+                    ))}
+                </ul>
+                <details className="account-details account-plan-details">
+                  <summary>
+                    View plan details <Chevron />
+                  </summary>
+                  <dl className="account-detail-list">
+                    {[
+                      ['Public civic workflows', billingState.entitlements.publicHotspots],
+                      ['Private projects', billingState.entitlements.privateProjects],
+                      ['Review threads', billingState.entitlements.reviewThreads],
+                      ['Approval states', billingState.entitlements.approvalStates],
+                      ['Billing admin', billingState.entitlements.billingAdmin],
+                      ['Audit logs', billingState.entitlements.auditLogs],
+                    ].map(([label, enabled]) => (
+                      <DetailRow
+                        key={String(label)}
+                        label={String(label)}
+                        value={enabled ? 'Included' : 'Not included'}
+                      />
+                    ))}
+                    {(!isFreePlan || billingState.customerPortalEnabled || renewalDate) && (
+                      <>
+                        <DetailRow
+                          label={billingState.cancelAtPeriodEnd ? 'Access ends' : 'Renewal'}
+                          value={formatDate(renewalDate)}
+                        />
+                        <DetailRow
+                          label="Billing email"
+                          value={billingState.billingEmail ?? 'Not provided'}
+                        />
+                      </>
+                    )}
+                  </dl>
+                </details>
                 {billingState.customerPortalEnabled && (
-                  <Button variant="primary" onClick={() => void handleManageBilling()}>
-                    Manage billing
+                  <Button
+                    className="account-billing-button"
+                    onClick={() => void handleManageBilling()}
+                    disabled={portalPending || isOpeningPortal}
+                  >
+                    {portalPending || isOpeningPortal ? 'Opening billing…' : 'Manage billing'}
                   </Button>
                 )}
-                <Link to="/map">
-                  <Button variant="secondary">Back to Map</Button>
-                </Link>
-                <Link to="/#government">
-                  <Button variant="ghost">Landing government section</Button>
-                </Link>
-              </div>
-            </div>
+              </>
+            )}
           </section>
 
-          <aside className="space-y-6">
-            <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.06)]">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                    Jurisdiction coverage
-                  </p>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Coverage status is explicit. Unsigned jurisdictions route
-                    resident actions into the outreach queue.
-                  </p>
-                </div>
-                <Badge variant={getCoverageBadgeVariant(hub?.coverage?.status)}>
-                  {formatCoverageStatus(hub?.coverage?.status)}
-                </Badge>
-              </div>
+          <nav className="account-actions" aria-labelledby="account-actions-heading">
+            <h2 id="account-actions-heading">Make a difference</h2>
+            <p>Small steps toward safer streets.</p>
+            <AccountAction
+              to="/map"
+              title="Explore the map"
+              description="See what’s happening on your streets."
+              icon={
+                <>
+                  <path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2V5Z" />
+                  <path d="M9 3v16M15 5v16" />
+                </>
+              }
+            />
+            <AccountAction
+              to="/editor"
+              title="Design a better street"
+              description="Turn an idea into a street proposal."
+              icon={
+                <>
+                  <path d="m4 16-1 5 5-1L21 7l-4-4L4 16Z" />
+                  <path d="m14 6 4 4M4 16l4 4" />
+                </>
+              }
+            />
+            <AccountAction
+              to="/hotspots"
+              title="Browse community issues"
+              description="Find concerns and add your support."
+              icon={
+                <>
+                  <path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0Z" />
+                  <circle cx="12" cy="10" r="2.5" />
+                </>
+              }
+            />
+          </nav>
+        </div>
 
-              <div className="mt-5 space-y-3 text-sm text-slate-700">
-                <CoverageRow
-                  label="Contacts cached"
-                  value={String(hub?.coverage?.contactCount ?? 0)}
-                />
-                <CoverageRow
-                  label="Fresh official contacts"
-                  value={String(hub?.coverage?.freshContactCount ?? 0)}
-                />
-                <CoverageRow
-                  label="Last sync"
-                  value={
-                    hub?.coverage?.lastContactSyncAt
-                      ? new Date(hub.coverage.lastContactSyncAt).toLocaleDateString()
-                      : 'Not synced'
-                  }
-                />
-              </div>
-            </section>
-
-            <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.06)]">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                Entitlements
+        <details
+          id="government-contact"
+          className="account-details account-government"
+          open={governmentIntent || hasGovernmentDetails}
+        >
+          <summary>
+            <span className="account-government-icon" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m3 9 9-6 9 6H3ZM5 10v8m7-8v8m7-8v8M3 21h18" />
+              </svg>
+            </span>
+            <span className="account-government-title">
+              {hasGovernmentDetails ? 'Your government workspace' : 'For towns & cities'}
+              <span>Private workspaces, team reviews, and tools for public agencies.</span>
+            </span>
+            <span className="account-government-cta">
+              {hasGovernmentDetails ? 'View details' : 'Set up a team'}
+            </span>
+            <Chevron />
+          </summary>
+          <div className="account-government-body">
+            {governmentIntent && requestedFeatureKey && (
+              <p className="account-intent-note">
+                Need {BILLING_FEATURE_LABELS[requestedFeatureKey]}? Tell us about your team below.
               </p>
-              <div className="mt-4 space-y-2 text-sm text-slate-700">
-                <EntitlementRow label="Public civic workflows" enabled={billingState.entitlements.publicHotspots} />
-                <EntitlementRow label="Private projects" enabled={billingState.entitlements.privateProjects} />
-                <EntitlementRow label="Review threads" enabled={billingState.entitlements.reviewThreads} />
-                <EntitlementRow label="Approval states" enabled={billingState.entitlements.approvalStates} />
-                <EntitlementRow label="Billing admin" enabled={billingState.entitlements.billingAdmin} />
-                <EntitlementRow label="Audit logs" enabled={billingState.entitlements.auditLogs} />
+            )}
+            {hasGovernmentDetails && (
+              <div className="account-government-grid">
+                <section aria-label="Organization details">
+                  <h3>Organization</h3>
+                  <dl className="account-detail-list">
+                    <DetailRow
+                      label="Name"
+                      value={
+                        organizationLoading ? 'Loading…' : (organization?.name ?? 'Not set up yet')
+                      }
+                    />
+                    <DetailRow
+                      label="Jurisdiction"
+                      value={
+                        organization?.jurisdictionName ??
+                        hub?.latestLead?.jurisdictionName ??
+                        'Not connected'
+                      }
+                    />
+                    <DetailRow
+                      label="Workspace"
+                      value={organization?.workspaceName ?? 'Not set up yet'}
+                    />
+                    <DetailRow
+                      label="Your role"
+                      value={
+                        organization?.memberRole
+                          ? readableStatus(organization.memberRole)
+                          : 'Not assigned'
+                      }
+                    />
+                    <DetailRow
+                      label="Procurement"
+                      value={readableStatus(organization?.procurementState ?? 'none')}
+                    />
+                    <DetailRow
+                      label="Billing method"
+                      value={readableStatus(
+                        billingState.organization?.invoiceMode ??
+                          organization?.invoiceMode ??
+                          'self_serve',
+                      )}
+                    />
+                  </dl>
+                </section>
+                <section aria-label="Jurisdiction coverage">
+                  <h3>Jurisdiction coverage</h3>
+                  <dl className="account-detail-list">
+                    <DetailRow
+                      label="Status"
+                      value={governmentHubLoading ? 'Loading…' : coverageLabel}
+                    />
+                    <DetailRow
+                      label="Jurisdiction"
+                      value={hub?.coverage?.displayName ?? 'Not connected'}
+                    />
+                    <DetailRow
+                      label="Official contacts"
+                      value={String(hub?.coverage?.contactCount ?? 0)}
+                    />
+                    <DetailRow
+                      label="Up-to-date contacts"
+                      value={String(hub?.coverage?.freshContactCount ?? 0)}
+                    />
+                    <DetailRow
+                      label="Last updated"
+                      value={
+                        hub?.coverage?.lastContactSyncAt
+                          ? new Date(hub.coverage.lastContactSyncAt).toLocaleDateString('en-US')
+                          : 'Not updated yet'
+                      }
+                    />
+                  </dl>
+                </section>
               </div>
-            </section>
-
+            )}
             {hub?.latestLead && (
-              <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.06)]">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                  Latest request
-                </p>
-                <p className="mt-3 text-sm font-medium text-slate-900">
-                  {hub.latestLead.jurisdictionName}
-                </p>
-                <p className="mt-1 text-sm text-slate-600">
-                  {hub.latestLead.roleTitle} · {hub.latestLead.workEmail}
-                </p>
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <Badge variant="info">{hub.latestLead.status}</Badge>
-                  <span className="text-xs text-slate-500">
-                    Submitted {hub.latestLead.submissionCount} time{hub.latestLead.submissionCount === 1 ? '' : 's'}
-                  </span>
+              <section className="account-request" aria-label="Latest setup request">
+                <div>
+                  <h3>Latest request · {hub.latestLead.jurisdictionName}</h3>
+                  <p>
+                    {hub.latestLead.roleTitle} · {hub.latestLead.workEmail}
+                  </p>
                 </div>
+                <span className="account-status">{readableStatus(hub.latestLead.status)}</span>
+                <p>
+                  Submitted {hub.latestLead.submissionCount} time
+                  {hub.latestLead.submissionCount === 1 ? '' : 's'}
+                </p>
               </section>
             )}
-          </aside>
-        </div>
-
-        <div id="government-contact" className="mt-8">
-          <GovernmentLeadForm
-            sourceSurface="account"
-            requestedFeature={requestedFeatureKey ?? undefined}
-            title="Request municipal onboarding"
-            description="Need private workspaces, branded exports, or internal review? Send the jurisdiction details here and Curbwise will follow up."
-            initialJurisdictionName={
-              organization?.jurisdictionName ?? hub?.latestLead?.jurisdictionName ?? ''
-            }
-            initialRoleTitle={hub?.latestLead?.roleTitle ?? ''}
-            initialPopulationBand={organization?.populationBand ?? null}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-}) {
-  return (
-    <div className="rounded-[24px] border border-slate-200 bg-stone-50 px-4 py-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-        {label}
-      </p>
-      <p className="mt-3 text-xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-2 text-sm leading-6 text-slate-600">{detail}</p>
-    </div>
-  );
-}
-
-function InfoCard({
-  title,
-  rows,
-}: {
-  title: string;
-  rows: Array<[string, string]>;
-}) {
-  return (
-    <div className="rounded-[24px] border border-slate-200 bg-stone-50 px-4 py-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-        {title}
-      </p>
-      <div className="mt-4 space-y-3">
-        {rows.map(([label, value]) => (
-          <div key={label} className="flex items-start justify-between gap-4 text-sm">
-            <span className="text-slate-500">{label}</span>
-            <span className="text-right font-medium text-slate-900">{value}</span>
+            <GovernmentLeadForm
+              sourceSurface="account"
+              requestedFeature={requestedFeatureKey}
+              title="Let’s set up your team"
+              description="Tell us a little about your jurisdiction. We’ll help you find the right setup."
+              submitLabel="Send request"
+              className="rounded-none! border-0! bg-transparent! p-0! shadow-none! backdrop-blur-none!"
+              initialJurisdictionName={
+                organization?.jurisdictionName ?? hub?.latestLead?.jurisdictionName ?? ''
+              }
+              initialRoleTitle={hub?.latestLead?.roleTitle ?? ''}
+              initialPopulationBand={organization?.populationBand ?? null}
+            />
           </div>
-        ))}
+        </details>
+        <footer className="account-footer">
+          <span>Better streets start with you.</span>
+          <Link className="account-text-link" to="/">
+            About Curbwise <span aria-hidden="true">↗</span>
+          </Link>
+        </footer>
       </div>
     </div>
   );
 }
 
-function CoverageRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-slate-500">{label}</span>
-      <span className="font-medium text-slate-900">{value}</span>
+    <div>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
     </div>
   );
 }
 
-function EntitlementRow({
-  label,
-  enabled,
+function Chevron() {
+  return (
+    <svg className="account-chevron" aria-hidden="true" viewBox="0 0 20 20" fill="none">
+      <path
+        d="m6 8 4 4 4-4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function AccountAction({
+  to,
+  title,
+  description,
+  icon,
 }: {
-  label: string;
-  enabled: boolean;
+  to: string;
+  title: string;
+  description: string;
+  icon: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between">
-      <span>{label}</span>
-      <Badge variant={enabled ? 'success' : 'default'}>
-        {enabled ? 'On' : 'Off'}
-      </Badge>
-    </div>
+    <Link className="account-action" to={to}>
+      <span className="account-action-icon" aria-hidden="true">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          {icon}
+        </svg>
+      </span>
+      <span>
+        <strong>{title}</strong>
+        <span>{description}</span>
+      </span>
+      <span className="account-action-arrow" aria-hidden="true">
+        ↗
+      </span>
+    </Link>
   );
 }

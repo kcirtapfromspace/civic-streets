@@ -69,6 +69,25 @@ describe('saved area persistence', () => {
     expect(saveArea({ name: 'Overflow' })).toBe(false);
     expect(JSON.parse(localStorage.getItem('curbwise-saved-areas')!)).toHaveLength(10);
   });
+  it('keeps the map usable when browser storage cannot be read and recovers on the next save', () => {
+    const apply = vi.fn();
+    render(<SavedAreas onApply={apply} />);
+    vi.spyOn(storage, 'getItem').mockImplementationOnce(() => {
+      throw new DOMException('Storage unavailable', 'SecurityError');
+    });
+    act(() => {
+      saveArea({ name: 'School route' });
+    });
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    act(() => {
+      saveArea({ name: 'Park route' });
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Park route✕' }));
+    expect(apply).toHaveBeenCalledWith({ name: 'Park route' });
+    expect(JSON.parse(localStorage.getItem('curbwise-saved-areas')!)).toEqual([
+      { name: 'Park route' },
+    ]);
+  });
 });
 
 describe('mobile map drawer', () => {

@@ -138,7 +138,7 @@ describe('application routes with real page boundaries', () => {
     },
   );
   it.each([
-    ['/account', 'Jurisdiction status'],
+    ['/account', 'Your account'],
     ['/billing/success', 'Contract sync in progress'],
     ['/billing/cancel', 'Onboarding request canceled'],
     ['/institutional/denver-streets', 'Denver Streets Dashboard'],
