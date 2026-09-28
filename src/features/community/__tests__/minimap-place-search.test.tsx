@@ -72,4 +72,38 @@ describe('community map submitted search', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('No places found');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+
+  it('reopens dismissed suggestions on focus and clears the query without searching or moving the map', async () => {
+    searchPlaces.mockResolvedValue([
+      { place_id: 1, display_name: 'Denver, Colorado', lat: '39.7392', lon: '-104.9903' },
+    ]);
+    render(<ExplorerMinimap hotspots={[]} />);
+    const input = screen.getByRole('textbox', { name: 'Search places on community map' });
+    fireEvent.focus(input);
+    expect(searchPlaces).not.toHaveBeenCalled();
+
+    fireEvent.change(input, { target: { value: 'Denver' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    expect(await screen.findByRole('button', { name: 'Denver, Colorado' })).toBeVisible();
+
+    fireEvent.click(document.body);
+    expect(screen.queryByRole('button', { name: 'Denver, Colorado' })).not.toBeInTheDocument();
+    expect(input).toHaveValue('Denver');
+    fireEvent.focus(input);
+    expect(screen.getByRole('button', { name: 'Denver, Colorado' })).toBeVisible();
+    expect(searchPlaces).toHaveBeenCalledTimes(1);
+    expect(map.flyTo).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear place search' }));
+    expect(input).toHaveValue('');
+    expect(screen.queryByRole('button', { name: 'Clear place search' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Denver, Colorado' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Search' })).toBeDisabled();
+    fireEvent.focus(input);
+    expect(screen.queryByRole('button', { name: 'Denver, Colorado' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(searchPlaces).toHaveBeenCalledTimes(1);
+    expect(map.flyTo).not.toHaveBeenCalled();
+  });
 });
