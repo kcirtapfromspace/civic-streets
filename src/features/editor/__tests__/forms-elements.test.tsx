@@ -78,7 +78,7 @@ it('adds, selects, reorders, locks, resizes, and removes elements through the li
       <ElementProperties />
     </>,
   );
-  expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  expect(screen.queryByRole('list')).not.toBeInTheDocument();
   expect(screen.getByText('Select an element to view its properties.')).toBeInTheDocument();
   act(() => useStreetStore.getState().setStreet(street()));
   fireEvent.click(screen.getByRole('button', { name: '+ Add Element' }));
@@ -95,12 +95,12 @@ it('adds, selects, reorders, locks, resizes, and removes elements through the li
   expect(useStreetStore.getState().currentStreet?.elements[1].type).toBe('bike-lane');
   fireEvent.click(screen.getByRole('button', { name: 'Move Bike Lane down' }));
   expect(useStreetStore.getState().currentStreet?.elements[2].type).toBe('bike-lane');
-  const option = screen.getByRole('option', { name: /Sidewalk,/ });
-  fireEvent.keyDown(option, { key: 'ArrowDown' });
-  expect(useStreetStore.getState().selectedElementId).toBeNull();
-  fireEvent.keyDown(option, { key: 'Enter' });
+  const option = screen.getByRole('button', { name: /Sidewalk,/ });
+  expect(option).toHaveAttribute('aria-pressed', 'false');
+  expect(option.querySelector('input, button')).toBeNull();
+  fireEvent.click(option);
   expect(useStreetStore.getState().selectedElementId).toBe('sidewalk');
-  fireEvent.keyDown(option, { key: ' ' });
+  expect(option).toHaveAttribute('aria-pressed', 'true');
   const width = screen.getByLabelText('Width of Sidewalk in feet');
   fireEvent.click(width);
   fireEvent.keyDown(width, { key: 'Enter' });
@@ -119,7 +119,7 @@ it('adds, selects, reorders, locks, resizes, and removes elements through the li
   fireEvent.change(screen.getByLabelText('Width (ft)'), { target: { value: '9' } });
   expect(useStreetStore.getState().currentStreet?.elements[0].width).toBe(9);
   expect(screen.getByText('PROWAG min')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('option', { name: /Travel Lane,/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Travel Lane,/ }));
   expect(screen.queryByText('PROWAG min')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Remove Bike Lane' }));
   fireEvent.click(screen.getByRole('button', { name: 'Remove Travel Lane' }));
@@ -133,11 +133,11 @@ it('groups validation by standard and navigates to affected elements with safe f
       <ElementProperties />
     </>,
   );
-  expect(screen.getByText('All standards met')).toBeInTheDocument();
+  expect(screen.getByText('No dimension checks have run yet.')).toBeInTheDocument();
   act(() => {
     useStreetStore
       .getState()
-      .setStreet(street([{ ...element(), label: undefined }, element('lane', 'travel-lane', 10)]));
+      .setStreet(street([{ ...element(), label: undefined, locked: true }, element('lane', 'travel-lane', 10)]));
     useStreetStore
       .getState()
       .setValidationResults([
@@ -163,6 +163,8 @@ it('groups validation by standard and navigates to affected elements with safe f
   );
   expect(screen.getByText('1 error')).toBeInTheDocument();
   expect(screen.getByText('1 warning')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Unlock Sidewalk' }));
+  expect(screen.getByRole('button', { name: 'Lock Sidewalk' })).toBeInTheDocument();
 });
 it('positions and closes side panels from either edge', () => {
   const close = vi.fn();
@@ -203,4 +205,16 @@ it('keeps newly added examples usable when they have no predefined visual theme'
   expect(useStreetStore.getState().currentStreet).toEqual(example.segment);
   expect(useStreetStore.getState().beforeStreet).toEqual(example.before);
   catalog.mockRestore();
+});
+
+it('keeps pending and failed checks distinct from a completed check with no flags', () => {
+  render(<ValidationPanel />);
+  act(() => useStreetStore.getState().setValidationStatus('pending'));
+  expect(screen.getByRole('status')).toHaveTextContent('Checking selected dimensions');
+  expect(screen.queryByText('No flags from selected checks')).not.toBeInTheDocument();
+  act(() => useStreetStore.getState().setValidationStatus('error'));
+  expect(screen.getByRole('alert')).toHaveTextContent('Dimension checks could not run');
+  act(() => useStreetStore.getState().setValidationResults([]));
+  expect(screen.getByText('No flags from selected checks')).toBeInTheDocument();
+  expect(screen.getByText(/do not establish accessibility/)).toBeInTheDocument();
 });

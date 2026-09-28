@@ -1,3 +1,5 @@
+const eligibility = vi.hoisted(() => ({ value: 'optional' }));
+vi.mock('@/lib/api/use-report-eligibility', () => ({ usePhotoRequirement: () => eligibility.value }));
 import '@testing-library/jest-dom/vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -19,6 +21,7 @@ function choosePothole() {
   fireEvent.click(screen.getByRole('button', { name: 'Pothole' }));
 }
 beforeEach(() => {
+  eligibility.value = 'optional';
   captureAnalytics.mockClear();
   processImages.mockReset().mockResolvedValue([photo()]);
   vi.stubGlobal(
@@ -294,4 +297,49 @@ describe('issue photo preparation interactions', () => {
     expect(await screen.findByRole('img', { name: 'Upload 1' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+});
+
+
+it('enforces this reporter’s photo requirement before advancing and rechecks at submission', async () => {
+  eligibility.value = 'required';
+  const submit = vi.fn();
+  const { container, rerender } = render(<IssueReportForm initialLat={39.74} initialLng={-104.99} initialAddress="Grant Street" onSubmit={submit} />);
+  expect(screen.getByText('At least one photo is required for your public observation.')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+  fireEvent.submit(container.querySelector('form')!);
+  expect(submit).not.toHaveBeenCalled();
+  fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files: [sourcePhoto] } });
+  await screen.findByRole('img', { name: 'Upload 1' });
+  expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
+  choosePothole();
+  eligibility.value = 'unavailable';
+  rerender(<IssueReportForm initialLat={39.74} initialLng={-104.99} initialAddress="Grant Street" onSubmit={submit} />);
+  expect(screen.getByRole('button', { name: 'Save observation' })).toBeDisabled();
+  fireEvent.submit(container.querySelector('form')!);
+  expect(submit).not.toHaveBeenCalled();
+});
+
+it.each(['loading', 'unavailable'])('explains session %s before the resident completes public reporting', (state) => {
+  eligibility.value = state;
+  render(<IssueReportForm initialLat={39.74} initialLng={-104.99} initialAddress="Grant Street" onSubmit={vi.fn()} />);
+  expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+  expect(screen.getByText(state === 'loading' ? /Checking the photo requirement/ : /Your reporting session is unavailable/)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Keep as a private concern' })).toBeEnabled();
+});
+
+it('keeps the resident’s notes as a private concern without publishing or requiring photos', async () => {
+  const { useProposalStore } = await import('@/stores/proposal-store');
+  const { useWorkDraftsStore } = await import('@/stores/work-drafts-store');
+  localStorage.clear();
+  useProposalStore.getState().reset();
+  useWorkDraftsStore.getState().load();
+  const submit = vi.fn(), cancel = vi.fn();
+  render(<IssueReportForm initialLat={39.74} initialLng={-104.99} initialAddress="Grant Street" onSubmit={submit} onCancel={cancel} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+  fireEvent.change(screen.getByLabelText('Describe what you noticed (optional)'), { target: { value: 'A temporary sign blocks the ramp.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Keep as a private concern' }));
+  expect(useProposalStore.getState().briefContext.concern).toBe('A temporary sign blocks the ramp.');
+  expect(Object.values(useWorkDraftsStore.getState().drafts)[0].briefContext.concern).toBe('A temporary sign blocks the ramp.');
+  expect(submit).not.toHaveBeenCalled();
+  expect(cancel).toHaveBeenCalledOnce();
 });

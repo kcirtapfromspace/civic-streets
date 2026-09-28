@@ -62,6 +62,7 @@ function addOffice() {
 }
 
 beforeEach(() => {
+  localStorage.clear();
   useMapStore.setState({ selectedLocation: { lat: 39.74, lng: -104.99, address: 'Denver' } });
   useReportStore.getState().reset();
   backend.available = true;
@@ -234,7 +235,7 @@ describe('resident email-draft flow', () => {
     expect(useReportStore.getState()).toMatchObject({ designId: design.id, hotspotId: hotspot.id });
   });
 
-  it('removes an unavailable PDF option while preserving the editable message', () => {
+  it('does not promise an attachment or gate the editable message behind billing', () => {
     useReportStore.setState({
       step: 3,
       address: 'Denver',
@@ -245,8 +246,74 @@ describe('resident email-draft flow', () => {
       includePdf: true,
     });
     renderWizard({ design });
-    expect(screen.getByRole('checkbox', { name: /Include Street Design PDF/ })).toBeDisabled();
-    expect(useReportStore.getState().includePdf).toBe(false);
+    expect(screen.queryByRole('checkbox', { name: /Include Street Design PDF/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }));
+    expect(screen.getByText(/No brief is linked/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByLabelText('Message')).toHaveValue('My existing message');
   });
+});
+
+it('carries the original notes and concrete ask into email, without rewriting edits or inventing links', () => {
+  const briefContext = {
+    concern: 'The ramp is difficult to reach', desiredOutcome: 'A clear walking route', requestedNextStep: 'Move the temporary sign',
+    dimensionBasis: 'assumed' as const, dimensionSource: '', sourceUrl: 'https://curbwise.org/hotspot/hotspot-example',
+    observation: { id: hotspot.id, title: hotspot.title, description: 'A temporary sign blocks the curb ramp.', photoUrls: [], lat: hotspot.lat, lng: hotspot.lng, address: 'Denver', createdAt: 0, source: 'community' as const },
+  };
+  useReportStore.setState({ step: 3, address: 'Denver', hotspotId: hotspot.id, selectedReps: [office] });
+  renderWizard({ hotspot, briefContext });
+  const message = screen.getByLabelText('Message') as HTMLTextAreaElement;
+  expect(message.value).toContain('A temporary sign blocks the curb ramp.');
+  expect(message.value).toContain('My request: Move the temporary sign');
+  expect(message.value).toContain('A clear walking route');
+  expect(message.value).toContain(briefContext.sourceUrl);
+  fireEvent.change(message, { target: { value: '' } });
+  expect(message).toHaveValue('');
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  expect(screen.getByLabelText('Message')).toHaveValue('');
+});
+it('omits public source links for local observations and confirms clipboard success without delivery', async () => {
+  useReportStore.setState({ step: 3, address: 'Denver', hotspotId: hotspot.id, selectedReps: [office] });
+  renderWizard({ hotspot, briefContext: {
+    concern: 'Blocked ramp', desiredOutcome: '', requestedNextStep: 'Move sign', dimensionBasis: 'assumed', dimensionSource: '',
+    sourceUrl: 'https://should-not-appear.test', observation: { id: hotspot.id, title: 'Ramp', description: 'Blocked ramp', photoUrls: [], lat: 0, lng: 0, address: '', createdAt: 0, source: 'browser-session' },
+  } });
+  expect((screen.getByLabelText('Message') as HTMLTextAreaElement).value).not.toMatch(/should-not-appear|linked report/);
+  fireEvent.click(screen.getByRole('button', { name: 'Review' }));
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy to Clipboard' })));
+  expect(screen.getByText('Message copied. Nothing has been sent.')).toBeInTheDocument();
+});
+
+it.each([true, false])('describes supplied check outcomes with scoped language (pass=%s)', (prowagPass) => {
+  renderWizard({ hotspot: { ...hotspot, upvotes: 1 }, design: { ...design, prowagPass } });
+  expect(screen.getByText(prowagPass ? 'No flags in selected checks' : 'Selected checks need review')).toBeInTheDocument();
+  expect(screen.getByText(/1 upvote from/)).toBeInTheDocument();
+});
+it('keeps absent validation distinct and does not invent a recipient after a restored incomplete compose step', () => {
+  useReportStore.setState({ step: 3, designId: design.id, address: 'Denver' });
+  renderWizard({ design: { ...design, checksAvailable: false } });
+  expect(screen.getByLabelText('Message')).toHaveValue('');
+  expect(screen.getByRole('button', { name: 'Review' })).toBeDisabled();
+  act(() => useReportStore.getState().selectRep(office));
+  expect((screen.getByLabelText('Message') as HTMLTextAreaElement).value).not.toMatch(/marked as passing|marked as having issues/);
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  expect(screen.getByText('Checks not supplied')).toBeInTheDocument();
+});
+
+it('removes unlinked observation evidence from the prepared attachment while preserving the edited message', () => {
+  const briefContext = { concern: 'Ramp access', desiredOutcome: '', requestedNextStep: 'Move sign', dimensionBasis: 'assumed' as const, dimensionSource: '', sourceUrl: 'https://curbwise.org/hotspot/id', observation: { id: hotspot.id, title: 'Ramp', description: 'Original observation', photoUrls: ['https://example.test/photo'], lat: 0, lng: 0, address: '', createdAt: 0, source: 'community' as const } };
+  useReportStore.setState({ address: 'Denver', hotspotId: hotspot.id, selectedReps: [office], subject: 'My edited subject', body: 'My edited message', messageInitialized: true });
+  renderWizard({ hotspot, briefContext });
+  expect(screen.getByText(/Changing linked context keeps your message edits/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  expect(screen.getByLabelText('Message')).toHaveValue('My edited message');
+  fireEvent.click(screen.getByRole('button', { name: 'Review' }));
+  fireEvent.click(screen.getByText('Read the discussion brief'));
+  expect(screen.queryByRole('link', { name: 'Open source observation' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  expect(screen.getByText('My edited message')).toBeInTheDocument();
 });

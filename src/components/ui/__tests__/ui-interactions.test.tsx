@@ -287,3 +287,62 @@ it.each([true, false])('consumes Escape so the workspace behind the dialog canno
   expect(workspaceEscape).not.toHaveBeenCalled();
   window.removeEventListener('keydown', workspaceEscape);
 });
+
+it('preserves text selection across parent renders and restores the original opener after closing', () => {
+  vi.useFakeTimers();
+  const closed = vi.fn();
+  function FormDialog() {
+    const [open, setOpen] = useState(false);
+    const [value, setValue] = useState('');
+    return <><button onClick={() => setOpen(true)}>Open work</button><Modal isOpen={open} title="My work" onClose={() => { closed(value); setOpen(false); }}>
+      <input aria-label="Place" value={value} onChange={(event) => setValue(event.target.value)} />
+    </Modal></>;
+  }
+  render(<FormDialog />);
+  const opener = screen.getByRole('button', { name: 'Open work' });
+  opener.focus();
+  fireEvent.click(opener);
+  act(() => vi.advanceTimersByTime(20));
+  const input = screen.getByRole('textbox', { name: 'Place' }) as HTMLInputElement;
+  input.focus();
+  for (const value of ['L', 'Li', 'Library crossing']) {
+    fireEvent.change(document.activeElement!, { target: { value } });
+    input.setSelectionRange(1, Math.min(3, value.length));
+    act(() => vi.advanceTimersByTime(20));
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue(value);
+    expect(input.selectionStart).toBe(1);
+    expect(input.selectionEnd).toBe(Math.min(3, value.length));
+  }
+  expect(document.body.style.overflow).toBe('hidden');
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(closed).toHaveBeenCalledWith('Library crossing');
+  expect(opener).toHaveFocus();
+  expect(document.body.style.overflow).toBe('');
+});
+it('cancels scheduled focus on rapid close and retains an existing scroll lock', () => {
+  vi.useFakeTimers();
+  document.body.style.overflow = 'clip';
+  const { rerender } = render(<Modal isOpen title="Quick view" onClose={vi.fn()}><button>Save</button></Modal>);
+  rerender(<Modal isOpen={false} title="Quick view" onClose={vi.fn()}><button>Save</button></Modal>);
+  const next = document.createElement('button');
+  document.body.appendChild(next);
+  next.focus();
+  act(() => vi.runAllTimers());
+  expect(next).toHaveFocus();
+  expect(document.body.style.overflow).toBe('clip');
+  next.remove();
+  document.body.style.overflow = '';
+});
+it('uses the latest dismissal guard without refocusing an active field', () => {
+  vi.useFakeTimers();
+  const close = vi.fn();
+  const { rerender } = render(<Modal isOpen title="Draft" onClose={close}><input aria-label="Note" /></Modal>);
+  act(() => vi.runAllTimers());
+  screen.getByRole('textbox').focus();
+  rerender(<Modal isOpen title="Draft" onClose={close} dismissible={false}><input aria-label="Note" /></Modal>);
+  act(() => vi.runAllTimers());
+  expect(screen.getByRole('textbox')).toHaveFocus();
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(close).not.toHaveBeenCalled();
+});

@@ -41,10 +41,13 @@ function updatedAt(): string {
 export interface StreetState {
   // Current street being edited
   currentStreet: StreetSegment | null;
+  sourceDesignId: string | null;
+  workId: string | null;
   // Optional "before" street for comparison
   beforeStreet: StreetSegment | null;
   // Validation results from standards engine
   validationResults: ValidationResult[];
+  validationStatus: 'idle' | 'pending' | 'complete' | 'error';
   // Currently selected element ID
   selectedElementId: string | null;
   // UI state
@@ -76,6 +79,7 @@ export interface StreetState {
 
   // Validation
   setValidationResults: (results: ValidationResult[]) => void;
+  setValidationStatus: (status: Exclude<StreetState['validationStatus'], 'complete'>) => void;
 
   // Templates
   applyTemplate: (template: TemplateDefinition, rowWidth: number) => void;
@@ -88,307 +92,316 @@ export interface StreetState {
 }
 
 export const useStreetStore = create<StreetState>()(
-  temporal(
-    (set, get) => ({
-      currentStreet: null,
-      beforeStreet: null,
-      validationResults: [],
-      selectedElementId: null,
-      isTemplateGalleryOpen: false,
-      isExporting: false,
-      showBeforeAfter: false,
+  temporal((set, get) => ({
+    currentStreet: null,
+    sourceDesignId: null,
+    workId: null,
+    beforeStreet: null,
+    validationResults: [],
+    validationStatus: 'idle',
+    selectedElementId: null,
+    isTemplateGalleryOpen: false,
+    isExporting: false,
+    showBeforeAfter: false,
 
-      setStreet: (street) =>
-        set({ currentStreet: street }),
+    setStreet: (street) =>
+      set({
+        currentStreet: street,
+        sourceDesignId: null,
+        workId: street.id,
+        validationResults: [],
+        validationStatus: 'pending',
+        selectedElementId: null,
+        showBeforeAfter: false,
+      }),
 
-      setBeforeStreet: (street) =>
-        set({ beforeStreet: street }),
+    setBeforeStreet: (street) => set({ beforeStreet: street }),
 
-      updateStreetName: (name) => {
-        const current = get().currentStreet;
-        if (!current) return;
-        set({
-          currentStreet: {
-            ...current,
-            name,
-            metadata: { ...current.metadata, updatedAt: updatedAt() },
-          },
-        });
-      },
-
-      setROWWidth: (width) => {
-        const current = get().currentStreet;
-        if (!current) return;
-        set({
-          currentStreet: {
-            ...current,
-            totalROWWidth: width,
-            metadata: { ...current.metadata, updatedAt: updatedAt() },
-          },
-        });
-      },
-
-      setDirection: (direction) => {
-        const current = get().currentStreet;
-        if (!current) return;
-        set({
-          currentStreet: {
-            ...current,
-            direction,
-            metadata: { ...current.metadata, updatedAt: updatedAt() },
-          },
-        });
-      },
-
-      setFunctionalClass: (fc) => {
-        const current = get().currentStreet;
-        if (!current) return;
-        set({
-          currentStreet: {
-            ...current,
-            functionalClass: fc,
-            metadata: { ...current.metadata, updatedAt: updatedAt() },
-          },
-        });
-      },
-
-      createNewStreet: (name, rowWidth, functionalClass, direction, location) => {
-        const now = new Date().toISOString();
-        const elements: CrossSectionElement[] = [
-          {
-            id: crypto.randomUUID(),
-            type: 'sidewalk',
-            side: 'left',
-            width: DEFAULT_WIDTHS['sidewalk'],
-            constraints: DEFAULT_CONSTRAINTS['sidewalk'],
-            locked: false,
-            label: 'Sidewalk',
-          },
-          {
-            id: crypto.randomUUID(),
-            type: 'curb',
-            side: 'left',
-            width: DEFAULT_WIDTHS['curb'],
-            constraints: DEFAULT_CONSTRAINTS['curb'],
-            locked: false,
-            label: 'Curb',
-          },
-          {
-            id: crypto.randomUUID(),
-            type: 'travel-lane',
-            side: 'center',
-            width: DEFAULT_WIDTHS['travel-lane'],
-            constraints: DEFAULT_CONSTRAINTS['travel-lane'],
-            locked: false,
-            label: 'Travel Lane',
-          },
-          {
-            id: crypto.randomUUID(),
-            type: 'curb',
-            side: 'right',
-            width: DEFAULT_WIDTHS['curb'],
-            constraints: DEFAULT_CONSTRAINTS['curb'],
-            locked: false,
-            label: 'Curb',
-          },
-          {
-            id: crypto.randomUUID(),
-            type: 'sidewalk',
-            side: 'right',
-            width: DEFAULT_WIDTHS['sidewalk'],
-            constraints: DEFAULT_CONSTRAINTS['sidewalk'],
-            locked: false,
-            label: 'Sidewalk',
-          },
-        ];
-
-        const street: StreetSegment = {
-          id: crypto.randomUUID(),
+    updateStreetName: (name) => {
+      const current = get().currentStreet;
+      if (!current) return;
+      set({
+        validationStatus: 'pending',
+        currentStreet: {
+          ...current,
           name,
-          totalROWWidth: rowWidth,
-          curbToCurbWidth: computeCurbToCurb(elements),
+          metadata: { ...current.metadata, updatedAt: updatedAt() },
+        },
+      });
+    },
+
+    setROWWidth: (width) => {
+      const current = get().currentStreet;
+      if (!current) return;
+      set({
+        validationStatus: 'pending',
+        currentStreet: {
+          ...current,
+          totalROWWidth: width,
+          metadata: { ...current.metadata, updatedAt: updatedAt() },
+        },
+      });
+    },
+
+    setDirection: (direction) => {
+      const current = get().currentStreet;
+      if (!current) return;
+      set({
+        validationStatus: 'pending',
+        currentStreet: {
+          ...current,
           direction,
-          functionalClass,
-          elements,
-          metadata: { createdAt: now, updatedAt: now },
-          ...(location ? { location } : {}),
-        };
-        set({
-          currentStreet: street,
-          beforeStreet: null,
-          validationResults: [],
-          selectedElementId: null,
-        });
-      },
+          metadata: { ...current.metadata, updatedAt: updatedAt() },
+        },
+      });
+    },
 
-      addElement: (element) => {
-        const current = get().currentStreet;
-        if (!current) return;
+    setFunctionalClass: (fc) => {
+      const current = get().currentStreet;
+      if (!current) return;
+      set({
+        validationStatus: 'pending',
+        currentStreet: {
+          ...current,
+          functionalClass: fc,
+          metadata: { ...current.metadata, updatedAt: updatedAt() },
+        },
+      });
+    },
 
-        const newElement: CrossSectionElement = {
-          ...element,
+    createNewStreet: (name, rowWidth, functionalClass, direction, location) => {
+      const now = new Date().toISOString();
+      const elements: CrossSectionElement[] = [
+        {
           id: crypto.randomUUID(),
-        };
+          type: 'sidewalk',
+          side: 'left',
+          width: DEFAULT_WIDTHS['sidewalk'],
+          constraints: DEFAULT_CONSTRAINTS['sidewalk'],
+          locked: false,
+          label: 'Sidewalk',
+        },
+        {
+          id: crypto.randomUUID(),
+          type: 'curb',
+          side: 'left',
+          width: DEFAULT_WIDTHS['curb'],
+          constraints: DEFAULT_CONSTRAINTS['curb'],
+          locked: false,
+          label: 'Curb',
+        },
+        {
+          id: crypto.randomUUID(),
+          type: 'travel-lane',
+          side: 'center',
+          width: DEFAULT_WIDTHS['travel-lane'],
+          constraints: DEFAULT_CONSTRAINTS['travel-lane'],
+          locked: false,
+          label: 'Travel Lane',
+        },
+        {
+          id: crypto.randomUUID(),
+          type: 'curb',
+          side: 'right',
+          width: DEFAULT_WIDTHS['curb'],
+          constraints: DEFAULT_CONSTRAINTS['curb'],
+          locked: false,
+          label: 'Curb',
+        },
+        {
+          id: crypto.randomUUID(),
+          type: 'sidewalk',
+          side: 'right',
+          width: DEFAULT_WIDTHS['sidewalk'],
+          constraints: DEFAULT_CONSTRAINTS['sidewalk'],
+          locked: false,
+          label: 'Sidewalk',
+        },
+      ];
 
-        const elements = [...current.elements];
+      const street: StreetSegment = {
+        id: crypto.randomUUID(),
+        name,
+        totalROWWidth: rowWidth,
+        curbToCurbWidth: computeCurbToCurb(elements),
+        direction,
+        functionalClass,
+        elements,
+        metadata: { createdAt: now, updatedAt: now },
+        ...(location ? { location } : {}),
+      };
+      set({
+        validationStatus: 'pending',
+        currentStreet: street,
+        workId: street.id,
+        beforeStreet: null,
+        validationResults: [],
+        selectedElementId: null,
+      });
+    },
 
-        // Insert based on side:
-        // left elements go at the start (before center/right),
-        // right elements go at the end (after center/left),
-        // center elements go in the middle
-        if (newElement.side === 'left') {
-          // Find the first non-left element
-          const firstNonLeft = elements.findIndex(
-            (el) => el.side !== 'left',
-          );
-          if (firstNonLeft === -1) {
+    addElement: (element) => {
+      const current = get().currentStreet;
+      if (!current) return;
+
+      const newElement: CrossSectionElement = {
+        ...element,
+        id: crypto.randomUUID(),
+      };
+
+      const elements = [...current.elements];
+
+      // Insert based on side:
+      // left elements go at the start (before center/right),
+      // right elements go at the end (after center/left),
+      // center elements go in the middle
+      if (newElement.side === 'left') {
+        // Find the first non-left element
+        const firstNonLeft = elements.findIndex((el) => el.side !== 'left');
+        if (firstNonLeft === -1) {
+          elements.push(newElement);
+        } else {
+          elements.splice(firstNonLeft, 0, newElement);
+        }
+      } else if (newElement.side === 'right') {
+        // Find the last non-right element
+        let lastNonRight = -1;
+        for (let i = elements.length - 1; i >= 0; i--) {
+          if (elements[i].side !== 'right') {
+            lastNonRight = i;
+            break;
+          }
+        }
+        elements.splice(lastNonRight + 1, 0, newElement);
+      } else {
+        // Center: insert in the middle of center elements
+        const centerStart = elements.findIndex((el) => el.side === 'center');
+        const centerEnd = elements.reduce((last, el, i) => (el.side === 'center' ? i : last), -1);
+        if (centerStart === -1) {
+          // No center elements — insert after left elements
+          const firstRight = elements.findIndex((el) => el.side === 'right');
+          if (firstRight === -1) {
             elements.push(newElement);
           } else {
-            elements.splice(firstNonLeft, 0, newElement);
+            elements.splice(firstRight, 0, newElement);
           }
-        } else if (newElement.side === 'right') {
-          // Find the last non-right element
-          let lastNonRight = -1;
-          for (let i = elements.length - 1; i >= 0; i--) {
-            if (elements[i].side !== 'right') {
-              lastNonRight = i;
-              break;
-            }
-          }
-          elements.splice(lastNonRight + 1, 0, newElement);
         } else {
-          // Center: insert in the middle of center elements
-          const centerStart = elements.findIndex(
-            (el) => el.side === 'center',
-          );
-          const centerEnd = elements.reduce(
-            (last, el, i) => (el.side === 'center' ? i : last),
-            -1,
-          );
-          if (centerStart === -1) {
-            // No center elements — insert after left elements
-            const firstRight = elements.findIndex(
-              (el) => el.side === 'right',
-            );
-            if (firstRight === -1) {
-              elements.push(newElement);
-            } else {
-              elements.splice(firstRight, 0, newElement);
-            }
-          } else {
-            elements.splice(centerEnd + 1, 0, newElement);
-          }
+          elements.splice(centerEnd + 1, 0, newElement);
         }
+      }
 
-        set({
-          currentStreet: {
-            ...current,
-            elements,
-            curbToCurbWidth: computeCurbToCurb(elements),
-            metadata: { ...current.metadata, updatedAt: updatedAt() },
-          },
-        });
-      },
+      set({
+        validationStatus: 'pending',
+        currentStreet: {
+          ...current,
+          elements,
+          curbToCurbWidth: computeCurbToCurb(elements),
+          metadata: { ...current.metadata, updatedAt: updatedAt() },
+        },
+      });
+    },
 
-      removeElement: (id) => {
-        const current = get().currentStreet;
-        if (!current) return;
+    removeElement: (id) => {
+      const current = get().currentStreet;
+      if (!current) return;
 
-        const elements = current.elements.filter((el) => el.id !== id);
-        const selectedId =
-          get().selectedElementId === id ? null : get().selectedElementId;
+      const elements = current.elements.filter((el) => el.id !== id);
+      const selectedId = get().selectedElementId === id ? null : get().selectedElementId;
 
-        set({
-          currentStreet: {
-            ...current,
-            elements,
-            curbToCurbWidth: computeCurbToCurb(elements),
-            metadata: { ...current.metadata, updatedAt: updatedAt() },
-          },
-          selectedElementId: selectedId,
-        });
-      },
+      set({
+        validationStatus: 'pending',
+        currentStreet: {
+          ...current,
+          elements,
+          curbToCurbWidth: computeCurbToCurb(elements),
+          metadata: { ...current.metadata, updatedAt: updatedAt() },
+        },
+        selectedElementId: selectedId,
+      });
+    },
 
-      updateElement: (id, updates) => {
-        const current = get().currentStreet;
-        if (!current) return;
+    updateElement: (id, updates) => {
+      const current = get().currentStreet;
+      if (!current) return;
 
-        const elements = current.elements.map((el) =>
-          el.id === id ? { ...el, ...updates } : el,
-        );
+      const elements = current.elements.map((el) => (el.id === id ? { ...el, ...updates } : el));
 
-        set({
-          currentStreet: {
-            ...current,
-            elements,
-            curbToCurbWidth: computeCurbToCurb(elements),
-            metadata: { ...current.metadata, updatedAt: updatedAt() },
-          },
-        });
-      },
+      set({
+        validationStatus: 'pending',
+        currentStreet: {
+          ...current,
+          elements,
+          curbToCurbWidth: computeCurbToCurb(elements),
+          metadata: { ...current.metadata, updatedAt: updatedAt() },
+        },
+      });
+    },
 
-      reorderElements: (fromIndex, toIndex) => {
-        const current = get().currentStreet;
-        if (!current) return;
+    reorderElements: (fromIndex, toIndex) => {
+      const current = get().currentStreet;
+      if (!current) return;
 
-        const elements = [...current.elements];
-        if (
-          fromIndex < 0 ||
-          fromIndex >= elements.length ||
-          toIndex < 0 ||
-          toIndex >= elements.length
-        ) {
-          return;
-        }
+      const elements = [...current.elements];
+      if (
+        fromIndex < 0 ||
+        fromIndex >= elements.length ||
+        toIndex < 0 ||
+        toIndex >= elements.length
+      ) {
+        return;
+      }
 
-        const [moved] = elements.splice(fromIndex, 1);
-        elements.splice(toIndex, 0, moved);
+      const [moved] = elements.splice(fromIndex, 1);
+      elements.splice(toIndex, 0, moved);
 
-        set({
-          currentStreet: {
-            ...current,
-            elements,
-            metadata: { ...current.metadata, updatedAt: updatedAt() },
-          },
-        });
-      },
+      set({
+        validationStatus: 'pending',
+        currentStreet: {
+          ...current,
+          elements,
+          metadata: { ...current.metadata, updatedAt: updatedAt() },
+        },
+      });
+    },
 
-      selectElement: (id) => set({ selectedElementId: id }),
+    selectElement: (id) => set({ selectedElementId: id }),
 
-      setValidationResults: (results) =>
-        set({ validationResults: results }),
+    setValidationResults: (results) =>
+      set({ validationResults: results, validationStatus: 'complete' }),
 
-      applyTemplate: (template, rowWidth) => {
-        const current = get().currentStreet;
+    setValidationStatus: (validationStatus) => set({ validationStatus, validationResults: [] }),
 
-        // Save current street as the "before" for comparison
-        if (current) {
-          set({ beforeStreet: { ...current } });
-        }
+    applyTemplate: (template, rowWidth) => {
+      const current = get().currentStreet;
 
-        // Use WS3 parametric adapter for PROWAG-first width fitting
-        const newStreet = adaptTemplate(template, rowWidth);
-        // Preserve the user's street name and settings if editing
-        if (current) {
-          newStreet.name = current.name;
-          newStreet.direction = current.direction;
-          newStreet.functionalClass = current.functionalClass;
-        }
+      // Save current street as the "before" for comparison
+      if (current) {
+        set({ beforeStreet: { ...current } });
+      }
 
-        set({
-          currentStreet: newStreet,
-          selectedElementId: null,
-          isTemplateGalleryOpen: false,
-          validationResults: [],
-        });
-      },
+      // Use WS3 parametric adapter for PROWAG-first width fitting
+      const newStreet = adaptTemplate(template, rowWidth);
+      // Preserve the user's street name and settings if editing
+      if (current) {
+        newStreet.name = current.name;
+        newStreet.direction = current.direction;
+        newStreet.functionalClass = current.functionalClass;
+      }
 
-      openTemplateGallery: () => set({ isTemplateGalleryOpen: true }),
-      closeTemplateGallery: () => set({ isTemplateGalleryOpen: false }),
+      set({
+        validationStatus: 'pending',
+        currentStreet: newStreet,
+        workId: get().workId ?? newStreet.id,
+        selectedElementId: null,
+        isTemplateGalleryOpen: false,
+        validationResults: [],
+      });
+    },
 
-      setExporting: (exporting) => set({ isExporting: exporting }),
-      toggleBeforeAfter: () =>
-        set((state) => ({ showBeforeAfter: !state.showBeforeAfter })),
-    }),
-  ),
+    openTemplateGallery: () => set({ isTemplateGalleryOpen: true }),
+    closeTemplateGallery: () => set({ isTemplateGalleryOpen: false }),
+
+    setExporting: (exporting) => set({ isExporting: exporting }),
+    toggleBeforeAfter: () => set((state) => ({ showBeforeAfter: !state.showBeforeAfter })),
+  })),
 );

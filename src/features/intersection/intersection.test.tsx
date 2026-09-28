@@ -1,8 +1,10 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { IntersectionBrief } from './IntersectionBrief';
 import { IntersectionFlow } from './IntersectionFlow';
 import { ImprovementPicker } from './steps/ImprovementPicker';
 import { IntersectionReview } from './steps/IntersectionReview';
+import { useWorkDraftsStore } from '@/stores/work-drafts-store';
 import { useIntersectionStore } from '@/stores/intersection-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { INTERSECTION_PRESETS } from '@/lib/presets/intersection-presets';
@@ -10,6 +12,9 @@ import { INTERSECTION_IMPROVEMENTS } from '@/lib/presets/intersection-improvemen
 import { filterNearbyCrashes, summarizeCrashes, suggestImprovements } from './suggestion-engine';
 import type { NormalizedCrash } from '@/lib/types/safety-data';
 import type { IntersectionImprovement } from '@/lib/types/intersection';
+
+const generateObservationPDF = vi.hoisted(() => vi.fn());
+vi.mock('@/features/export', () => ({ generateObservationPDF }));
 
 const initialWorkspace = useWorkspaceStore.getState();
 const conditions = INTERSECTION_PRESETS[0].conditions;
@@ -27,14 +32,17 @@ const crash = (fields: Partial<NormalizedCrash> = {}): NormalizedCrash => ({
 });
 beforeEach(() => {
   vi.stubGlobal('localStorage', window.localStorage);
+  localStorage.clear();
+  useWorkDraftsStore.setState(useWorkDraftsStore.getInitialState());
   useIntersectionStore.getState().reset();
   useWorkspaceStore.setState(initialWorkspace, true);
 });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('intersection proposal journey', () => {
   it('selects conditions, toggles improvements, reviews the actual selection, and returns to explore', () => {
     useWorkspaceStore.setState({ mode: 'propose-intersection' });
+    useIntersectionStore.getState().initIntersection('Colfax at Broadway', { lat: 39.74, lng: -104.99 }, { lat: 39.74, lng: -104.99, address: 'Colfax at Broadway' });
     useIntersectionStore.setState({
       intersectionName: 'Colfax at Broadway',
       nearbyCrashes: [
@@ -68,12 +76,13 @@ describe('intersection proposal journey', () => {
     expect(screen.getAllByText('DATA-SUGGESTED').length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: 'Continue with 1 improvement' }));
     expect(screen.getByText('Intersection Proposal')).toBeTruthy();
-    expect(screen.getByText(first.label)).toBeTruthy();
+    expect(screen.getAllByText(first.label).length).toBeGreaterThan(0);
     expect(screen.getByText('2 recorded fatalities')).toBeTruthy();
     expect(screen.getByText('1 severe')).toBeTruthy();
     expect(screen.getByText('1 cyclist')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save and finish' }));
     expect(useIntersectionStore.getState().conditions).toBeNull();
+    expect(Object.values(useWorkDraftsStore.getState().drafts)[0]).toMatchObject({ kind: 'intersection', step: 'review', selectedImprovements: [first.id] });
     expect(useWorkspaceStore.getState().mode).toBe('explore');
   });
 
@@ -95,10 +104,10 @@ describe('intersection proposal journey', () => {
     );
     expect(screen.getByText('1 crash nearby')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Two-way stop/ }));
-    const back = screen.getAllByRole('button', { name: '' }).slice(-1)[0]!;
+    const back = screen.getByRole('button', { name: 'Back to conditions' });
     fireEvent.click(back);
     expect(screen.getByText(/What does this intersection/)).toBeTruthy();
-    fireEvent.click(screen.getAllByRole('button', { name: '' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Save and close intersection' }));
     expect(useIntersectionStore.getState().crashSummary).toBeNull();
     view.unmount();
     const empty = render(
@@ -124,7 +133,7 @@ describe('intersection proposal journey', () => {
       }),
     );
     expect(screen.getByText('Intersection Proposal')).toBeTruthy();
-    fireEvent.click(screen.getAllByRole('button', { name: '' }).slice(-1)[0]!);
+    fireEvent.click(screen.getByRole('button', { name: 'Back to improvements' }));
     act(() => useIntersectionStore.setState({ crashSummary: null }));
     expect(screen.queryByText(/crashes within/)).toBeNull();
   });
@@ -223,4 +232,48 @@ describe('crash evidence and improvement applicability', () => {
     expect(results.slice(0, 2).every((r) => r.isDataSuggested)).toBe(true);
     expect(results.slice(2).every((r) => !r.isDataSuggested)).toBe(true);
   });
+});
+
+
+it('keeps intersection purpose through a blocked close/finish, retries, then exports the actual selected ideas', async () => {
+  const store = useIntersectionStore.getState();
+  const place = { lat: 39.74, lng: -104.99, address: 'Broadway at Colfax' };
+  store.initIntersection('Broadway at Colfax', place, place);
+  useWorkspaceStore.getState().enterIntersectionMode(place);
+  generateObservationPDF.mockResolvedValue(new Blob(['PDF']));
+  URL.createObjectURL = vi.fn(() => 'blob:intersection');
+  URL.revokeObjectURL = vi.fn();
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  render(<IntersectionFlow />);
+  fireEvent.change(screen.getByLabelText('What is happening here?'), { target: { value: 'The ramp is blocked' } });
+  fireEvent.change(screen.getByLabelText('What would you like to improve?'), { target: { value: 'Step-free crossing' } });
+  fireEvent.change(screen.getByLabelText('What next step are you asking for?'), { target: { value: 'Please inspect the ramp' } });
+  const blocked = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Full'); });
+  fireEvent.click(screen.getByRole('button', { name: 'Save and close intersection' }));
+  expect(useWorkspaceStore.getState().mode).toBe('propose-intersection');
+  expect(screen.getByRole('alert').textContent).toContain('could not be saved');
+  blocked.mockRestore();
+  fireEvent.click(screen.getByRole('button', { name: 'Retry saving' }));
+  expect(screen.queryByRole('alert')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: /Uncontrolled residential/ }));
+  fireEvent.click(screen.getByRole('button', { name: /ADA curb ramps/ }));
+  expect(screen.getByRole('button', { name: /ADA curb ramps/ }).getAttribute('aria-pressed')).toBe('true');
+  fireEvent.click(screen.getByRole('button', { name: 'Continue with 1 improvement' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Download brief PDF' }));
+  await waitFor(() => expect(generateObservationPDF).toHaveBeenCalledOnce());
+  expect(generateObservationPDF).toHaveBeenCalledWith(expect.objectContaining({ concern: 'The ramp is blocked', requestedNextStep: 'Please inspect the ramp', supportingEvidence: expect.objectContaining({ title: 'Intersection conditions and ideas to discuss', details: [expect.stringContaining('ADA curb ramps')] }) }), { ...place, name: 'Broadway at Colfax' });
+  await screen.findByRole('link', { name: 'Download PDF again' });
+  const failAgain = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Full'); });
+  fireEvent.click(screen.getByRole('button', { name: 'Save and finish' }));
+  expect(useIntersectionStore.getState().conditions).not.toBeNull();
+  failAgain.mockRestore();
+  fireEvent.click(screen.getByRole('button', { name: 'Save and finish' }));
+  expect(useWorkspaceStore.getState().mode).toBe('explore');
+});
+
+it('keeps a readable unnamed intersection brief honest when its conditions and purpose are incomplete', () => {
+  render(<IntersectionBrief />);
+  expect(screen.getByRole('article', { name: 'Intersection discussion brief' }).textContent).toContain('Conditions have not been selected');
+  expect(screen.getByText('Draft reference: Not yet saved')).toBeTruthy();
+  expect(screen.getAllByText('Add this before sharing.')).toHaveLength(3);
 });

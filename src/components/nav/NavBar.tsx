@@ -1,5 +1,6 @@
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useId, useRef, useState } from 'react';
+import { SavedDrafts } from '@/features/proposal/SavedDrafts';
 
 const navLinks = [
   { to: '/map', label: 'Map', icon: MapPinIcon },
@@ -8,6 +9,7 @@ const navLinks = [
 ] as const;
 
 export function NavBar() {
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuId = useId();
   const menuButton = useRef<HTMLButtonElement>(null);
@@ -60,6 +62,7 @@ export function NavBar() {
 
       {/* Right side controls */}
       <div className="flex items-center gap-1.5">
+        <SavedDrafts inline onOpenWork={() => { setMobileMenuOpen(false); navigate('/map'); }} />
         {/* Account button */}
         <Link
           to="/account"

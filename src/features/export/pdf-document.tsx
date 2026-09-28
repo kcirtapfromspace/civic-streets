@@ -1,4 +1,4 @@
-import { Document, Page, View, Text, Image } from '@react-pdf/renderer';
+import { Document, Page, View, Text, Image, Link } from '@react-pdf/renderer';
 import type { DiscussionBriefContext, StreetSegment, ValidationResult } from '@/lib/types';
 import type { BriefPhoto } from './pdf-evidence';
 import { styles, colors, ELEMENT_TYPE_COLORS } from './pdf-styles';
@@ -15,7 +15,7 @@ function dateLabel(value: number): string {
 }
 
 function PageHeader({ title }: { title: string }) {
-  return <View style={styles.header}>
+  return <View style={styles.header} fixed>
     <Text style={styles.headerTitle}>{title}</Text>
     <Text style={styles.headerDate}>Curbwise</Text>
   </View>;
@@ -45,7 +45,7 @@ function BriefPage({ title, briefContext, photos, location, generatedAt, evidenc
   title: string;
   briefContext?: DiscussionBriefContext;
   photos: BriefPhoto[];
-  location?: StreetSegment['location'];
+  location?: { address?: string; lat?: number; lng?: number };
   generatedAt: number;
   evidenceOnly?: boolean;
 }) {
@@ -54,8 +54,9 @@ function BriefPage({ title, briefContext, photos, location, generatedAt, evidenc
   return <Page size="LETTER" style={styles.page}>
     <PageHeader title="Discussion brief" />
     <Text style={styles.briefTitle}>{title}</Text>
+    {briefContext?.briefId && <Text style={styles.caption}>Brief: {briefContext.briefId}{briefContext.revisedAt ? ` · Revision: ${briefContext.revisedAt}` : ''}</Text>}
     <Text style={styles.body}>{place?.address || 'Address not provided.'}</Text>
-    {place && <Text style={styles.caption}>Location: {place.lat.toFixed(5)}, {place.lng.toFixed(5)}</Text>}
+    {typeof place?.lat === 'number' && typeof place?.lng === 'number' && <Text style={styles.caption}>Location: {place.lat.toFixed(5)}, {place.lng.toFixed(5)}</Text>}
     <BriefField label="The concern" text={briefContext?.concern} />
     <BriefField label="What we would like to improve" text={briefContext?.desiredOutcome} />
     <BriefField label="What we are asking for" text={briefContext?.requestedNextStep} />
@@ -63,6 +64,7 @@ function BriefPage({ title, briefContext, photos, location, generatedAt, evidenc
       <Text style={styles.sectionSubtitle}>Observation evidence</Text>
       <Text style={styles.caption}>{SOURCE_LABELS[observation.source]}</Text>
       <Text style={styles.caption}>Saved {dateLabel(observation.createdAt)} · Reference: {observation.id}</Text>
+      {briefContext?.sourceUrl && observation.source === 'community' && <Link style={styles.caption} src={briefContext.sourceUrl}>Source observation: {briefContext.sourceUrl}</Link>}
       <Text style={styles.body}>{observation.description || 'No original notes supplied.'}</Text>
       <Text style={styles.caption}>Snapshot retained with this brief; the source may have changed. The saved date is not a verified photo capture date.</Text>
       {photos.map((photo, index) => <View key={`${index}-${photo.source}`} wrap={false} style={{ marginTop: 12 }}>
@@ -70,8 +72,15 @@ function BriefPage({ title, briefContext, photos, location, generatedAt, evidenc
         <Text style={styles.caption}>{photo.image ? `Observation photo ${index + 1}` : `Observation photo ${index + 1} unavailable for this export. Reopen the observation to view it.`}</Text>
       </View>)}
       {observation.photoUrls.length === 0 && <Text style={styles.caption}>No photos attached.</Text>}
-      {observation.photoUrls.length > 2 && <Text style={styles.caption}>The first two attached photos are included when available; additional photos remain in the source observation.</Text>}
+      {observation.photoUrls.length > 3 && <Text style={styles.caption}>The first three attached photos are included when available; additional photos remain in the source observation.</Text>}
     </View> : <Text style={styles.caption}>No linked observation supplied. The concern and location have not been independently verified.</Text>}
+    {briefContext?.supportingEvidence && <View>
+      <Text style={styles.sectionSubtitle}>{briefContext.supportingEvidence.title}</Text>
+      <Text style={styles.body}>{briefContext.supportingEvidence.summary}</Text>
+      <Text style={styles.caption}>Snapshot: {briefContext.supportingEvidence.capturedAt}</Text>
+      {briefContext.supportingEvidence.details.map((detail, index) => <Text key={index} style={styles.body}>{detail}</Text>)}
+      {briefContext.supportingEvidence.sources.map((source, index) => <Link key={index} style={styles.caption} src={source.url}>{source.label}: {source.url}</Link>)}
+    </View>}
     <Text style={[styles.caption, { marginTop: 18 }]}>
       {evidenceOnly
         ? 'Evidence-only brief. No street geometry or standards checks are included. This document does not submit a request to an agency.'
@@ -154,7 +163,7 @@ function WidthTable({ street }: { street: StreetSegment }) {
   </View>;
 }
 
-function ChecksPage({ currentStreet, validationResults, generatedAt }: StreetReportDocumentProps) {
+function ChecksPage({ currentStreet, validationResults, validationStatus = 'complete', generatedAt }: StreetReportDocumentProps) {
   const errors = validationResults.filter((result) => result.severity === 'error').length;
   const warnings = validationResults.filter((result) => result.severity === 'warning').length;
   const notes = validationResults.filter((result) => result.severity === 'info').length;
@@ -167,15 +176,15 @@ function ChecksPage({ currentStreet, validationResults, generatedAt }: StreetRep
     <Text style={styles.caption}>Min. and recommended minimum values above are stored element guidance, not a complete specification or proof that local requirements are met.</Text>
     <Text style={styles.sectionSubtitle}>Selected dimensional checks</Text>
     <Text style={styles.body}>The validator compares supported element widths against stored minimum, maximum, and recommended widths, including applicable stored PROWAG width entries and NACTO guidance. It also compares summed widths with the declared right-of-way and curb-to-curb widths.</Text>
-    <Text style={styles.body}>Reported findings: {errors} errors · {warnings} warnings · {notes} guidance notes</Text>
+    {validationStatus === 'complete' ? <Text style={styles.body}>Reported findings: {errors} errors · {warnings} warnings · {notes} guidance notes</Text> : <Text style={styles.body}>Checks not completed. No compliance assessment is available. Run the selected checks before using their results.</Text>}
     <Text style={styles.caption}>These are findings, not a count of checks performed. An empty result does not establish compliance or approval.</Text>
-    {validationResults.map((result, index) => <View key={index} style={[styles.validationItem, { borderLeftColor: colors[result.severity] }]} wrap={false}>
+    {validationStatus === 'complete' && validationResults.map((result, index) => <View key={index} style={[styles.validationItem, { borderLeftColor: colors[result.severity] }]} wrap={false}>
       <View style={{ flex: 1 }}>
         <Text style={styles.validationMessage}>{displayName(result.severity)} · {result.message}</Text>
         <Text style={styles.validationCitation}>{result.citation} · Entered: {result.currentValue} ft · Comparison value: {result.requiredValue} ft</Text>
       </View>
     </View>)}
-    {validationResults.length === 0 && <Text style={styles.body}>No findings were reported by the selected dimensional checks.</Text>}
+    {validationStatus === 'complete' && validationResults.length === 0 && <Text style={styles.body}>No findings were reported by the selected dimensional checks.</Text>}
     <Text style={styles.sectionSubtitle}>Still to be assessed</Text>
     <Text style={styles.body}>Local requirements, verified site dimensions, right-of-way boundaries, slopes, crossing and curb-ramp details, sight distance, traffic operations, drainage, utilities, construction feasibility, and broader accessibility are not assessed here.</Text>
     <Text style={styles.body}>Citations identify guidance stored in the app. Check the original sources, their applicability, and current local requirements with the intended reviewer. This is not a comprehensive engineering, legal, or accessibility assessment.</Text>
@@ -188,6 +197,7 @@ interface StreetReportDocumentProps {
   currentStreet: StreetSegment;
   beforeStreet: StreetSegment | null;
   validationResults: ValidationResult[];
+  validationStatus?: 'idle' | 'pending' | 'complete' | 'error';
   briefContext?: DiscussionBriefContext;
   photos: BriefPhoto[];
   generatedAt: number;
@@ -201,9 +211,9 @@ export function StreetReportDocument(props: StreetReportDocumentProps) {
   </Document>;
 }
 
-export function ObservationBriefDocument({ briefContext, photos, generatedAt }: { briefContext: DiscussionBriefContext; photos: BriefPhoto[]; generatedAt: number }) {
-  const title = briefContext.observation?.title || 'Street concern';
+export function ObservationBriefDocument({ briefContext, photos, location, generatedAt }: { briefContext: DiscussionBriefContext; photos: BriefPhoto[]; location?: { name: string; address?: string; lat?: number; lng?: number }; generatedAt: number }) {
+  const title = briefContext.observation?.title || location?.name || 'Street concern';
   return <Document title={`${title} · Discussion brief`} author="Curbwise" subject="Observation evidence for discussion">
-    <BriefPage title={title} briefContext={briefContext} photos={photos} generatedAt={generatedAt} evidenceOnly />
+    <BriefPage title={title} briefContext={briefContext} photos={photos} location={location} generatedAt={generatedAt} evidenceOnly />
   </Document>;
 }

@@ -1,12 +1,15 @@
 import { useMemo } from 'react';
 import { useProposalStore } from '@/stores/proposal-store';
 import { getTransformationsForPreset, type TransformationCard } from '@/lib/presets/transformation-cards';
-import { loadTemplates } from '@/lib/templates';
+import { adaptTemplate, loadTemplates } from '@/lib/templates';
+import { allocationTradeoffs } from '@/lib/presets/allocation-tradeoffs';
 
 export function TransformationPicker() {
   const selectedPreset = useProposalStore((s) => s.selectedPreset);
   const applyTransformation = useProposalStore((s) => s.applyTransformation);
   const goBack = useProposalStore((s) => s.goBack);
+  const beforeStreet = useProposalStore((s) => s.beforeStreet);
+  const desiredOutcome = useProposalStore((s) => s.briefContext.desiredOutcome);
 
   const templates = useMemo(
     () => new Map(loadTemplates().map((template) => [template.id, template])),
@@ -44,8 +47,14 @@ export function TransformationPicker() {
         </div>
       </div>
 
+      {desiredOutcome && <p className="border-l-2 border-civic-line pl-3 text-xs leading-5 text-civic-muted"><strong className="text-civic-ink">Your priority:</strong> {desiredOutcome}</p>}
+      <p className="text-xs leading-5 text-civic-muted">Compare the fitted widths before choosing. These are starting options; site measurements, access, drainage, loading, and traffic still need review. Width changes do not predict safety outcomes.</p>
+
       <div className="flex flex-col gap-2.5">
-        {cards.map((card, i) => (
+        {cards.map((card, i) => {
+          const template = templates.get(card.templateId);
+          const changes = beforeStreet && template ? allocationTradeoffs(beforeStreet, adaptTemplate(template, beforeStreet.totalROWWidth)) : [];
+          return (
           <button
             key={card.templateId}
             onClick={() => handleSelect(card)}
@@ -59,6 +68,9 @@ export function TransformationPicker() {
               <div className="text-[11px] text-[#59646a] mt-0.5 leading-snug">
                 {card.description}
               </div>
+              <ul className="mt-2 space-y-1 text-xs leading-5 text-civic-muted" aria-label="Space tradeoffs">
+                {changes.map((change) => <li key={change}>{change}</li>)}
+              </ul>
             </div>
             {/* Trailing icon in its own circle */}
             <div className="w-7 h-7 rounded-full bg-gray-100/80 group-hover:bg-[#e8ebed] flex items-center justify-center flex-shrink-0 transition-colors duration-150">
@@ -67,7 +79,7 @@ export function TransformationPicker() {
               </svg>
             </div>
           </button>
-        ))}
+        ); })}
       </div>
     </div>
   );

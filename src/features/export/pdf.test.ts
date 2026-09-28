@@ -82,7 +82,7 @@ describe('real discussion brief export', () => {
       elements: current.elements.map((element, index) => ({ ...element, width: element.width + (index === 0 ? 1 : index === 1 ? -1 : 0) })),
     };
     const brief = context();
-    brief.observation!.photoUrls = ['https://photos.example/sidewalk.png', 'https://photos.example/expired.png', 'https://photos.example/not-fetched.png'];
+    brief.observation!.photoUrls = ['https://photos.example/sidewalk.png', 'https://photos.example/expired.png', 'https://photos.example/expired.png', 'https://photos.example/not-fetched.png'];
     brief.dimensionBasis = 'measured';
     const validation: ValidationResult[] = [
       { valid: false, severity: 'error', elementId: current.elements[0].id, constraint: 'prowag', message: 'Sidewalk too narrow', citation: 'PROWAG R302.3', currentValue: 3, requiredValue: 4 },
@@ -145,4 +145,27 @@ describe('real discussion brief export', () => {
     expect(result.text.match(/Diagramunavailable/g)).toHaveLength(2);
     includesText(result.text, ['every element needs a positive, finite width', 'Width', '-1 ft']);
   }, 15000);
+  it('keeps private text-first places, brief revisions and optional evidence without invented coordinates', async () => {
+    const brief = { ...context(), observation: undefined, briefId: 'private-42', revisedAt: '2026-09-27T10:00:00Z', supportingEvidence: { title: 'Recorded crash snapshot', capturedAt: '2026-09-27', summary: '3 records in the search area', details: ['Coverage is incomplete'], sources: [{ label: 'City source', url: 'https://example.test/crashes' }] } };
+    const result = await inspectPdf(await generateObservationPDF(brief, { name: 'Library entrance', address: 'Outside the library' }));
+    includesText(result.text, ['Library entrance', 'Outside the library', 'private-42', 'Revision:', 'Recorded crash snapshot', '3 records', 'Coverage is incomplete', 'City source']);
+    expect(result.text).not.toContain('0.00000');
+    expect(result.binary).toContain('https://example.test/crashes');
+  }, 15000);
+  it('includes a public source link only for published evidence and repeats the header on overflow pages', async () => {
+    const brief = { ...context(), briefId: 'brief-42', sourceUrl: 'https://curbwise.org/hotspot/observation-1', concern: 'A long observation with details. '.repeat(150) };
+    const result = await inspectPdf(await generateObservationPDF(brief));
+    expect(result.binary).toContain('https://curbwise.org/hotspot/observation-1');
+    expect((result.text.match(/DiscussionbriefCurbwise/g) || []).length).toBeGreaterThan(1);
+    brief.observation!.source = 'browser-session';
+    const unpublished = await inspectPdf(await generateObservationPDF(brief));
+    expect(unpublished.binary).not.toContain('https://curbwise.org/hotspot/observation-1');
+  }, 15000);
+  it('does not turn incomplete validation into a no-findings claim', async () => {
+    const result = await inspectPdf(await generatePDF(street(), null, [], undefined, 'error'));
+    includesText(result.text, ['Checks not completed', 'No compliance assessment is available']);
+    expect(result.text).not.toContain('Nofindingswerereported');
+    expect(result.text).not.toContain('Reportedfindings:');
+  }, 15000);
+
 });

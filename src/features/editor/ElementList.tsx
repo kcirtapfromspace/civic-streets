@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { ElementType, ElementSide } from '@/lib/types';
 import { ELEMENT_COLORS, DEFAULT_CONSTRAINTS, DEFAULT_WIDTHS } from '@/lib/constants';
@@ -71,16 +70,14 @@ export function ElementList() {
   return (
     <div className="flex flex-col h-full">
       <div className="px-4 py-3 border-b border-gray-200">
-        <h2 className="text-sm font-semibold text-gray-700">
-          Cross-Section Elements
-        </h2>
+        <h2 className="text-sm font-semibold text-gray-700">Cross-Section Elements</h2>
         <p className="text-xs text-gray-500 mt-0.5">
           {elements.length} element{elements.length !== 1 ? 's' : ''}
         </p>
       </div>
 
       <div
-        role="listbox"
+        role="list"
         aria-label="Cross-section elements"
         className="flex-1 overflow-y-auto p-2 space-y-0.5"
       >
@@ -94,9 +91,7 @@ export function ElementList() {
             validations={validationMap.get(element.id) ?? []}
             onSelect={() => selectElement(element.id)}
             onUpdateWidth={(w) => updateElement(element.id, { width: w })}
-            onToggleLock={() =>
-              updateElement(element.id, { locked: !element.locked })
-            }
+            onToggleLock={() => updateElement(element.id, { locked: !element.locked })}
             onRemove={() => removeElement(element.id)}
             onMoveUp={() => reorderElements(index, index - 1)}
             onMoveDown={() => reorderElements(index, index + 1)}
@@ -153,21 +148,13 @@ export function ElementList() {
               <Button variant="primary" onClick={handleAdd} className="flex-1">
                 Add
               </Button>
-              <Button
-                variant="ghost"
-                onClick={() => setShowAddForm(false)}
-                className="flex-1"
-              >
+              <Button variant="ghost" onClick={() => setShowAddForm(false)} className="flex-1">
                 Cancel
               </Button>
             </div>
           </div>
         ) : (
-          <Button
-            variant="secondary"
-            onClick={() => setShowAddForm(true)}
-            className="w-full"
-          >
+          <Button variant="secondary" onClick={() => setShowAddForm(true)} className="w-full">
             + Add Element
           </Button>
         )}

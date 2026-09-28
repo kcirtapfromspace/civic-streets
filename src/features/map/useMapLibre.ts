@@ -112,8 +112,13 @@ export function useMapLibre({
         setLoaded({ container: mapElement, map, error: null });
       });
 
+      map.on('style.load', () => {
+        setLoaded((previous) => previous.error ? { ...previous, error: null } : previous);
+      });
+
       map.on('error', (e) => {
         console.error('[MapLibre]', e.error);
+        setLoaded((previous) => ({ container: mapElement, map: previous.container === mapElement ? previous.map : null, error: 'Map tiles could not be loaded. Check your connection, try another map style, or describe the location to continue.' }));
       });
 
       mapRef.current = map;

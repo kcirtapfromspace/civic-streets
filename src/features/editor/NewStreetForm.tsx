@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useStreetStore } from '@/stores/street-store';
 import { COMMON_ROW_WIDTHS, UNITS } from '@/lib/constants';
@@ -62,20 +61,16 @@ function HeroCard({
         >
           {HERO_ICONS[id] ?? 'Example'}
         </span>
-        <span className="text-xs text-gray-500">
-          {hero.segment.totalROWWidth} ft ROW
-        </span>
+        <span className="text-xs text-gray-500">{hero.segment.totalROWWidth} ft ROW</span>
       </div>
-      <h3 className="text-sm font-semibold text-gray-900 mb-1">
-        {hero.segment.name}
-      </h3>
-      <p className="text-xs text-gray-600 mb-2 line-clamp-2">
-        {hero.description}
-      </p>
+      <h3 className="text-sm font-semibold text-gray-900 mb-1">{hero.segment.name}</h3>
+      <p className="text-xs text-gray-600 mb-2 line-clamp-2">{hero.description}</p>
       <ul className="space-y-0.5">
         {hero.highlights.slice(0, 3).map((h, i) => (
           <li key={i} className="text-xs text-gray-500 flex items-start gap-1">
-            <span className="text-gray-500 mt-px shrink-0" aria-hidden="true">--</span>
+            <span className="text-gray-500 mt-px shrink-0" aria-hidden="true">
+              --
+            </span>
             <span>{h}</span>
           </li>
         ))}
@@ -91,8 +86,7 @@ export function NewStreetForm() {
 
   const [name, setName] = useState('Main Street');
   const [rowWidth, setRowWidth] = useState('66');
-  const [functionalClass, setFunctionalClass] =
-    useState<FunctionalClass>('collector');
+  const [functionalClass, setFunctionalClass] = useState<FunctionalClass>('collector');
   const [direction, setDirection] = useState<StreetDirection>('two-way');
 
   const heroes = loadHeroes();
@@ -114,7 +108,7 @@ export function NewStreetForm() {
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Curbwise</h1>
           <p className="text-gray-500 mt-2">
-            Design standards-compliant cross-sections with NACTO and PROWAG
+            Explore street cross-sections with selected dimension checks with NACTO and PROWAG
             guidance built in.
           </p>
         </div>
@@ -123,9 +117,7 @@ export function NewStreetForm() {
           onSubmit={handleSubmit}
           className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-4"
         >
-          <h2 className="text-lg font-semibold text-gray-800">
-            New Street Design
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-800">New Street Design</h2>
 
           <div>
             <label
@@ -166,11 +158,7 @@ export function NewStreetForm() {
             options={DIRECTION_OPTIONS}
           />
 
-          <Button
-            type="submit"
-            variant="primary"
-            className="w-full py-2.5"
-          >
+          <Button type="submit" variant="primary" className="w-full py-2.5">
             Create Street
           </Button>
         </form>
@@ -187,11 +175,7 @@ export function NewStreetForm() {
 
           <div className="grid gap-3">
             {heroes.map((hero) => (
-              <HeroCard
-                key={hero.segment.id}
-                hero={hero}
-                onSelect={handleHeroSelect}
-              />
+              <HeroCard key={hero.segment.id} hero={hero} onSelect={handleHeroSelect} />
             ))}
           </div>
         </div>

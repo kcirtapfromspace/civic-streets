@@ -27,9 +27,10 @@ export function EditorSidePanel({
 
   return (
     <div
-      className={`absolute ${positionClass} top-0 bottom-[280px] z-20 w-[300px] max-w-[85vw] transition-transform duration-300 ease-in-out ${translateClass} pointer-events-auto`}
+      className={`absolute ${positionClass} top-14 sm:top-0 bottom-[280px] z-20 w-[300px] max-w-[85vw] transition-transform duration-300 ease-in-out ${translateClass} pointer-events-auto`}
       role="complementary"
       aria-label={title}
+      inert={!visible}
     >
       <div className="h-full bg-white/90 backdrop-blur-md border-r border-gray-200 shadow-lg flex flex-col overflow-hidden"
         style={side === 'right' ? { borderRight: 'none', borderLeft: '1px solid #e5e7eb' } : undefined}
@@ -41,7 +42,7 @@ export function EditorSidePanel({
           </h3>
           <button
             onClick={onClose}
-            className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+            className="min-h-11 min-w-11 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 transition-colors"
             aria-label={`Close ${title}`}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">

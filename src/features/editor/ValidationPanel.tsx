@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useStreetStore } from '@/stores/street-store';
 import { ELEMENT_COLORS } from '@/lib/constants';
@@ -50,9 +49,7 @@ function ValidationItem({ result }: { result: ValidationResult }) {
   const selectElement = useStreetStore((s) => s.selectElement);
   const currentStreet = useStreetStore((s) => s.currentStreet);
 
-  const element = currentStreet?.elements.find(
-    (el) => el.id === result.elementId,
-  );
+  const element = currentStreet?.elements.find((el) => el.id === result.elementId);
   const label =
     result.elementId === '__street__'
       ? 'Street'
@@ -64,9 +61,7 @@ function ValidationItem({ result }: { result: ValidationResult }) {
 
   return (
     <button
-      onClick={() => {
-        if (isClickable) selectElement(result.elementId);
-      }}
+      onClick={isClickable ? () => selectElement(result.elementId) : undefined}
       disabled={!isClickable}
       aria-label={`${result.severity}: ${label} — ${result.message}`}
       className={`w-full text-left flex items-start gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
@@ -80,21 +75,13 @@ function ValidationItem({ result }: { result: ValidationResult }) {
       <div className="min-w-0 flex-1">
         <div className="font-medium text-gray-800">{label}</div>
         <div className="text-xs text-gray-600 mt-0.5">{result.message}</div>
-        <div className="text-xs text-gray-500 mt-0.5 italic">
-          {result.citation}
-        </div>
+        <div className="text-xs text-gray-500 mt-0.5 italic">{result.citation}</div>
       </div>
     </button>
   );
 }
 
-function ConstraintSection({
-  title,
-  results,
-}: {
-  title: string;
-  results: ValidationResult[];
-}) {
+function ConstraintSection({ title, results }: { title: string; results: ValidationResult[] }) {
   if (results.length === 0) return null;
 
   return (
@@ -113,45 +100,39 @@ function ConstraintSection({
 
 export function ValidationPanel() {
   const validationResults = useStreetStore((s) => s.validationResults);
+  const validationStatus = useStreetStore((s) => s.validationStatus);
 
-  const errorCount = validationResults.filter(
-    (r) => r.severity === 'error',
-  ).length;
-  const warningCount = validationResults.filter(
-    (r) => r.severity === 'warning',
-  ).length;
-  const infoCount = validationResults.filter(
-    (r) => r.severity === 'info',
-  ).length;
+  const errorCount = validationResults.filter((r) => r.severity === 'error').length;
+  const warningCount = validationResults.filter((r) => r.severity === 'warning').length;
+  const infoCount = validationResults.filter((r) => r.severity === 'info').length;
 
-  const groups = groupByConstraint(validationResults);
+  const groups = groupByConstraint(validationStatus === 'complete' ? validationResults : []);
 
   return (
     <div className="flex flex-col h-full">
       <div className="px-4 py-3 border-b border-gray-200">
-        <h2 className="text-sm font-semibold text-gray-700">
-          Validation Results
-        </h2>
+        <h2 className="text-sm font-semibold text-gray-700">Selected dimension checks</h2>
       </div>
 
       {/* Summary */}
-      <div
-        className="px-4 py-2 border-b border-gray-200"
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        {validationResults.length === 0 ? (
+      <div className="px-4 py-2 border-b border-gray-200" aria-live="polite" aria-atomic="true">
+        {validationStatus !== 'complete' ? (
+          <p
+            className="text-sm text-gray-700"
+            role={validationStatus === 'error' ? 'alert' : 'status'}
+          >
+            {validationStatus === 'pending'
+              ? 'Checking selected dimensions…'
+              : validationStatus === 'error'
+                ? 'Dimension checks could not run. Your design is still available; change a dimension to retry.'
+                : 'No dimension checks have run yet.'}
+          </p>
+        ) : validationResults.length === 0 ? (
           <div className="flex items-center gap-2 text-sm text-green-700">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              aria-hidden="true"
-            >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
               <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm3.354 4.646l-4 4a.5.5 0 01-.708 0l-2-2a.5.5 0 11.708-.708L7 8.586l3.646-3.647a.5.5 0 01.708.708z" />
             </svg>
-            <span>All standards met</span>
+            <span>No flags from selected checks</span>
           </div>
         ) : (
           <div className="flex items-center gap-3 text-xs">
@@ -176,6 +157,11 @@ export function ValidationPanel() {
           </div>
         )}
       </div>
+
+      <p className="px-4 py-3 text-xs text-gray-600">
+        These checks cover selected widths and guidance only. They do not establish accessibility,
+        safety, or regulatory compliance. Site conditions and a qualified review are still needed.
+      </p>
 
       {/* Results list */}
       <div className="flex-1 overflow-y-auto p-2 space-y-3">

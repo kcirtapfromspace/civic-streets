@@ -12,6 +12,7 @@ export class MapFake {
   listeners = new Map<string, Set<Listener>>();
   sources = new Map<string, Source>();
   layers = new Map<string, Layer>();
+  images = new Map<string, { width: number; height: number; data: Uint8Array }>();
   canvas = document.createElement('canvas');
   container = document.createElement('div');
   center = { lat: 39.7, lng: -104.9 };
@@ -62,6 +63,11 @@ export class MapFake {
     this.layers.set(layer.id, layer);
   });
   getLayer = vi.fn((id: string) => this.layers.get(id));
+  hasImage = vi.fn((id: string) => this.images.has(id));
+  addImage = vi.fn((id: string, image: { width: number; height: number; data: Uint8Array }) => {
+    if (this.images.has(id)) throw new Error(`Duplicate image ${id}`);
+    this.images.set(id, image);
+  });
   removeLayer = vi.fn((id: string) => {
     this.layers.delete(id);
   });
@@ -85,6 +91,7 @@ export class MapFake {
     this.listeners.clear();
     this.sources.clear();
     this.layers.clear();
+    this.images.clear();
   });
   project = vi.fn(() => ({ x: 120, y: 80 }));
   dragPan = { enable: vi.fn(), disable: vi.fn() };

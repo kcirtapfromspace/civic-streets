@@ -1,4 +1,3 @@
-
 import React, { useCallback } from 'react';
 import type { CrossSectionElement, RenderMode } from '@/lib/types';
 import { ELEMENT_COLORS } from '@/lib/constants';
@@ -10,7 +9,6 @@ import {
   SELECTED_STROKE_WIDTH,
   DEFAULT_STROKE_WIDTH,
   FONT,
-  ROAD_LEVEL_TYPES,
   ELEVATED_TYPES,
 } from '../constants';
 
@@ -39,7 +37,6 @@ export const ElementRect = React.memo(function ElementRect({
 
   // Elevated elements (sidewalk, planting strip, furniture zone) sit higher
   const isElevated = ELEVATED_TYPES.has(element.type);
-  const isRoadLevel = ROAD_LEVEL_TYPES.has(element.type);
   const isCurb = element.type === 'curb';
 
   let yStart = ELEMENT_Y_OFFSET;
@@ -53,15 +50,11 @@ export const ElementRect = React.memo(function ElementRect({
     // Curb is a thin vertical transition element
     yStart = ELEMENT_Y_OFFSET - CURB_ELEVATION;
     rectHeight = ELEMENT_RECT_HEIGHT + CURB_ELEVATION;
-  } else if (isRoadLevel) {
-    // Road-level elements start at the standard Y offset
-    yStart = ELEMENT_Y_OFFSET;
-    rectHeight = ELEMENT_RECT_HEIGHT;
   }
 
   const strokeWidth = isSelected ? SELECTED_STROKE_WIDTH : DEFAULT_STROKE_WIDTH;
   const opacity = isSelected ? 0.95 : 1;
-  const isInteractive = mode === 'display';
+  const isInteractive = mode === 'display' && Boolean(onClick);
   const label = element.label ?? colors.label;
 
   const handleClick = useCallback(() => {
@@ -76,6 +69,7 @@ export const ElementRect = React.memo(function ElementRect({
         ? {
             role: 'button',
             'aria-label': `${label}, ${element.width} feet wide`,
+            'aria-pressed': isSelected,
             tabIndex: 0,
             onClick: handleClick,
             onKeyDown: (e: React.KeyboardEvent) => {

@@ -7,6 +7,7 @@ import { Toolbar } from '../Toolbar';
 import { TemplateGalleryModal } from '@/features/gallery/TemplateGalleryModal';
 import { useBilling } from '@/lib/api/billing';
 import { BILLING_FEATURE_LABELS, useBillingAccess, type BillingFeatureKey } from '@/lib/billing/access';
+import { useWorkDraftsStore } from '@/stores/work-drafts-store';
 import { useStreetStore } from '@/stores/street-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useProposalStore } from '@/stores/proposal-store';
@@ -17,6 +18,8 @@ import { street } from './fixtures';
 vi.mock('@/lib/api/convex-provider', () => ({ convexAvailable: false }));
 
 beforeEach(() => {
+  useWorkDraftsStore.setState(useWorkDraftsStore.getInitialState());
+  localStorage.clear();
   useStreetStore.setState(useStreetStore.getInitialState());
   useStreetStore.temporal.getState().clear();
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState());
@@ -34,7 +37,7 @@ it('opens the actual demo editor and template gallery without a Convex provider 
   expect(screen.getAllByRole('button', { name: /requires municipal onboarding/ }).length).toBeGreaterThan(0);
   expect(screen.getAllByRole('button', { name: /^Apply .* template$/ }).length).toBeGreaterThan(0);
   fireEvent.click(screen.getByRole('button', { name: 'Close modal' }));
-  expect(screen.getByRole('button', { name: 'PDF' })).toHaveAttribute('title', 'Contact Curbwise to unlock branded export delivery');
+  expect(screen.getByRole('button', { name: 'PDF' })).not.toHaveAttribute('title');
 });
 
 it('keeps a linked proposal’s discussion brief available through review in demo mode', () => {
@@ -54,7 +57,7 @@ it('keeps a linked proposal’s discussion brief available through review in dem
 it('also renders the standalone toolbar safely without a billing provider', () => {
   useStreetStore.getState().setStreet(street());
   render(<MemoryRouter><Toolbar /></MemoryRouter>);
-  expect(screen.getByRole('button', { name: 'Export PDF' })).toHaveAttribute('title', 'Contact Curbwise to unlock branded export delivery');
+  expect(screen.getByRole('button', { name: 'Export PDF' })).not.toHaveAttribute('title');
 });
 
 it('keeps demo billing anonymous and refuses checkout and portal operations', async () => {

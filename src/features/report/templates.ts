@@ -10,6 +10,10 @@ export interface ReportTemplateInput {
   hotspotCategory?: string;
   hotspotDescription?: string;
   hotspotVotes?: number;
+  concern?: string;
+  desiredOutcome?: string;
+  requestedNextStep?: string;
+  sourceUrl?: string;
   // Design context
   designTitle?: string;
   designElements?: string; // "bike lanes, wider sidewalks, center turn lane"
@@ -75,12 +79,19 @@ export function generateReportBody(input: ReportTemplateInput): string {
 
     if (input.hotspotTitle) {
       lines.push(
-        `The linked report on Curbwise is titled "${input.hotspotTitle}".`,
+        `The observation is titled "${input.hotspotTitle}".`,
       );
     }
 
     lines.push('');
   }
+
+  if (input.concern && input.concern !== input.hotspotDescription) {
+    lines.push(`My concern: ${input.concern}`, '');
+  }
+  if (input.desiredOutcome) lines.push(`What I would like to improve: ${input.desiredOutcome}`, '');
+  if (input.requestedNextStep) lines.push(`My request: ${input.requestedNextStep}`, '');
+  if (input.sourceUrl) lines.push(`Source observation: ${input.sourceUrl}`, '');
 
   // Design section
   if (variant === 'design-proposal' || variant === 'combined') {
@@ -104,11 +115,7 @@ export function generateReportBody(input: ReportTemplateInput): string {
       );
     }
 
-    if (input.designTitle) {
-      lines.push(
-        `The design concept, "${input.designTitle}," is available for your review.`,
-      );
-    }
+    lines.push(`The design concept, "${input.designTitle}," is available for your review.`);
 
     lines.push(
       'This preliminary concept requires site measurements and professional review. Curbwise’s checks do not establish accessibility compliance, engineering approval, or city approval.',
@@ -134,7 +141,7 @@ export function generateReportBody(input: ReportTemplateInput): string {
   const recordedVotes = Math.max(input.hotspotVotes ?? 0, input.communityVotes ?? 0);
   if (Number.isSafeInteger(recordedVotes) && recordedVotes > 0) {
     lines.push(
-      `A linked report or concept has ${recordedVotes} recorded ${recordedVotes === 1 ? 'upvote' : 'upvotes'} on Curbwise. This activity count does not establish wider community support.`,
+      `The report or concept has ${recordedVotes} recorded ${recordedVotes === 1 ? 'upvote' : 'upvotes'} on Curbwise. This activity count does not establish wider community support.`,
     );
     lines.push('');
   }

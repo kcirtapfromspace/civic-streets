@@ -5,7 +5,7 @@ export interface BriefPhoto {
   image?: Blob;
 }
 
-const PHOTO_LIMIT = 2;
+const PHOTO_LIMIT = 3;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const PHOTO_TIMEOUT_MS = 4000;
 

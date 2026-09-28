@@ -1,0 +1,102 @@
+import '@testing-library/jest-dom/vitest';
+import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { editorWorkSnapshot, saveEditorWork, useEditorDraft } from '../use-editor-draft';
+import { Toolbar } from '../Toolbar';
+import { EditorDock } from '../EditorDock';
+import { useStreetStore } from '@/stores/street-store';
+import { useProposalStore } from '@/stores/proposal-store';
+import { useWorkspaceStore } from '@/stores/workspace-store';
+import { useWorkDraftsStore, WORK_DRAFTS_KEY } from '@/stores/work-drafts-store';
+import { getTemplateById } from '@/lib/templates';
+import { street } from './fixtures';
+beforeEach(() => {
+  useStreetStore.setState(useStreetStore.getInitialState());
+  useProposalStore.setState(useProposalStore.getInitialState());
+  useWorkspaceStore.setState(useWorkspaceStore.getInitialState());
+  useWorkDraftsStore.setState(useWorkDraftsStore.getInitialState());
+  localStorage.clear();
+});
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+function Route() { return <output aria-label="Route">{useLocation().pathname}</output>; }
+it('does not manufacture work before an editor concept exists', () => {
+  expect(editorWorkSnapshot()).toBeNull();
+  expect(saveEditorWork()).toBeNull();
+  renderHook(useEditorDraft);
+  expect(localStorage.getItem(WORK_DRAFTS_KEY)).toBeNull();
+});
+it('saves standalone geometry and its original baseline through edits, template replacement, and a reload', () => {
+  const { unmount } = renderHook(useEditorDraft);
+  act(() => useStreetStore.getState().setStreet(street()));
+  const id = useStreetStore.getState().workId!;
+  act(() => useStreetStore.getState().updateElement('sidewalk', { width: 8 }));
+  let work = useWorkDraftsStore.getState().drafts[id];
+  expect(work).toMatchObject({ kind: 'street', location: null, step: 'review', beforeStreet: { elements: [{ width: 6 }, { width: 10 }] }, afterStreet: { elements: [{ width: 8 }, { width: 10 }] } });
+  act(() => useStreetStore.getState().applyTemplate(getTemplateById('road-diet-4to3')!, 60));
+  expect(useStreetStore.getState().currentStreet?.id).not.toBe(id);
+  expect(useStreetStore.getState().workId).toBe(id);
+  work = useWorkDraftsStore.getState().drafts[id];
+  expect(Object.keys(useWorkDraftsStore.getState().drafts)).toEqual([id]);
+  unmount();
+  useStreetStore.setState(useStreetStore.getInitialState());
+  useWorkDraftsStore.setState(useWorkDraftsStore.getInitialState());
+  useWorkDraftsStore.getState().load();
+  expect(useWorkDraftsStore.getState().drafts[id]).toEqual(work);
+});
+it('retains a linked purpose, location, road evidence and draft identity while editing without creating duplicates', () => {
+  const location = { lat: 39.7, lng: -104.9, address: 'Broadway' };
+  useProposalStore.getState().initProposal('Broadway', location);
+  useProposalStore.getState().setBriefContext({ concern: 'Narrow crossing', requestedNextStep: 'Arrange a walk audit' });
+  useProposalStore.setState({ beforeStreet: street(), afterStreet: street(), beforePresetId: 'existing', selectedTemplateId: 'selected', roadPath: [{ lat: 39.7, lng: -104.9 }], bearing: 15 });
+  const id = useProposalStore.getState().proposalId!;
+  useWorkspaceStore.getState().enterDesignMode(location, id);
+  useStreetStore.getState().setStreet(street());
+  renderHook(useEditorDraft);
+  act(() => useStreetStore.getState().updateStreetName('School crossing'));
+  expect(useProposalStore.getState()).toMatchObject({ proposalId: id, streetName: 'School crossing', afterStreet: { name: 'School crossing' }, briefContext: { concern: 'Narrow crossing' } });
+  expect(Object.keys(useWorkDraftsStore.getState().drafts)).toEqual([id]);
+  expect(editorWorkSnapshot()).toMatchObject({ id, location, roadPath: [{ lat: 39.7, lng: -104.9 }], bearing: 15, beforePresetId: 'existing', selectedTemplateId: 'selected' });
+});
+it('retains an unsaved latest snapshot on quota failure and retries it', () => {
+  useStreetStore.getState().setStreet(street());
+  const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota'); });
+  const { result } = renderHook(useEditorDraft);
+  expect(result.current).toContain('could not be saved');
+  expect(useStreetStore.getState().currentStreet?.name).toBe('Broadway');
+  act(() => useStreetStore.getState().updateStreetName('Latest edits'));
+  expect(editorWorkSnapshot()?.name).toBe('Latest edits');
+  write.mockRestore();
+  act(() => { expect(saveEditorWork()).toMatchObject({ name: 'Latest edits' }); });
+  expect(result.current).toBeNull();
+});
+it('saves a located concept and opens its exact shared brief for review', () => {
+  const current = { ...street(), location: { lat: 39.7, lng: -104.9, address: 'Broadway' }, metadata: { ...street().metadata, templateId: 'test-template' } };
+  useStreetStore.getState().setStreet(current);
+  render(<MemoryRouter initialEntries={['/editor']}><Toolbar /><Route /></MemoryRouter>);
+  fireEvent.click(screen.getByRole('button', { name: 'Review brief' }));
+  expect(screen.getByLabelText('Route')).toHaveTextContent('/map');
+  expect(useProposalStore.getState()).toMatchObject({ step: 'review', beforeStreet: current, afterStreet: current, location: current.location, selectedTemplateId: 'test-template' });
+  expect(useWorkspaceStore.getState().mode).toBe('propose');
+});
+it('preserves the editor and explains a failed save before review', () => {
+  useStreetStore.getState().setStreet(street());
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota'); });
+  render(<MemoryRouter initialEntries={['/editor']}><Toolbar /><Route /></MemoryRouter>);
+  fireEvent.click(screen.getByRole('button', { name: 'Review brief' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('could not be saved');
+  expect(screen.getByLabelText('Route')).toHaveTextContent('/editor');
+});
+it.each([false, true])('returns a linked concept without mapped coordinates to review, or keeps it open on storage failure=%s', (failure) => {
+  useProposalStore.getState().initConcern('Library crossing');
+  const id = useProposalStore.getState().proposalId!;
+  useProposalStore.setState({ beforeStreet: street(), afterStreet: street() });
+  useStreetStore.getState().setStreet(street());
+  useWorkspaceStore.getState().enterDesignMode(undefined, id);
+  if (failure) vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota'); });
+  render(<MemoryRouter><EditorDock /></MemoryRouter>);
+  fireEvent.click(screen.getByRole('button', { name: 'Review & export brief' }));
+  expect(useWorkspaceStore.getState().mode).toBe(failure ? 'design' : 'propose');
+  expect(useProposalStore.getState().location).toBeNull();
+  if (failure) expect(screen.getAllByRole('alert')[0]).toHaveTextContent('could not be saved');
+});

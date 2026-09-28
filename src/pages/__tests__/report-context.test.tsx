@@ -27,6 +27,7 @@ const page = (id = report.id) => <MemoryRouter initialEntries={[
 ]}><ReportPage /></MemoryRouter>;
 
 beforeEach(() => {
+  localStorage.clear();
   state.available = true;
   state.lookup.mockReset().mockReturnValue({ hotspot: report, isLoading: false });
   useReportStore.getState().reset();
@@ -62,7 +63,7 @@ describe('representative draft source integrity', () => {
     state.lookup.mockReturnValue({ hotspot: report, isLoading: false });
     view.rerender(page());
     expect(screen.getByDisplayValue(report.address)).toBeInTheDocument();
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('saved in this browser');
   });
 
   it('does not substitute another map location when the linked report is missing', () => {

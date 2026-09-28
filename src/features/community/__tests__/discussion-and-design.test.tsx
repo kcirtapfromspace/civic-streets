@@ -121,7 +121,7 @@ describe('design cards and voting', () => {
     );
     expect(screen.getByTitle('Sidewalk (90%)')).toHaveStyle({ width: '90%' });
     expect(screen.getByTitle('Buffer (5%)')).toHaveTextContent('');
-    expect(screen.getByText(`PROWAG ${design.prowagPass ? '✓' : '✗'}`)).toBeInTheDocument();
+    expect(screen.getByText(`Selected PROWAG widths: ${design.prowagPass ? 'no flags' : 'review needed'}`)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Open in Editor' }));
     expect(onOpen).toHaveBeenCalledWith(design.id);
     fireEvent.click(screen.getByRole('button', { name: 'Upvote' }));

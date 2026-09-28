@@ -1,0 +1,47 @@
+import '@testing-library/jest-dom/vitest';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { LocationFallback } from '../LocationFallback';
+import { useProposalStore } from '@/stores/proposal-store';
+import { useIntersectionStore } from '@/stores/intersection-store';
+import { useWorkDraftsStore } from '@/stores/work-drafts-store';
+import { useWorkspaceStore } from '@/stores/workspace-store';
+beforeEach(() => { localStorage.clear(); useProposalStore.getState().reset(); useIntersectionStore.getState().reset(); useWorkDraftsStore.getState().load(); useWorkspaceStore.setState(useWorkspaceStore.getInitialState()); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+it('starts durable address-only work without inventing coordinates or publishing', () => {
+  const close = vi.fn();
+  const { container } = render(<LocationFallback error="Connection lost" onClose={close} />);
+  fireEvent.submit(container.querySelector('form')!);
+  expect(close).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText('Location description'), { target: { value: '  Library entrance on Grant Street  ' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Start a private concern' }));
+  expect(useProposalStore.getState()).toMatchObject({ streetName: 'Library entrance on Grant Street', location: null, step: 'concern' });
+  expect(Object.values(useWorkDraftsStore.getState().drafts)[0]).toMatchObject({ location: null, name: 'Library entrance on Grant Street' });
+  expect(useWorkspaceStore.getState().mode).toBe('propose');
+  expect(close).toHaveBeenCalledOnce();
+});
+it('retains current work and retries after storage failure, and permits returning', () => {
+  useProposalStore.getState().initConcern('Existing notes');
+  const fail = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota'); });
+  const close = vi.fn();
+  render(<LocationFallback error={null} onClose={close} />);
+  fireEvent.change(screen.getByLabelText('Location description'), { target: { value: 'Another place' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Start a private concern' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Your current work could not be saved');
+  expect(useProposalStore.getState().streetName).toBe('Existing notes');
+  expect(close).not.toHaveBeenCalled();
+  fail.mockRestore();
+  fireEvent.click(screen.getByRole('button', { name: 'Start a private concern' }));
+  expect(close).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole('button', { name: 'Return to workspace' }));
+  expect(close).toHaveBeenCalledTimes(2);
+});
+it('preserves an intersection when it cannot be saved before a new concern', () => {
+  useIntersectionStore.getState().initIntersection('Grant & 10th', { lat: 39.74, lng: -104.99 }, { lat: 39.74, lng: -104.99, address: 'Grant & 10th' });
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota'); });
+  render(<LocationFallback error={null} onClose={vi.fn()} />);
+  fireEvent.change(screen.getByLabelText('Location description'), { target: { value: 'Another place' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Start a private concern' }));
+  expect(screen.getByRole('alert')).toBeInTheDocument();
+  act(() => useIntersectionStore.getState().reset());
+});

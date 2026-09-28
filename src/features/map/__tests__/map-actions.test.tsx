@@ -60,7 +60,28 @@ beforeEach(() => {
   services.error = null;
   services.searched = false;
 });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+it('does not open competing location actions while placing an existing layout', async () => {
+  const map = new MapFake();
+  render(<PinDesignFlow map={map.asMap()} />);
+  useWorkspaceStore.setState({ mode: 'place-street' });
+  await act(() => map.emit('click', mouse()));
+  expect(useMapStore.getState().contextMenuPosition).toBeNull();
+});
+it('lets placement search move the map without replacing the existing draft', () => {
+  useWorkspaceStore.setState({ mode: 'place-street' });
+  useProposalStore.getState().initConcern('My existing concept');
+  const id = useProposalStore.getState().proposalId;
+  services.results = [{ place_id: 1, lat: '40', lon: '-105', display_name: 'Pearl Street, Boulder' }];
+  render(<MapControls map={new MapFake().asMap()} />);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search places' }), { target: { value: 'Pearl' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Pearl Street, Boulder' }));
+  expect(useMapStore.getState().center).toEqual({ lat: 40, lng: -105 });
+  expect(useProposalStore.getState().proposalId).toBe(id);
+  expect(useWorkspaceStore.getState().mode).toBe('place-street');
+  expect(screen.queryByRole('button', { name: 'Sketch a change' })).not.toBeInTheDocument();
+});
 it('submits search explicitly, selects a place, dismisses suggestions outside, and clears selection', () => {
   const { rerender } = render(<MapControls map={new MapFake().asMap()} />);
   const input = screen.getByRole('textbox', { name: 'Search places' });
@@ -482,8 +503,9 @@ it('uses a readable street title and clears floating map controls from the guide
   expect(screen.getByRole('button', { name: 'Map options' })).toBeInTheDocument();
 });
 
-it.each(['search', 'pin'] as const)('protects unfinished concern work when starting a new sketch from %s', async (source) => {
+it.each(['search', 'pin'] as const)('protects unfinished concern work after storage failure when starting a new sketch from %s', async (source) => {
   useProposalStore.getState().initProposal('Unfinished street', { lat: 39.6, lng: -104.8, address: 'Unfinished street' });
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Full'); });
   useProposalStore.getState().setBriefContext({ concern: 'Preserve these notes' });
   const showAction = () => {
     if (source === 'search') {

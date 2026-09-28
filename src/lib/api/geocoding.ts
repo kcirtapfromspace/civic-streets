@@ -26,16 +26,16 @@ function searchError(error: unknown): Error {
 
 /** Call only for an explicit submitted search; never on each keystroke. */
 export async function searchPlaces(query: string): Promise<GeocodingResult[]> {
-  const session = sessionToken();
   const apiClient = configuredClient();
+  const session = sessionToken();
   try { return await apiClient.action(api.geocoding.search, { sessionToken: session, query }); }
   catch (error) { throw searchError(error); }
 }
 
 /** Call for a deliberate map selection, never on viewport/timer changes. */
 export async function reverseGeocodeLocation(lat: number, lng: number): Promise<GeocodingResult | null> {
-  const session = sessionToken();
   const apiClient = configuredClient();
+  const session = sessionToken();
   try {
     const results = await apiClient.action(api.geocoding.reverse, { sessionToken: session, lat, lng });
     return results[0] ?? null;

@@ -1,31 +1,20 @@
-import { useMemo } from 'react';
 import { BEFORE_PRESETS } from '@/lib/presets/before-presets';
 import { useProposalStore } from '@/stores/proposal-store';
 import { useSafetyDataStore } from '@/features/safety-data/safety-data-store';
 import type { BeforePreset } from '@/lib/types';
+import { CrashCoverageStatus } from '@/features/safety-data/CrashCoverageStatus';
+import { crashBriefEvidence } from '@/features/safety-data/brief-evidence';
+import { useMapStore } from '@/features/map/map-store';
 
 export function BeforeSelector() {
   const selectPreset = useProposalStore((s) => s.selectPreset);
   const goBack = useProposalStore((s) => s.goBack);
   const location = useProposalStore((s) => s.location);
-  const crashes = useSafetyDataStore((s) => s.crashes);
-  const isLoading = useSafetyDataStore((s) => s.isLoading);
-  const enabled = useSafetyDataStore((s) => s.enabled);
-
-  // Filter crashes within ~200m of proposal location
-  const nearbyCrashSummary = useMemo(() => {
-    if (!location || crashes.length === 0) return null;
-    const RADIUS_DEG = 200 / 111320; // ~200m in degrees
-    const nearby = crashes.filter((c) => {
-      const dLat = c.lat - location.lat;
-      const dLng = c.lng - location.lng;
-      return Math.sqrt(dLat * dLat + dLng * dLng) <= RADIUS_DEG;
-    });
-    if (nearby.length === 0) return null;
-    const fatal = nearby.filter((c) => c.severity === 'fatal').length;
-    const injuries = nearby.filter((c) => c.injuries !== null && c.injuries > 0).length;
-    return { total: nearby.length, fatal, injuries };
-  }, [location, crashes]);
+  const safetyData = useSafetyDataStore();
+  const zoom = useMapStore((s) => s.zoom);
+  const savedEvidence = useProposalStore((s) => s.briefContext.supportingEvidence);
+  const setContext = useProposalStore((s) => s.setBriefContext);
+  const evidence = location ? crashBriefEvidence(location, safetyData) : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -39,27 +28,13 @@ export function BeforeSelector() {
         </p>
       </div>
 
-      {/* Crash summary card */}
-      {enabled && nearbyCrashSummary && (
-        <div className="bg-red-50 rounded-xl px-3.5 py-2.5 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-red-500" />
-          <span className="text-[11px] text-red-700 font-medium">
-            {nearbyCrashSummary.total} recorded crash{nearbyCrashSummary.total !== 1 ? 'es' : ''} nearby
-            {nearbyCrashSummary.fatal > 0 && (
-              <span className="text-red-900 font-bold"> ({nearbyCrashSummary.fatal} fatal)</span>
-            )}
-            {nearbyCrashSummary.injuries > 0 && (
-              <span>, {nearbyCrashSummary.injuries} with recorded injuries</span>
-            )}
-          </span>
-        </div>
-      )}
-      {enabled && !nearbyCrashSummary && isLoading && (
-        <div className="bg-gray-50 rounded-xl px-3.5 py-2.5 flex items-center gap-2">
-          <div className="w-3 h-3 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
-          <span className="text-[11px] text-[#59646a]">Loading safety data...</span>
-        </div>
-      )}
+      {safetyData.enabled && <details className="border-y border-civic-line py-2 text-xs text-civic-muted">
+        <summary className="min-h-11 cursor-pointer py-3 font-medium text-civic-ink">Crash evidence and source coverage (optional)</summary>
+        <CrashCoverageStatus zoom={zoom} />
+        {evidence && <><p className="mt-3 leading-5">{evidence.summary}</p><button type="button" onClick={() => setContext({ supportingEvidence: evidence })} className="mt-2 min-h-11 underline">{savedEvidence ? 'Update snapshot in brief' : 'Include this snapshot in brief'}</button></>}
+        {savedEvidence && <p role="status" className="mt-2 leading-5">A dated snapshot is saved with this brief. <button type="button" onClick={() => setContext({ supportingEvidence: undefined })} className="min-h-11 underline">Remove snapshot</button></p>}
+        <p className="mt-2 leading-5">Your concern does not need crash records to be worth discussing.</p>
+      </details>}
 
       <div className="grid grid-cols-2 gap-2.5">
         {BEFORE_PRESETS.map((preset, i) => (

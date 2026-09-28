@@ -16,6 +16,7 @@ const hotspot: MockHotspot = {
 };
 
 beforeEach(() => {
+  localStorage.clear();
   exportPDF.mockReset().mockResolvedValue(new Blob(['PDF']));
   URL.createObjectURL = vi.fn().mockReturnValue('blob:brief');
   URL.revokeObjectURL = vi.fn();
@@ -36,7 +37,7 @@ it('keeps evidence-only preparation optional and exports the actual observation 
   const link = await screen.findByRole('link', { name: 'Download discussion brief' });
   expect(link).toHaveAttribute('href', 'blob:brief');
   expect(link).toHaveAttribute('download', 'observation-discussion-brief.pdf');
-  expect(exportPDF).toHaveBeenCalledExactlyOnceWith({
+  expect(exportPDF).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
     concern: hotspot.description, desiredOutcome: 'A clear walking path', requestedNextStep: 'A site visit',
     dimensionBasis: 'assumed', dimensionSource: '',
     observation: {
@@ -44,7 +45,7 @@ it('keeps evidence-only preparation optional and exports the actual observation 
       photoUrls: hotspot.photoUrls, lat: hotspot.lat, lng: hotspot.lng, address: hotspot.address,
       createdAt: hotspot.createdAt, source: 'browser-session',
     },
-  });
+  }));
   expect(exportPDF.mock.calls[0][0].observation.photoUrls).not.toBe(hotspot.photoUrls);
   expect(screen.getByText(/Nothing is sent automatically/)).toBeVisible();
 });
@@ -67,7 +68,7 @@ it('invalidates a prepared PDF when either input changes, so the download cannot
     fireEvent.click(screen.getByRole('button', { name: 'Prepare discussion brief' }));
     await screen.findByRole('link', { name: 'Download discussion brief' });
     fireEvent.change(screen.getByLabelText(field), { target: { value: 'Updated notes' } });
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Download discussion brief' })).not.toBeInTheDocument();
   }
   expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2);
   fireEvent.click(screen.getByRole('button', { name: 'Prepare discussion brief' }));
@@ -95,13 +96,12 @@ it('prevents duplicate preparation and locks inputs while the PDF is being prepa
   render(<ObservationBrief hotspot={hotspot} source="community" />);
   openBrief();
   const button = screen.getByRole('button', { name: 'Prepare discussion brief' });
-  fireEvent.click(button);
-  fireEvent.click(button);
+  act(() => { fireEvent.click(button); fireEvent.click(button); });
   expect(exportPDF).toHaveBeenCalledTimes(1);
   expect(screen.getByRole('button', { name: 'Preparing brief…' })).toBeDisabled();
   expect(screen.getByLabelText(/What are you asking for/)).toBeDisabled();
   await act(async () => resolve(new Blob(['PDF'])));
-  expect(screen.getByRole('link')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Download discussion brief' })).toBeInTheDocument();
 });
 
 it.each(['resolve', 'reject'])('discards a late %s after leaving the observation', async (outcome) => {

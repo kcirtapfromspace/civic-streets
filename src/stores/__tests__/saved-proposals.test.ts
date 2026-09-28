@@ -136,7 +136,7 @@ it('carries observation evidence and purpose through concern, exploration, save 
   expect(useProposalStore.getState()).toMatchObject({
     step: 'concern', location: { address: evidence.address }, briefContext: { concern: evidence.description, observation: evidence, dimensionBasis: 'assumed' },
   });
-  expect(store.hasUnsavedChanges()).toBe(true);
+  expect(store.hasUnsavedChanges()).toBe(false);
   store.setBriefContext({ desiredOutcome: 'Step-free access', requestedNextStep: 'A site visit' });
   store.continueToExplore();
   expect(useProposalStore.getState().step).toBe('street-selected');
@@ -153,7 +153,7 @@ it('carries observation evidence and purpose through concern, exploration, save 
   proposal.briefContext!.observation!.photoUrls.push('https://images.example/export-copy.jpg');
   expect(useProposalStore.getState().briefContext.observation?.photoUrls).toEqual(evidence.photoUrls);
   store.setBriefContext({ concern: 'Edited concern' });
-  expect(store.hasUnsavedChanges()).toBe(true);
+  expect(store.hasUnsavedChanges()).toBe(false);
   useSavedProposalsStore.setState({ proposals: {} });
   store.reset();
   useSavedProposalsStore.getState().loadProposals();
@@ -203,4 +203,30 @@ it.each([
   expect(useSavedProposalsStore.getState().storageError).toContain('could not be read');
   expect(useSavedProposalsStore.getState().proposals).toEqual({});
   expect(localStorage.getItem(SAVED_PROPOSALS_KEY)).toBe(raw);
+});
+
+it.each([
+  { briefId: 3 }, { revisedAt: 'bad date' }, { sourceUrl: 4 }, { sourceUrl: 'javascript:alert(1)' },
+  { supportingEvidence: null }, { supportingEvidence: { title: 'Crash records' } },
+  ...[
+    { title: 3 }, { capturedAt: 'bad' }, { summary: 3 }, { details: null }, { details: [3] },
+    { sources: null }, { sources: [null] }, { sources: [{ label: 3, url: 'https://city.example' }] },
+    { sources: [{ label: 'City', url: 'javascript:alert(1)' }] },
+  ].map((invalid) => ({ supportingEvidence: { title: 'Crash records', capturedAt: '2026-09-27', summary: 'Partial source', details: ['Coverage incomplete'], sources: [{ label: 'City', url: 'https://city.example' }], ...invalid } })),
+])('rejects malformed optional artifact metadata without overwriting saved records: %j', (invalid) => {
+  const proposal = ready();
+  proposal.briefContext = { ...proposal.briefContext!, ...invalid } as typeof proposal.briefContext;
+  const raw = JSON.stringify({ version: 1, proposals: [proposal] });
+  localStorage.setItem(SAVED_PROPOSALS_KEY, raw);
+  useSavedProposalsStore.getState().loadProposals();
+  expect(useSavedProposalsStore.getState().storageError).toContain('could not be read');
+  expect(localStorage.getItem(SAVED_PROPOSALS_KEY)).toBe(raw);
+});
+it('restores valid artifact identity, public source and explicit evidence snapshots together', () => {
+  const proposal = ready();
+  proposal.briefContext = { ...proposal.briefContext!, briefId: proposal.id, revisedAt: '2026-09-27T12:00:00Z', sourceUrl: 'https://curbwise.org/hotspot/id', supportingEvidence: { title: 'Crash records', capturedAt: '2026-09-27T12:00:00Z', summary: 'Partial coverage', details: ['Not evidence of absence'], sources: [{ label: 'City', url: 'https://city.example/data' }] } };
+  useSavedProposalsStore.getState().saveProposal(proposal);
+  useSavedProposalsStore.setState({ proposals: {} });
+  useSavedProposalsStore.getState().loadProposals();
+  expect(useSavedProposalsStore.getState().getProposal(proposal.id)?.briefContext).toEqual(proposal.briefContext);
 });

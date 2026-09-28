@@ -3,6 +3,7 @@ import { useProposalStore } from '@/stores/proposal-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useStreetStore } from '@/stores/street-store';
 import { useSavedProposalsStore } from '@/stores/saved-proposals-store';
+import { useWorkDraftsStore } from '@/stores/work-drafts-store';
 import { generatePDF } from '@/features/export';
 import { loadStandards, validateStreet } from '@/lib/standards/validator';
 import { captureAnalytics } from '@/lib/analytics';
@@ -27,7 +28,9 @@ export function ProposalReview() {
   const showBeforeOnMap = useProposalStore((s) => s.showBeforeOnMap);
   const toggleMapView = useProposalStore((s) => s.toggleMapView);
   const goBack = useProposalStore((s) => s.goBack);
+  const selectedPreset = useProposalStore((s) => s.selectedPreset);
   const streetName = useProposalStore((s) => s.streetName);
+  const roadPath = useProposalStore((s) => s.roadPath);
   const briefContext = useProposalStore((s) => s.briefContext);
   const setBriefContext = useProposalStore((s) => s.setBriefContext);
   const validationResults = useMemo(() => afterStreet ? validateStreet(afterStreet, loadStandards()) : [], [afterStreet]);
@@ -113,12 +116,9 @@ export function ProposalReview() {
   const handleSaveDraft = () => {
     setSaveError(null);
     const proposal = useProposalStore.getState().getProposal();
-    if (!proposal) {
-      setSaveError('Choose a street location before saving this draft. You can still download the PDF.');
-      return;
-    }
     try {
-      useSavedProposalsStore.getState().saveProposal(proposal);
+      if (!useProposalStore.getState().saveWork()) throw new Error(useWorkDraftsStore.getState().storageError ?? 'The draft could not be saved. Your work is still here.');
+      if (proposal) useSavedProposalsStore.getState().saveProposal(proposal);
       setSavedVersion(draftVersion);
       captureAnalytics('proposal_draft_saved', { element_count: afterStreet.elements.length });
     } catch (error) {
@@ -131,8 +131,8 @@ export function ProposalReview() {
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <button
-          onClick={goBack}
-          aria-label="Choose another improvement"
+          onClick={() => selectedPreset ? goBack() : useProposalStore.setState({ step: 'concern' })}
+          aria-label={selectedPreset ? 'Choose another improvement' : 'Back to concern'}
           className="min-h-11 min-w-11 flex items-center justify-center text-[#59646a] hover:text-[#172126] transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -143,6 +143,11 @@ export function ProposalReview() {
           Discussion brief for {streetName || 'this street'}
         </h3>
       </div>
+
+      <button type="button" onClick={() => useWorkspaceStore.setState({ mode: 'place-street', designProposalId: useProposalStore.getState().proposalId })} className="min-h-11 border border-[#d8dddf] px-3 text-sm font-medium">
+        {roadPath.length >= 2 ? 'Adjust map placement' : 'Place this layout on the map'}
+      </button>
+      <p className="text-xs text-[#59646a]">{roadPath.length >= 2 ? 'The map shows your layout along the selected path. Placement is approximate; widths come from this concept.' : 'Mark the street centerline to see this layout in its surroundings.'}</p>
 
       {/* Before / After toggle for map */}
       <div className="flex items-center gap-1 bg-[#f3f5f5] rounded-sm p-0.5">

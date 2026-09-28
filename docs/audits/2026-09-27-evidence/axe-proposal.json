@@ -1,0 +1,49 @@
+{
+  "url": "http://127.0.0.1:4186/map",
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "engine": {
+    "name": "axe-core",
+    "version": "4.11.0"
+  },
+  "violations": [
+    {
+      "id": "color-contrast",
+      "impact": "serious",
+      "nodes": [
+        {
+          "target": [
+            ".text-gray-500"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.41 (foreground color: #6a7282, background color: #f3f5f5, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            ".text-gray-400"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.6 (foreground color: #99a1af, background color: #ffffff, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+        }
+      ]
+    },
+    {
+      "id": "nested-interactive",
+      "impact": "serious",
+      "nodes": [
+        {
+          "target": [
+            ".border-gray-200 > .overflow-x-auto > svg[viewBox=\"0 0 600 300\"][role=\"img\"][width=\"600\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element has focusable descendants"
+        },
+        {
+          "target": [
+            ".overflow-hidden.bg-\\[\\#f3f5f5\\].border > .overflow-x-auto > svg[viewBox=\"0 0 600 300\"][role=\"img\"][width=\"600\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element has focusable descendants"
+        }
+      ]
+    }
+  ]
+}

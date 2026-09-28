@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import type { StreetSegment, ValidationResult, RenderMode } from '@/lib/types';
@@ -83,10 +82,7 @@ export function CrossSectionSVG({
   const svgHeight = isDisplay ? DISPLAY_HEIGHT : EXPORT_HEIGHT;
 
   // Build element-to-validation lookup
-  const validationMap = useMemo(
-    () => buildValidationMap(validationResults),
-    [validationResults],
-  );
+  const validationMap = useMemo(() => buildValidationMap(validationResults), [validationResults]);
 
   // Alt text for accessibility
   const altText = useMemo(
@@ -101,10 +97,7 @@ export function CrossSectionSVG({
       nextXOffset: number;
     }>(
       (acc, element) => ({
-        layouts: [
-          ...acc.layouts,
-          { element, xOffset: acc.nextXOffset },
-        ],
+        layouts: [...acc.layouts, { element, xOffset: acc.nextXOffset }],
         nextXOffset: acc.nextXOffset + element.width * PX_PER_FOOT,
       }),
       { layouts: [], nextXOffset: 0 },
@@ -117,7 +110,7 @@ export function CrossSectionSVG({
   // Total element width vs ROW width — if elements don't fill the ROW,
   // center them within the SVG
   const totalElementWidth = street.elements.reduce((sum, el) => sum + el.width, 0);
-  const leftPadding = Math.max(0, (street.totalROWWidth - totalElementWidth) * PX_PER_FOOT / 2);
+  const leftPadding = Math.max(0, ((street.totalROWWidth - totalElementWidth) * PX_PER_FOOT) / 2);
 
   return (
     <svg
@@ -125,7 +118,7 @@ export function CrossSectionSVG({
       height={svgHeight}
       viewBox={`0 0 ${svgWidth} ${svgHeight}`}
       xmlns="http://www.w3.org/2000/svg"
-      role="img"
+      role={isDisplay && onElementClick ? 'group' : 'img'}
       aria-label={altText}
       style={{ maxWidth: '100%', height: 'auto' }}
     >
@@ -133,13 +126,7 @@ export function CrossSectionSVG({
       {isDisplay && <style>{HOVER_STYLES}</style>}
 
       {/* Background */}
-      <rect
-        x={0}
-        y={0}
-        width={svgWidth}
-        height={svgHeight}
-        fill="#FAFAFA"
-      />
+      <rect x={0} y={0} width={svgWidth} height={svgHeight} fill="#FAFAFA" />
 
       {/* Street header label */}
       <StreetLabel street={street} svgWidth={svgWidth} />
@@ -169,9 +156,7 @@ export function CrossSectionSVG({
             />
 
             {/* Dimension label below element */}
-            {showDimensions && (
-              <DimensionLabel element={element} xOffset={xOffset} />
-            )}
+            {showDimensions && <DimensionLabel element={element} xOffset={xOffset} />}
 
             {/* Validation overlay */}
             {showValidation && validationMap.has(element.id) && (

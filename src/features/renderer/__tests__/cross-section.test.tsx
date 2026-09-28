@@ -15,7 +15,7 @@ it('lays out scaled and elevated elements, provides keyboard selection and dimen
   ]);
   const select = vi.fn();
   render(<CrossSectionSVG street={design} selectedElementId="sidewalk" onElementClick={select} />);
-  const svg = screen.getByRole('img');
+  const svg = screen.getByRole('group');
   expect(svg).toHaveAttribute('viewBox', '0 0 720 300');
   const sidewalk = screen.getByRole('button', { name: 'Sidewalk, 6 feet wide' });
   expect(sidewalk.querySelector('rect')).toHaveAttribute('width', '72');
@@ -67,7 +67,8 @@ it('suppresses validation and dimensions when requested, and does not require a 
       validationResults={[validation()]}
     />,
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Sidewalk, 6 feet wide' }));
+  expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  expect(screen.getByRole('img').querySelector('[tabindex]')).toBeNull();
   expect(screen.queryByRole('status')).not.toBeInTheDocument();
   expect(screen.getByRole('img').querySelector('g[transform]')).toBeNull();
   expect(screen.getAllByText("6'")).toHaveLength(1);
@@ -142,4 +143,9 @@ it('prioritizes error overlays, distinguishes warning/info styling, and hides ba
   const info = screen.getByRole('status');
   expect(info.querySelector('circle')).toBeNull();
   expect(info.querySelector('rect')).toHaveAttribute('height', '4');
+});
+
+it('describes an advisory-only check without reporting an error', () => {
+  expect(generateAltText(street(), [validation('lane', 'warning')])).toContain('1 validation warning.');
+  expect(generateAltText(street(), [validation('lane', 'warning')])).not.toContain('validation error');
 });

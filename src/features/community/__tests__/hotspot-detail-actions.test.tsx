@@ -90,7 +90,7 @@ describe('community report detail actions', () => {
     expect(city).toBeDisabled();
     expect(city).toHaveAccessibleDescription(/do not have a verified public reporting link/);
     fireEvent.click(city);
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Continue at/ })).not.toBeInTheDocument();
     expect(submit).not.toHaveBeenCalled();
   });
 

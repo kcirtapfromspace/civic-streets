@@ -48,7 +48,9 @@ describe('geocoding client proxy', () => {
 
   it('does not bypass the proxy when a backend or session is unavailable', async () => {
     vi.stubEnv('VITE_CONVEX_URL', '');
+    vi.stubGlobal('localStorage', { getItem: () => null });
     await expect(searchPlaces('Denver')).rejects.toThrow('not configured');
+    await expect(reverseGeocodeLocation(39.74, -104.99)).rejects.toThrow('not configured');
     vi.stubEnv('VITE_CONVEX_URL', 'https://test-deployment.convex.cloud');
     vi.stubGlobal('localStorage', { getItem: () => null });
     await expect(reverseGeocodeLocation(39.74, -104.99)).rejects.toThrow(
@@ -65,4 +67,11 @@ describe('geocoding client proxy', () => {
     await expect(searchPlaces('Denver')).rejects.toThrow('Place search is unavailable right now');
     expect(fetch).not.toHaveBeenCalled();
   });
+});
+
+it('distinguishes an empty reverse result from provider failure', async () => {
+  action.mockResolvedValueOnce([]);
+  expect(await reverseGeocodeLocation(39.74,-104.99)).toBeNull();
+  action.mockRejectedValueOnce(new Error('Private implementation details'));
+  await expect(reverseGeocodeLocation(39.74,-104.99)).rejects.toThrow('Place search is unavailable');
 });

@@ -11,21 +11,28 @@ const object = (value: unknown): value is JsonObject => typeof value === 'object
 const text = (value: unknown): value is string => typeof value === 'string';
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 const date = (value: unknown) => text(value) && Number.isFinite(Date.parse(value));
-const point = (value: unknown) => object(value) && finite(value.lat) && Math.abs(value.lat) <= 90 && finite(value.lng) && Math.abs(value.lng) <= 180;
+export const isPoint = (value: unknown) => object(value) && finite(value.lat) && Math.abs(value.lat) <= 90 && finite(value.lng) && Math.abs(value.lng) <= 180;
 const metadata = (value: unknown) => object(value) && date(value.createdAt) && date(value.updatedAt);
 
-function briefContext(value: unknown): boolean {
+export function isBriefContext(value: unknown): boolean {
   if (!object(value) || !['concern', 'desiredOutcome', 'requestedNextStep', 'dimensionSource'].every((key) => text(value[key])) ||
     !['assumed', 'estimated', 'measured'].includes(String(value.dimensionBasis))) return false;
+  if ((value.briefId !== undefined && !text(value.briefId)) ||
+    (value.revisedAt !== undefined && !date(value.revisedAt)) ||
+    (value.sourceUrl !== undefined && (!text(value.sourceUrl) || !/^https?:\/\//.test(value.sourceUrl)))) return false;
+  const evidence = value.supportingEvidence;
+  if (evidence !== undefined && (!object(evidence) || !text(evidence.title) || !date(evidence.capturedAt) || !text(evidence.summary) ||
+    !Array.isArray(evidence.details) || !evidence.details.every(text) || !Array.isArray(evidence.sources) ||
+    !evidence.sources.every((source) => object(source) && text(source.label) && text(source.url) && /^https?:\/\//.test(source.url)))) return false;
   const observation = value.observation;
-  return observation === undefined || (point(observation) && object(observation) &&
+  return observation === undefined || (isPoint(observation) && object(observation) &&
     text(observation.id) && observation.id.length > 0 && text(observation.title) && text(observation.description) &&
     text(observation.address) && finite(observation.createdAt) && observation.createdAt >= 0 &&
     ['community', 'example', 'browser-session'].includes(String(observation.source)) &&
     Array.isArray(observation.photoUrls) && observation.photoUrls.every(text));
 }
 
-function street(value: unknown): value is StreetSegment {
+export function isStreet(value: unknown): value is StreetSegment {
   return object(value) && text(value.id) && text(value.name) &&
     finite(value.totalROWWidth) && finite(value.curbToCurbWidth) &&
     ['one-way', 'two-way'].includes(String(value.direction)) &&
@@ -48,11 +55,11 @@ function readProposals(): Record<string, StreetProposal> {
   const proposals: Record<string, StreetProposal> = {};
   for (const proposal of parsed.proposals) {
     if (!object(proposal) || !text(proposal.id) || !proposal.id || !text(proposal.streetName) ||
-      !point(proposal.location) || !text((proposal.location as JsonObject).address) ||
-      !Array.isArray(proposal.roadPath) || !proposal.roadPath.every(point) || !finite(proposal.bearing) ||
+      !isPoint(proposal.location) || !text((proposal.location as JsonObject).address) ||
+      !Array.isArray(proposal.roadPath) || !proposal.roadPath.every(isPoint) || !finite(proposal.bearing) ||
       !text(proposal.beforePresetId) || !text(proposal.transformationTemplateId) ||
-      !street(proposal.beforeStreet) || !street(proposal.afterStreet) || !metadata(proposal.metadata) ||
-      (proposal.briefContext !== undefined && !briefContext(proposal.briefContext))) {
+      !isStreet(proposal.beforeStreet) || !isStreet(proposal.afterStreet) || !metadata(proposal.metadata) ||
+      (proposal.briefContext !== undefined && !isBriefContext(proposal.briefContext))) {
       throw new Error(READ_ERROR);
     }
     Object.defineProperty(proposals, proposal.id, { value: proposal as unknown as StreetProposal, enumerable: true, configurable: true, writable: true });

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type maplibregl from 'maplibre-gl';
 import { useProposalStore } from '@/stores/proposal-store';
+import { useStreetStore } from '@/stores/street-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useStyleReload } from '@/features/map/useStyleReload';
 import {
@@ -23,6 +24,11 @@ const ACTIVE_PREFIX = 'proposal-active';
  */
 export function MapOverlay({ map }: MapOverlayProps) {
   const mode = useWorkspaceStore((s) => s.mode);
+  const designProposalId = useWorkspaceStore((s) => s.designProposalId);
+  const proposalId = useProposalStore((s) => s.proposalId);
+  const currentStreet = useStreetStore((s) => s.currentStreet);
+  const editorBeforeStreet = useStreetStore((s) => s.beforeStreet);
+  const showBeforeAfter = useStreetStore((s) => s.showBeforeAfter);
   const roadPath = useProposalStore((s) => s.roadPath);
   const beforeStreet = useProposalStore((s) => s.beforeStreet);
   const afterStreet = useProposalStore((s) => s.afterStreet);
@@ -31,6 +37,16 @@ export function MapOverlay({ map }: MapOverlayProps) {
   const styleVersion = useStyleReload(map);
 
   const resultRef = useRef<RenderStreetResult | null>(null);
+  const linkedEditing = mode === 'design' && !!designProposalId && designProposalId === proposalId;
+  const street = linkedEditing
+    ? showBeforeAfter && editorBeforeStreet
+      ? editorBeforeStreet
+      : currentStreet
+    : step === 'review' || step === 'transform-selected'
+      ? showBeforeOnMap
+        ? beforeStreet
+        : afterStreet
+      : beforeStreet;
 
   // Draw road highlight + element polygons
   useEffect(() => {
@@ -44,21 +60,29 @@ export function MapOverlay({ map }: MapOverlayProps) {
 
     cleanup();
 
-    if (roadPath.length < 2 || mode !== 'propose') return;
+    if (roadPath.length < 2 || (mode !== 'propose' && !linkedEditing)) return;
 
     const render = () => {
       if (!map.isStyleLoaded()) return;
 
-      const street = (step === 'review' || step === 'transform-selected')
-        ? (showBeforeOnMap ? beforeStreet : afterStreet)
-        : beforeStreet;
-
       if (!street) return;
 
+      // Track the IDs before drawing, so a style error halfway through a render
+      // cannot leave a source behind that blocks the next attempt.
+      resultRef.current = {
+        sourceIds: [`${ACTIVE_PREFIX}-highlight`, `${ACTIVE_PREFIX}-elements`],
+        layerIds: [
+          `${ACTIVE_PREFIX}-highlight-line`,
+          ...street.elements.flatMap((_, index) => [
+            `${ACTIVE_PREFIX}-element-fill-${index}`,
+            `${ACTIVE_PREFIX}-element-stroke-${index}`,
+          ]),
+        ],
+      };
       try {
         resultRef.current = renderStreetOnMap(map, ACTIVE_PREFIX, roadPath, street);
       } catch {
-        // Style may have changed mid-render
+        cleanup();
       }
     };
 
@@ -72,7 +96,7 @@ export function MapOverlay({ map }: MapOverlayProps) {
       map.off('styledata', render);
       cleanup();
     };
-  }, [map, roadPath, beforeStreet, afterStreet, showBeforeOnMap, step, mode, styleVersion]);
+  }, [map, roadPath, street, linkedEditing, mode, styleVersion]);
 
   return null;
 }

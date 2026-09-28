@@ -1,0 +1,194 @@
+{
+  "url": "http://127.0.0.1:4186/editor",
+  "viewport": {
+    "width": 320,
+    "height": 700
+  },
+  "engine": {
+    "name": "axe-core",
+    "version": "4.11.0"
+  },
+  "scrollWidth": 320,
+  "violations": [
+    {
+      "id": "nested-interactive",
+      "impact": "serious",
+      "nodes": [
+        {
+          "target": [
+            "div[aria-label=\"Sidewalk, 6 ft wide\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element has focusable descendants"
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Planting Strip, 4 ft wide\"][role=\"option\"]:nth-child(2)"
+          ],
+          "summary": "Fix any of the following:\n  Element has focusable descendants"
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Curb, 0.5 ft wide\"][role=\"option\"]:nth-child(3)"
+          ],
+          "summary": "Fix any of the following:\n  Element has focusable descendants"
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Bike Lane, 5 ft wide\"][role=\"option\"]:nth-child(4)"
+          ],
+          "summary": "Fix any of the following:\n  Element has focusable descendants"
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Travel Lane, 10 ft wide\"][role=\"option\"]:nth-child(5)"
+          ],
+          "summary": "Fix any of the following:\n  Element has focusable descendants"
+        },
+        {
+          "target": [
+            "div[aria-label=\"Center Turn Lane, 10 ft wide\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element has focusable descendants"
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Travel Lane, 10 ft wide\"][role=\"option\"]:nth-child(7)"
+          ],
+          "summary": "Fix any of the following:\n  Element has focusable descendants"
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Bike Lane, 5 ft wide\"][role=\"option\"]:nth-child(8)"
+          ],
+          "summary": "Fix any of the following:\n  Element has focusable descendants"
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Curb, 0.5 ft wide\"][role=\"option\"]:nth-child(9)"
+          ],
+          "summary": "Fix any of the following:\n  Element has focusable descendants"
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Planting Strip, 4 ft wide\"][role=\"option\"]:nth-child(10)"
+          ],
+          "summary": "Fix any of the following:\n  Element has focusable descendants"
+        },
+        {
+          "target": [
+            "div[aria-label=\"Sidewalk, 5 ft wide\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element has focusable descendants"
+        },
+        {
+          "target": [
+            "svg[viewBox=\"0 0 720 300\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element has focusable descendants"
+        }
+      ]
+    },
+    {
+      "id": "target-size",
+      "impact": "serious",
+      "nodes": [
+        {
+          "target": [
+            "div[aria-label=\"Sidewalk, 6 ft wide\"] > .relative.inline-flex:nth-child(6) > .hover\\:bg-gray-100.p-1[aria-label=\"Lock Sidewalk\"]"
+          ],
+          "summary": "Fix any of the following:\n  Target has insufficient size (22px by 22px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 22px instead of at least 24px."
+        },
+        {
+          "target": [
+            "div[aria-label=\"Sidewalk, 6 ft wide\"] > .flex-col.shrink-0.flex > .p-0\\.5.disabled\\:opacity-30[aria-label=\"Move Sidewalk down\"]"
+          ],
+          "summary": "Fix any of the following:\n  Target has insufficient size (16px by 16px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 16px instead of at least 24px."
+        },
+        {
+          "target": [
+            "div[aria-label=\"Sidewalk, 6 ft wide\"] > .relative.inline-flex:nth-child(8) > .hover\\:text-red-600.hover\\:bg-red-50[aria-label=\"Remove Sidewalk\"]"
+          ],
+          "summary": "Fix any of the following:\n  Target has insufficient size (22px by 22px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 22px instead of at least 24px."
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Planting Strip, 4 ft wide\"][role=\"option\"]:nth-child(2) > .relative.inline-flex:nth-child(6) > .hover\\:bg-gray-100.p-1[aria-label=\"Lock Planting Strip\"]"
+          ],
+          "summary": "Fix any of the following:\n  Target has insufficient size (22px by 22px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 22px instead of at least 24px."
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Planting Strip, 4 ft wide\"][role=\"option\"]:nth-child(2) > .flex-col.shrink-0.flex > .p-0\\.5.disabled\\:opacity-30[aria-label=\"Move Planting Strip up\"]"
+          ],
+          "summary": "Fix any of the following:\n  Target has insufficient size (16px by 16px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 8px instead of at least 24px."
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Planting Strip, 4 ft wide\"][role=\"option\"]:nth-child(2) > .flex-col.shrink-0.flex > .p-0\\.5.disabled\\:opacity-30[aria-label=\"Move Planting Strip down\"]"
+          ],
+          "summary": "Fix any of the following:\n  Target has insufficient size (16px by 16px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 8px instead of at least 24px."
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Planting Strip, 4 ft wide\"][role=\"option\"]:nth-child(2) > .relative.inline-flex:nth-child(8) > .hover\\:text-red-600.hover\\:bg-red-50[aria-label=\"Remove Planting Strip\"]"
+          ],
+          "summary": "Fix any of the following:\n  Target has insufficient size (22px by 22px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 22px instead of at least 24px."
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Curb, 0.5 ft wide\"][role=\"option\"]:nth-child(3) > .relative.inline-flex:nth-child(6) > .hover\\:bg-gray-100.p-1[aria-label=\"Lock Curb\"]"
+          ],
+          "summary": "Fix any of the following:\n  Target has insufficient size (22px by 22px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 22px instead of at least 24px."
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Curb, 0.5 ft wide\"][role=\"option\"]:nth-child(3) > .flex-col.shrink-0.flex > .p-0\\.5.disabled\\:opacity-30[aria-label=\"Move Curb up\"]"
+          ],
+          "summary": "Fix any of the following:\n  Target has insufficient size (16px by 16px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 8px instead of at least 24px."
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Curb, 0.5 ft wide\"][role=\"option\"]:nth-child(3) > .flex-col.shrink-0.flex > .p-0\\.5.disabled\\:opacity-30[aria-label=\"Move Curb down\"]"
+          ],
+          "summary": "Fix any of the following:\n  Target has insufficient size (16px by 16px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 8px instead of at least 24px."
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Curb, 0.5 ft wide\"][role=\"option\"]:nth-child(3) > .relative.inline-flex:nth-child(8) > .hover\\:text-red-600.hover\\:bg-red-50[aria-label=\"Remove Curb\"]"
+          ],
+          "summary": "Fix any of the following:\n  Target has insufficient size (22px by 22px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 22px instead of at least 24px."
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Bike Lane, 5 ft wide\"][role=\"option\"]:nth-child(4) > .relative.inline-flex:nth-child(6) > .hover\\:bg-gray-100.p-1[aria-label=\"Lock Bike Lane\"]"
+          ],
+          "summary": "Fix any of the following:\n  Target has insufficient size (22px by 22px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 22px instead of at least 24px."
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Bike Lane, 5 ft wide\"][role=\"option\"]:nth-child(4) > .flex-col.shrink-0.flex > .p-0\\.5.disabled\\:opacity-30[aria-label=\"Move Bike Lane up\"]"
+          ],
+          "summary": "Fix any of the following:\n  Target has insufficient size (16px by 16px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 8px instead of at least 24px."
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Bike Lane, 5 ft wide\"][role=\"option\"]:nth-child(4) > .flex-col.shrink-0.flex > .p-0\\.5.disabled\\:opacity-30[aria-label=\"Move Bike Lane down\"]"
+          ],
+          "summary": "Fix any of the following:\n  Target has insufficient size (16px by 16px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 8px instead of at least 24px."
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Bike Lane, 5 ft wide\"][role=\"option\"]:nth-child(4) > .relative.inline-flex:nth-child(8) > .hover\\:text-red-600.hover\\:bg-red-50[aria-label=\"Remove Bike Lane\"]"
+          ],
+          "summary": "Fix any of the following:\n  Target has insufficient size (22px by 22px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 22px instead of at least 24px."
+        },
+        {
+          "target": [
+            ".cursor-pointer[aria-label=\"Travel Lane, 10 ft wide\"][role=\"option\"]:nth-child(5) > .flex-col.shrink-0.flex > .p-0\\.5.disabled\\:opacity-30[aria-label=\"Move Travel Lane up\"]"
+          ],
+          "summary": "Fix any of the following:\n  Target has insufficient size (16px by 16px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 16px instead of at least 24px."
+        }
+      ]
+    }
+  ]
+}

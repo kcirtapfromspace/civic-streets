@@ -1,0 +1,133 @@
+{
+  "url": "http://127.0.0.1:4186/editor",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "engine": {
+    "name": "axe-core",
+    "version": "4.11.0"
+  },
+  "violations": [
+    {
+      "id": "button-name",
+      "impact": "critical",
+      "nodes": [
+        {
+          "target": [
+            ".hover\\:text-gray-600"
+          ],
+          "summary": "Fix any of the following:\n  Element does not have inner text that is visible to screen readers\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, references elements that do not exist or references elements that are empty\n  Element has no title attribute\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  Element's default semantics were not overridden with role=\"none\" or role=\"presentation\""
+        }
+      ]
+    },
+    {
+      "id": "color-contrast",
+      "impact": "serious",
+      "nodes": [
+        {
+          "target": [
+            ".hover\\:text-gray-700"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.9 (foreground color: #6a7282, background color: #e5e7eb, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "div:nth-child(5) > .flex-col.gap-1\\.5.flex > .items-start.p-2\\.5.text-left:nth-child(2) > .min-w-0.flex-1 > .text-gray-400.text-\\[10px\\].mt-0\\.5"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.55 (foreground color: #99a1af, background color: #fcfdfd, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "div:nth-child(5) > .flex-col.gap-1\\.5.flex > .items-start.p-2\\.5.text-left:nth-child(3) > .min-w-0.flex-1 > .flex-wrap.gap-1\\.5.items-center > .text-\\[9px\\].px-1\\.5.py-0\\.5"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.67 (foreground color: #ca8a04, background color: #f8f4e9, font size: 6.8pt (9px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "div:nth-child(5) > .flex-col.gap-1\\.5.flex > .items-start.p-2\\.5.text-left:nth-child(3) > .min-w-0.flex-1 > .text-gray-400.text-\\[10px\\].mt-0\\.5"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.55 (foreground color: #99a1af, background color: #fcfdfd, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "div:nth-child(5) > .flex-col.gap-1\\.5.flex > .items-start.p-2\\.5.text-left:nth-child(4) > .min-w-0.flex-1 > .flex-wrap.gap-1\\.5.items-center > .text-\\[9px\\].px-1\\.5.py-0\\.5"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.67 (foreground color: #ca8a04, background color: #f8f4e9, font size: 6.8pt (9px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "div:nth-child(5) > .flex-col.gap-1\\.5.flex > .items-start.p-2\\.5.text-left:nth-child(4) > .min-w-0.flex-1 > .text-gray-400.text-\\[10px\\].mt-0\\.5"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.55 (foreground color: #99a1af, background color: #fcfdfd, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "div:nth-child(5) > .flex-col.gap-1\\.5.flex > .items-start.p-2\\.5.text-left:nth-child(5) > .min-w-0.flex-1 > .flex-wrap.gap-1\\.5.items-center > .text-\\[9px\\].px-1\\.5.py-0\\.5"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.67 (foreground color: #ca8a04, background color: #f8f4e9, font size: 6.8pt (9px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "div:nth-child(5) > .flex-col.gap-1\\.5.flex > .items-start.p-2\\.5.text-left:nth-child(5) > .min-w-0.flex-1 > .text-gray-400.text-\\[10px\\].mt-0\\.5"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.55 (foreground color: #99a1af, background color: #fcfdfd, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "div:nth-child(6) > .uppercase.tracking-\\[0\\.15em\\].mb-2"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.47 (foreground color: #d1d5dc, background color: #ffffff, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "div:nth-child(6) > .flex-col.gap-1\\.5.flex > .items-start.p-2\\.5.text-left:nth-child(1) > .min-w-0.flex-1 > .flex-wrap.gap-1\\.5.items-center > .text-\\[9px\\].px-1\\.5.py-0\\.5"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.96 (foreground color: #16a34a, background color: #e9f6ee, font size: 6.8pt (9px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "div:nth-child(6) > .flex-col.gap-1\\.5.flex > .items-start.p-2\\.5.text-left:nth-child(1) > .min-w-0.flex-1 > .text-gray-400.text-\\[10px\\].mt-0\\.5"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.55 (foreground color: #99a1af, background color: #fcfdfd, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "div:nth-child(6) > .flex-col.gap-1\\.5.flex > .items-start.p-2\\.5.text-left:nth-child(2) > .min-w-0.flex-1 > .flex-wrap.gap-1\\.5.items-center > .text-\\[9px\\].px-1\\.5.py-0\\.5"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.96 (foreground color: #16a34a, background color: #e9f6ee, font size: 6.8pt (9px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "div:nth-child(6) > .flex-col.gap-1\\.5.flex > .items-start.p-2\\.5.text-left:nth-child(2) > .min-w-0.flex-1 > .text-gray-400.text-\\[10px\\].mt-0\\.5"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.55 (foreground color: #99a1af, background color: #fcfdfd, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "div:nth-child(6) > .flex-col.gap-1\\.5.flex > .items-start.p-2\\.5.text-left:nth-child(3) > .min-w-0.flex-1 > .flex-wrap.gap-1\\.5.items-center > .text-\\[9px\\].px-1\\.5.py-0\\.5"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.96 (foreground color: #16a34a, background color: #e9f6ee, font size: 6.8pt (9px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "div:nth-child(6) > .flex-col.gap-1\\.5.flex > .items-start.p-2\\.5.text-left:nth-child(3) > .min-w-0.flex-1 > .text-gray-400.text-\\[10px\\].mt-0\\.5"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.55 (foreground color: #99a1af, background color: #fcfdfd, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "div:nth-child(6) > .flex-col.gap-1\\.5.flex > .items-start.p-2\\.5.text-left:nth-child(4) > .min-w-0.flex-1 > .flex-wrap.gap-1\\.5.items-center > .text-\\[9px\\].px-1\\.5.py-0\\.5"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.16 (foreground color: #dc2626, background color: #f9ebeb, font size: 6.8pt (9px), font weight: normal). Expected contrast ratio of 4.5:1"
+        },
+        {
+          "target": [
+            "div:nth-child(6) > .flex-col.gap-1\\.5.flex > .items-start.p-2\\.5.text-left:nth-child(4) > .min-w-0.flex-1 > .text-gray-400.text-\\[10px\\].mt-0\\.5"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.55 (foreground color: #99a1af, background color: #fcfdfd, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+        }
+      ]
+    }
+  ]
+}

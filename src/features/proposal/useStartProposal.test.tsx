@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useStartProposal } from './useStartProposal';
 import { useProposalStore } from '@/stores/proposal-store';
 import { useSavedProposalsStore } from '@/stores/saved-proposals-store';
@@ -21,7 +21,7 @@ beforeEach(() => {
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState());
   useMapStore.setState(useMapStore.getInitialState());
 });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 it('starts a concern without requiring a navigation callback and permits replacing work already saved', () => {
   render(<Launcher />);
@@ -38,4 +38,22 @@ it('starts a concern without requiring a navigation callback and permits replaci
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(useProposalStore.getState().proposalId).not.toBe(saved.id);
   expect(useSavedProposalsStore.getState().getProposal(saved.id)).toEqual(saved);
+});
+
+
+it.each(['Named street', ''])('protects failed browser edits for %s until an explicit replacement choice', (name) => {
+  useProposalStore.getState().initProposal(name, location);
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Full'); });
+  useProposalStore.getState().setBriefContext({ concern: 'Keep this note' });
+  render(<Launcher />);
+  fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+  expect(screen.getByRole('dialog')).toHaveTextContent(name || 'your current proposal');
+  fireEvent.click(screen.getByRole('button', { name: 'Keep current work' }));
+  expect(useProposalStore.getState().briefContext.concern).toBe('Keep this note');
+  fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Discard changes and start proposal' }));
+  expect(useProposalStore.getState()).toMatchObject({ streetName: 'Broadway', briefContext: { concern: '' } });
 });

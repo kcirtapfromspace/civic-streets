@@ -3,8 +3,7 @@
 
 import { findReportingArea } from '../../../shared/reporting-areas';
 import { useMapStore } from '@/features/map/map-store';
-import React, { useCallback, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useMemo } from 'react';
 import { Button, Badge } from '@/components/ui';
 import { useReportStore, type ReportStep } from './report-store';
 import { buildEmailDraftUrl } from './official-contacts';
@@ -12,9 +11,10 @@ import { RepLookup } from './RepLookup';
 import { ReportSuccess } from './ReportSuccess';
 import { generateReportSubject, generateReportBody } from './templates';
 import type { ReportTemplateInput } from './templates';
-import type { HotspotPin, DesignPin } from '@/lib/types';
+import type { HotspotPin, DesignPin, DiscussionBriefContext, StreetSegment } from '@/lib/types';
 import { HOTSPOT_CATEGORY_LABELS } from '@/lib/types';
-import { getGovernmentContactHref, useBillingAccess } from '@/lib/billing/access';
+import { BriefDownload } from './BriefDownload';
+import { BriefPreview } from '@/features/export/BriefPreview';
 import { captureAnalytics } from '@/lib/analytics';
 import { convexAvailable } from '@/lib/api/convex-provider';
 
@@ -24,9 +24,12 @@ interface ReportBuilderProps {
   /** Pre-linked hotspot, if coming from a hotspot view */
   hotspot?: HotspotPin | null;
   /** Pre-linked design, if coming from a design view */
-  design?: (DesignPin & { elements?: string }) | null;
+  design?: (DesignPin & { elements?: string; checksAvailable?: boolean }) | null;
   /** Pre-filled address from map/hotspot/design */
   initialAddress?: string;
+  briefContext?: DiscussionBriefContext;
+  street?: StreetSegment;
+  beforeStreet?: StreetSegment | null;
   /** Called when the wizard is closed/dismissed */
   onClose?: () => void;
 }
@@ -58,9 +61,9 @@ function StepIndicator({ currentStep }: { currentStep: ReportStep }) {
                 <div
                   className={`
                     flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold flex-shrink-0 transition-colors
-                    ${isComplete ? 'bg-blue-600 text-white' : ''}
-                    ${isActive ? 'bg-blue-600 text-white ring-2 ring-blue-200' : ''}
-                    ${!isActive && !isComplete ? 'bg-gray-200 text-gray-500' : ''}
+                    ${isComplete ? 'bg-civic-ink text-white' : ''}
+                    ${isActive ? 'bg-civic-ink text-white ring-2 ring-civic-line' : ''}
+                    ${!isActive && !isComplete ? 'bg-gray-200 text-civic-muted' : ''}
                   `}
                   aria-current={isActive ? 'step' : undefined}
                 >
@@ -83,7 +86,7 @@ function StepIndicator({ currentStep }: { currentStep: ReportStep }) {
                 </div>
                 <span
                   className={`text-xs hidden sm:inline ${
-                    isActive ? 'font-semibold text-gray-900' : 'text-gray-500'
+                    isActive ? 'font-semibold text-gray-900' : 'text-civic-muted'
                   }`}
                 >
                   {STEP_LABELS[s]}
@@ -92,7 +95,7 @@ function StepIndicator({ currentStep }: { currentStep: ReportStep }) {
               {s < 4 && (
                 <div
                   className={`h-px flex-1 ${
-                    s < currentStep ? 'bg-blue-600' : 'bg-gray-200'
+                    s < currentStep ? 'bg-civic-ink' : 'bg-gray-200'
                   }`}
                   aria-hidden="true"
                 />
@@ -112,29 +115,17 @@ function StepContext({
   design,
 }: {
   hotspot?: HotspotPin | null;
-  design?: (DesignPin & { elements?: string }) | null;
+  design?: (DesignPin & { elements?: string; checksAvailable?: boolean }) | null;
 }) {
-  const { address, setContext, designId, hotspotId, setStep } =
+  const { address, setContext, designId, hotspotId, setStep, messageInitialized } =
     useReportStore();
 
   const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setContext(designId, hotspotId, e.target.value);
   };
 
-  const handleLinkHotspot = () => {
-    if (hotspot) {
-      setContext(designId, hotspot.id, address);
-    }
-  };
-
   const handleUnlinkHotspot = () => {
     setContext(designId, null, address);
-  };
-
-  const handleLinkDesign = () => {
-    if (design) {
-      setContext(design.id, hotspotId, address);
-    }
   };
 
   const handleUnlinkDesign = () => {
@@ -149,17 +140,18 @@ function StepContext({
         <h3 className="text-base font-semibold text-gray-900 mb-1">
           What are you reporting about?
         </h3>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-civic-muted">
           Optionally link a hotspot or street design to provide context for your
           message.
         </p>
       </div>
 
+      {messageInitialized && <p className="text-sm text-civic-muted">Changing linked context keeps your message edits. Review any source references in the message before sending.</p>}
       {/* Hotspot link */}
       {hotspot && (
         <div
           className={`rounded-lg border p-3 ${
-            hotspotId ? 'border-blue-300 bg-blue-50' : 'border-gray-200'
+            hotspotId ? 'border-civic-line bg-civic-wash' : 'border-gray-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -172,7 +164,7 @@ function StepContext({
               <span className="text-sm font-medium text-gray-800">
                 {hotspot.title}
               </span>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-civic-muted">
                 {HOTSPOT_CATEGORY_LABELS[hotspot.category]}
               </span>
             </div>
@@ -181,7 +173,7 @@ function StepContext({
                 Remove
               </Button>
             ) : (
-              <Button variant="secondary" onClick={handleLinkHotspot}>
+              <Button variant="secondary" onClick={() => setContext(designId, hotspot.id, address)}>
                 Link
               </Button>
             )}
@@ -199,7 +191,7 @@ function StepContext({
       {design && (
         <div
           className={`rounded-lg border p-3 ${
-            designId ? 'border-blue-300 bg-blue-50' : 'border-gray-200'
+            designId ? 'border-civic-line bg-civic-wash' : 'border-gray-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -213,7 +205,7 @@ function StepContext({
                 {design.title}
               </span>
               <Badge variant={design.prowagPass ? 'success' : 'warning'}>
-                {design.prowagPass ? 'PROWAG Pass' : 'PROWAG Issues'}
+                {design.checksAvailable === false ? 'Checks not supplied' : design.prowagPass ? 'No flags in selected checks' : 'Selected checks need review'}
               </Badge>
             </div>
             {designId ? (
@@ -221,7 +213,7 @@ function StepContext({
                 Remove
               </Button>
             ) : (
-              <Button variant="secondary" onClick={handleLinkDesign}>
+              <Button variant="secondary" onClick={() => setContext(design.id, hotspotId, address)}>
                 Link
               </Button>
             )}
@@ -243,7 +235,7 @@ function StepContext({
           value={address}
           onChange={handleAddressChange}
           placeholder="Enter the street address..."
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-civic-ink"
         />
       </div>
 
@@ -275,7 +267,7 @@ function StepFindReps() {
         <h3 className="text-base font-semibold text-gray-900 mb-1">
           Find Your Representatives
         </h3>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-civic-muted">
           Select one or more representatives to contact.
         </p>
       </div>
@@ -310,9 +302,8 @@ function StepCompose({
   design,
 }: {
   hotspot?: HotspotPin | null;
-  design?: (DesignPin & { elements?: string }) | null;
+  design?: (DesignPin & { elements?: string; checksAvailable?: boolean }) | null;
 }) {
-  const navigate = useNavigate();
   const {
     address,
     selectedReps,
@@ -320,20 +311,13 @@ function StepCompose({
     designId,
     subject,
     body,
-    includePdf,
     setSubject,
     setBody,
-    togglePdf,
     setStep,
+    briefContext,
+    messageInitialized,
+    initializeMessage,
   } = useReportStore();
-  const { canAccess: canAttachPdf, contactHref } = useBillingAccess(
-    'report_pdf_attachment',
-  );
-
-  const handleUpgrade = useCallback(() => {
-    navigate(contactHref || getGovernmentContactHref('report_pdf_attachment'));
-  }, [contactHref, navigate]);
-
   // Auto-generate template on first render if body is empty
   const generated = useMemo(() => {
     const firstRep = selectedReps[0];
@@ -347,6 +331,7 @@ function StepCompose({
     if (hotspotId && hotspot) {
       input.hotspotTitle = hotspot.title;
       input.hotspotCategory = hotspot.category;
+      input.hotspotDescription = briefContext?.observation?.description;
       if (convexAvailable) {
         input.hotspotVotes = hotspot.upvotes;
         input.communityVotes = hotspot.upvotes;
@@ -356,7 +341,7 @@ function StepCompose({
     if (designId && design) {
       input.designTitle = design.title;
       input.designElements = design.elements;
-      input.prowagCompliant = design.prowagPass;
+      if (design.checksAvailable !== false) input.prowagCompliant = design.prowagPass;
       if (convexAvailable && design.upvotes) {
         input.communityVotes = Math.max(
           input.communityVotes ?? 0,
@@ -365,27 +350,22 @@ function StepCompose({
       }
     }
 
+    if (briefContext && (!briefContext.observation || hotspotId === briefContext.observation.id)) {
+      input.concern = briefContext.concern;
+      input.desiredOutcome = briefContext.desiredOutcome;
+      input.requestedNextStep = briefContext.requestedNextStep;
+      if (briefContext.observation?.source === 'community') input.sourceUrl = briefContext.sourceUrl;
+    }
     return {
       subject: generateReportSubject(input),
       body: generateReportBody(input),
     };
-  }, [address, selectedReps, hotspotId, hotspot, designId, design]);
+  }, [address, selectedReps, hotspotId, hotspot, designId, design, briefContext]);
 
-  // Populate fields if empty
+  // Initialize once. A deliberately erased field must stay erased.
   React.useEffect(() => {
-    if (!subject && generated.subject) {
-      setSubject(generated.subject);
-    }
-    if (!body && generated.body) {
-      setBody(generated.body);
-    }
-  }, [generated, subject, body, setSubject, setBody]);
-
-  useEffect(() => {
-    if (designId && includePdf && !canAttachPdf) {
-      togglePdf();
-    }
-  }, [designId, includePdf, canAttachPdf, togglePdf]);
+    if (!messageInitialized && generated.body) initializeMessage(generated.subject, generated.body);
+  }, [generated, messageInitialized, initializeMessage]);
 
   const charCount = body.length;
 
@@ -395,7 +375,7 @@ function StepCompose({
         <h3 className="text-base font-semibold text-gray-900 mb-1">
           Compose Your Message
         </h3>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-civic-muted">
           Review and personalize the pre-drafted message below.
         </p>
       </div>
@@ -413,7 +393,7 @@ function StepCompose({
           type="text"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-civic-ink"
         />
       </div>
 
@@ -430,49 +410,12 @@ function StepCompose({
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={14}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 resize-y font-mono leading-relaxed"
+          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-civic-ink resize-y font-mono leading-relaxed"
         />
-        <p className="text-xs text-gray-400 mt-1 text-right">
+        <p className="text-xs text-civic-muted mt-1 text-right">
           {charCount.toLocaleString()} characters
         </p>
       </div>
-
-      {/* PDF attachment toggle */}
-      {designId && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={includePdf}
-              onChange={() => {
-                if (canAttachPdf) {
-                  togglePdf();
-                } else {
-                  handleUpgrade();
-                }
-              }}
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              disabled={!canAttachPdf}
-            />
-            <span className="text-sm text-gray-700">
-              Include Street Design PDF
-            </span>
-            {!canAttachPdf && (
-              <Badge variant="warning">Gov</Badge>
-            )}
-          </label>
-          {!canAttachPdf && (
-            <div className="mt-2 flex items-center justify-between gap-3">
-              <p className="text-xs text-gray-500">
-                PDF attachments are enabled once your jurisdiction is provisioned.
-              </p>
-              <Button variant="ghost" onClick={handleUpgrade}>
-                Contact Curbwise
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="flex justify-between pt-2">
         <Button variant="secondary" onClick={() => setStep(2)}>
@@ -492,21 +435,27 @@ function StepCompose({
 
 // ── Step 4: Review & Send ──────────────────────────────────────────────────
 
-function StepReview({ onSent }: { onSent: () => void }) {
+function StepReview({ onSent, street, beforeStreet }: { onSent: () => void; street?: StreetSegment; beforeStreet?: StreetSegment | null }) {
   const {
     selectedReps,
     subject,
     body,
-    includePdf,
+    designId,
+    hotspotId,
     setStep,
   } = useReportStore();
 
+  const briefContext = useReportStore((state) => state.briefContext);
+  const attachedContext = useMemo(() => briefContext?.observation && briefContext.observation.id !== hotspotId
+    ? { ...briefContext, observation: undefined, sourceUrl: undefined } : briefContext, [briefContext, hotspotId]);
+  const attachedStreet = designId ? street : undefined;
+  const [copyStatus, setCopyStatus] = React.useState<string | null>(null);
   const mailtoUrl = buildEmailDraftUrl(selectedReps, subject, body);
   const handleSendEmail = () => {
     if (!mailtoUrl) return;
     captureAnalytics('report_email_draft_opened', {
       recipient_count: selectedReps.length,
-      includes_pdf: includePdf,
+      includes_pdf: false,
     });
     window.open(mailtoUrl, '_blank', 'noopener,noreferrer');
     onSent();
@@ -516,8 +465,9 @@ function StepReview({ onSent }: { onSent: () => void }) {
     const fullText = `Subject: ${subject}\n\n${body}`;
     try {
       await navigator.clipboard.writeText(fullText);
+      setCopyStatus('Message copied. Nothing has been sent.');
     } catch {
-      // Clipboard API may fail in some contexts
+      setCopyStatus('Copying failed. Select the message below and copy it manually; your draft is unchanged.');
     }
   };
 
@@ -527,62 +477,40 @@ function StepReview({ onSent }: { onSent: () => void }) {
         <h3 className="text-base font-semibold text-gray-900 mb-1">
           Review Your Message
         </h3>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-civic-muted">
           Double-check the recipients and message. You will send it yourself in your email app.
         </p>
       </div>
 
       {/* Recipients */}
       <div>
-        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+        <h4 className="text-xs font-semibold text-civic-muted uppercase tracking-wide mb-2">
           Recipients
         </h4>
         <div className="flex flex-wrap gap-2">
           {selectedReps.map((rep) => (
             <div
               key={rep.name}
-              className="flex items-center gap-2 rounded-full bg-blue-50 border border-blue-200 px-3 py-1"
+              className="flex items-center gap-2 rounded-full bg-civic-wash border border-civic-line px-3 py-1"
             >
-              <span className="text-sm font-medium text-blue-800">
+              <span className="text-sm font-medium text-civic-ink">
                 {rep.name}
               </span>
               {rep.email && (
-                <span className="text-xs text-blue-600">{rep.email}</span>
+                <span className="text-xs text-civic-muted">{rep.email}</span>
               )}
             </div>
           ))}
         </div>
       </div>
 
-      {/* Attachments */}
-      {includePdf && (
-        <div>
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-            Attachments
-          </h4>
-          <div className="flex items-center gap-2 text-sm text-gray-700">
-            <svg
-              className="w-4 h-4 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-              />
-            </svg>
-            Street Design PDF
-          </div>
-        </div>
-      )}
+      <BriefDownload key={JSON.stringify([attachedContext, attachedStreet, beforeStreet])} context={attachedContext} street={attachedStreet} beforeStreet={beforeStreet} />
+      {attachedContext && <details><summary className="min-h-11 cursor-pointer py-3">Read the discussion brief</summary><BriefPreview context={attachedContext} /></details>}
+      {copyStatus && <p role="status" className="text-sm text-civic-muted">{copyStatus}</p>}
 
       {/* Message preview */}
       <div>
-        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+        <h4 className="text-xs font-semibold text-civic-muted uppercase tracking-wide mb-2">
           Message Preview
         </h4>
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -646,26 +574,24 @@ export function ReportBuilder({
   hotspot,
   design,
   initialAddress = '',
+  briefContext,
+  street,
+  beforeStreet,
   onClose,
 }: ReportBuilderProps) {
-  const { step, address, selectedReps, setContext, designId, hotspotId, reset } =
+  const { step, address, selectedReps, openContext, reset, saveError } =
     useReportStore();
   const [sent, setSent] = React.useState(false);
+  const [contextReady, setContextReady] = React.useState(false);
   const selectedLocation = useMapStore((state) => state.selectedLocation);
   const location = hotspot ?? design ?? selectedLocation;
   const reportingAllowed = Boolean(location && findReportingArea(location.lat, location.lng));
 
-  // Initialize address from props on mount
+  // Route context gets its own saved recipient draft; never reuse another concern's text.
   React.useEffect(() => {
-    if ((initialAddress && !address) || (design && !designId) || (hotspot && !hotspotId)) {
-      // Apply both links together; separate writes use the same stale render
-      // values and can erase the design while linking the hotspot.
-      setContext(
-        designId ?? design?.id ?? null,
-        hotspotId ?? hotspot?.id ?? null,
-        address || initialAddress,
-      );
-    }
+    openContext(design?.id ?? null, hotspot?.id ?? null, initialAddress, briefContext);
+    setContextReady(true);
+    // Context is established once for this route. Later text edits remain authoritative.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -724,15 +650,16 @@ export function ReportBuilder({
           {' '}<a href="/map" className="underline">Choose a location on the map</a> to continue.
         </p>
       )}
+      <p role="status" className="mb-4 text-xs text-civic-muted">{saveError || 'Your recipient draft is saved in this browser. Nothing is sent automatically.'}</p>
       {/* Progress */}
       <StepIndicator currentStep={step} />
 
       {/* Step content */}
       <fieldset disabled={!reportingAllowed} className="bg-white rounded-lg border border-gray-200 p-6">
-        {step === 1 && <StepContext hotspot={hotspot} design={design} />}
-        {reportingAllowed && step === 2 && <StepFindReps />}
-        {reportingAllowed && step === 3 && <StepCompose hotspot={hotspot} design={design} />}
-        {reportingAllowed && step === 4 && <StepReview onSent={handleSent} />}
+        {contextReady && step === 1 && <StepContext hotspot={hotspot} design={design} />}
+        {contextReady && reportingAllowed && step === 2 && <StepFindReps />}
+        {contextReady && reportingAllowed && step === 3 && <StepCompose hotspot={hotspot} design={design} />}
+        {contextReady && reportingAllowed && step === 4 && <StepReview onSent={handleSent} street={street} beforeStreet={beforeStreet} />}
       </fieldset>
     </div>
   );

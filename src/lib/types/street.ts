@@ -132,6 +132,14 @@ export interface ObservationSnapshot {
 
 /** The resident's purpose and assumptions, shared by the draft and its export. */
 export interface DiscussionBriefContext {
+  briefId?: string;
+  revisedAt?: string;
+  /** Public observation URL only; never a link to a browser-only draft. */
+  sourceUrl?: string;
+  supportingEvidence?: {
+    title: string; capturedAt: string; summary: string; details: string[];
+    sources: Array<{ label: string; url: string }>;
+  };
   concern: string;
   desiredOutcome: string;
   requestedNextStep: string;

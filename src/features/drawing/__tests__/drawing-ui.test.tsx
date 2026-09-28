@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { DrawingToolbar } from '../DrawingToolbar';
 import { DrawingActionCard } from '../DrawingActionCard';
 import { useDrawingStore } from '@/stores/drawing-store';
@@ -15,9 +15,10 @@ beforeEach(() => {
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState());
   useProposalStore.setState(useProposalStore.getInitialState());
 });
-afterEach(cleanup);
-it('protects an unfinished concern when designing a drawn road stretch', () => {
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+it('protects an unfinished concern when browser storage fails before designing a drawn road stretch', () => {
   useProposalStore.getState().initProposal('Current concern', { ...path[0], address: 'Current place' });
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Full'); });
   useProposalStore.getState().setBriefContext({ concern: 'A concern worth keeping' });
   useDrawingStore.setState({ activeTool: 'road', selectedPath: path, streetName: 'Another street' });
   render(<DrawingActionCard />);

@@ -17,6 +17,7 @@ export function ReportSuccess({
   onReportAnother,
 }: ReportSuccessProps) {
   const [showCheck, setShowCheck] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
 
   useEffect(() => {
     // Trigger the check animation after mount
@@ -32,8 +33,9 @@ export function ReportSuccess({
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(shareText);
+      setCopyStatus('Share text copied.');
     } catch {
-      // Fallback: some browsers restrict clipboard in non-HTTPS
+      setCopyStatus('Copying failed. Your email draft is unchanged.');
     }
   };
 
@@ -124,6 +126,8 @@ export function ReportSuccess({
         </div>
       </div>
 
+      {copyStatus && <p role="status" className="mb-4 text-sm text-civic-muted">{copyStatus}</p>}
+      <p className="mb-4 text-sm text-civic-muted">If you downloaded a brief, attach that file yourself before sending.</p>
       {/* Actions */}
       <div className="flex gap-3">
         <Button variant="primary" onClick={onReportAnother}>

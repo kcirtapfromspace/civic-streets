@@ -5,11 +5,16 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Layout } from '../Layout';
 import { ToastProvider } from '@/components/ui/Toast';
 import { useWorkspaceStore } from '@/stores/workspace-store';
+import { useWorkDraftsStore } from '@/stores/work-drafts-store';
+import { useProposalStore } from '@/stores/proposal-store';
 
 const backend = vi.hoisted(() => ({ connected: true }));
 vi.mock('@/lib/api/convex-provider', () => ({ get convexAvailable() { return backend.connected; } }));
 beforeEach(() => {
   backend.connected = true;
+  localStorage.clear();
+  useProposalStore.getState().reset();
+  useWorkDraftsStore.setState({ drafts: {}, pending: {}, storageError: null });
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState());
 });
 afterEach(cleanup);
@@ -118,4 +123,23 @@ it('labels the entire offline workspace as fictional and browser-session-only', 
 it('does not label connected community records as fictional', () => {
   render(<Navigation />);
   expect(screen.queryByRole('complementary', { name: 'Demo mode' })).not.toBeInTheDocument();
+});
+
+
+it('reopens work from Account and warns on reload only while a write remains unsaved', () => {
+  useProposalStore.getState().initConcern('Library entrance');
+  render(<Navigation path="/account" />);
+  fireEvent.click(screen.getByRole('button', { name: /My work/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Reopen Library entrance/ }));
+  expect(screen.getByRole('heading', { name: 'Map workspace' })).toBeInTheDocument();
+  const blocked = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota'); });
+  act(() => useProposalStore.getState().setBriefContext({ concern: 'Ramp blocked' }));
+  const before = new Event('beforeunload', { cancelable: true });
+  window.dispatchEvent(before);
+  expect(before.defaultPrevented).toBe(true);
+  blocked.mockRestore();
+  act(() => useWorkDraftsStore.getState().retry());
+  const after = new Event('beforeunload', { cancelable: true });
+  window.dispatchEvent(after);
+  expect(after.defaultPrevented).toBe(false);
 });

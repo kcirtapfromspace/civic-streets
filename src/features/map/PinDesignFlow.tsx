@@ -29,6 +29,7 @@ export function PinDesignFlow({ map }: PinDesignFlowProps) {
   useEffect(() => {
     if (!map) return;
     const onClick = (event: maplibregl.MapMouseEvent) => {
+      if (useWorkspaceStore.getState().mode === 'place-street') return;
       if (useDrawingStore.getState().activeTool !== 'select') return;
       if (useMapStore.getState().lockedToLocation) return;
       const { lat, lng } = event.lngLat;

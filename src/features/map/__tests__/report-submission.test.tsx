@@ -1,3 +1,4 @@
+vi.mock('@/lib/api/use-report-eligibility', () => ({ usePhotoRequirement: () => 'optional' }));
 import '@testing-library/jest-dom/vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -51,7 +52,7 @@ describe('map issue reporting', () => {
     });
   });
 
-  afterEach(cleanup);
+  afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
   it('keeps the draft and shows the reason after failure, then closes after a successful retry', async () => {
     createHotspot.mockRejectedValueOnce(
@@ -196,11 +197,13 @@ describe('map issue reporting', () => {
     expect(useProposalStore.getState().location).toBeNull();
   });
 
-  it('requires a replace choice after saving and labels copied local evidence as browser-session', async () => {
+  it('protects edits that failed to save and labels copied local evidence as browser-session', async () => {
     backend.available = false;
     createHotspot.mockResolvedValue('local-h42');
     lookup.mockImplementation((id: string | undefined) => ({ hotspot: id ? { ...savedObservation, id: 'local-h42', address: '' } : null, isLoading: false }));
     useProposalStore.getState().initProposal('', { lat: 39.7, lng: -104.9, address: 'Existing' });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Full'); });
+    useProposalStore.getState().setBriefContext({ concern: 'Do not lose this edit' });
     renderMap();
     fillReport();
     fireEvent.click(screen.getByRole('button', { name: 'Save observation' }));

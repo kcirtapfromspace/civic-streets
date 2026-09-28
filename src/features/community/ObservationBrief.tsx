@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { generateObservationPDF } from '@/features/export';
-import type { DiscussionBriefContext, ObservationSnapshot } from '@/lib/types';
+import type { ObservationSnapshot } from '@/lib/types';
 import type { MockHotspot } from './mock-data';
+import { observationBriefContext, saveObservationBrief } from './observation-brief-store';
+import { BriefPreview } from '@/features/export/BriefPreview';
 
 /** A useful handoff even when the concern does not call for a street redesign. */
 export function ObservationBrief({ hotspot, source }: {
@@ -9,8 +11,16 @@ export function ObservationBrief({ hotspot, source }: {
   source: ObservationSnapshot['source'];
 }) {
   const fieldId = useId();
-  const [desiredOutcome, setDesiredOutcome] = useState('');
-  const [requestedNextStep, setRequestedNextStep] = useState('');
+  const [context, setContext] = useState(() => observationBriefContext(hotspot, source));
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const desiredOutcome = context.desiredOutcome;
+  const requestedNextStep = context.requestedNextStep;
+  const updateNotes = (field: 'desiredOutcome' | 'requestedNextStep', value: string) => {
+    const next = { ...context, [field]: value, revisedAt: new Date().toISOString() };
+    setContext(next);
+    setSaveError(saveObservationBrief(hotspot.id, next));
+    clearDownload();
+  };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
@@ -37,20 +47,8 @@ export function ObservationBrief({ hotspot, source }: {
     setBusy(true);
     setError(null);
     clearDownload();
-    const context: DiscussionBriefContext = {
-      concern: hotspot.description || hotspot.title,
-      desiredOutcome: desiredOutcome.trim(),
-      requestedNextStep: requestedNextStep.trim(),
-      dimensionBasis: 'assumed',
-      dimensionSource: '',
-      observation: {
-        id: hotspot.id, title: hotspot.title, description: hotspot.description,
-        photoUrls: [...hotspot.photoUrls], lat: hotspot.lat, lng: hotspot.lng,
-        address: hotspot.address, createdAt: hotspot.createdAt, source,
-      },
-    };
     try {
-      const blob = await generateObservationPDF(context);
+      const blob = await generateObservationPDF({ ...context, desiredOutcome: desiredOutcome.trim(), requestedNextStep: requestedNextStep.trim() });
       if (!mountedRef.current) return;
       const url = URL.createObjectURL(blob);
       urlRef.current = url;
@@ -74,17 +72,20 @@ export function ObservationBrief({ hotspot, source }: {
           <div>
             <label htmlFor={`${fieldId}-outcome`} className="block font-medium">What would you like to improve? <span className="font-normal text-civic-muted">(optional)</span></label>
             <textarea id={`${fieldId}-outcome`} rows={2} maxLength={1000} value={desiredOutcome}
-              onChange={(event) => { setDesiredOutcome(event.target.value); clearDownload(); }}
+              onChange={(event) => { updateNotes('desiredOutcome', event.target.value); }}
               className="mt-2 w-full rounded border border-civic-line p-3 focus-visible:outline-2 focus-visible:outline-civic-ink" />
           </div>
           <div>
             <label htmlFor={`${fieldId}-next`} className="block font-medium">What are you asking for? <span className="font-normal text-civic-muted">(optional)</span></label>
             <p id={`${fieldId}-hint`} className="mt-1 text-xs text-civic-muted">For example, a site visit or feedback from your neighborhood group.</p>
             <textarea id={`${fieldId}-next`} aria-describedby={`${fieldId}-hint`} rows={2} maxLength={1000} value={requestedNextStep}
-              onChange={(event) => { setRequestedNextStep(event.target.value); clearDownload(); }}
+              onChange={(event) => { updateNotes('requestedNextStep', event.target.value); }}
               className="mt-2 w-full rounded border border-civic-line p-3 focus-visible:outline-2 focus-visible:outline-civic-ink" />
           </div>
         </fieldset>
+        <p role="status" className="text-xs text-civic-muted">{saveError || 'Brief notes are saved in this browser as you edit. They are not published.'}</p>
+        {!requestedNextStep.trim() && <p className="text-sm text-civic-muted">Before sharing, add a specific request so the reader knows how to respond. You can still download an unfinished brief.</p>}
+        <details><summary className="min-h-11 cursor-pointer py-3 font-medium">Read the brief on this page</summary><BriefPreview context={context} /></details>
         {error && <p role="alert" className="text-red-700">{error}</p>}
         {downloadUrl ? (
           <div>

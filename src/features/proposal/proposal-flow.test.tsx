@@ -5,6 +5,7 @@ import { ProposalReview } from './steps/ProposalReview';
 import { BeforeSelector } from './steps/BeforeSelector';
 import { TransformationPicker } from './steps/TransformationPicker';
 import { ConcernFields } from './steps/ConcernStep';
+import { useWorkDraftsStore } from '@/stores/work-drafts-store';
 import { useProposalStore } from '@/stores/proposal-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useStreetStore } from '@/stores/street-store';
@@ -66,6 +67,18 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+});
+
+it('can place or reposition an existing brief without replacing its purpose or geometry', () => {
+  ready();
+  render(<ProposalReview />);
+  const original = useProposalStore.getState().getWork();
+  fireEvent.click(screen.getByRole('button', { name: 'Adjust map placement' }));
+  expect(useWorkspaceStore.getState().mode).toBe('place-street');
+  expect(useProposalStore.getState().getWork()).toEqual({ ...original, updatedAt: expect.any(String) });
+  act(() => useProposalStore.setState({ roadPath: [] }));
+  fireEvent.click(screen.getByRole('button', { name: 'Place this layout on the map' }));
+  expect(useWorkspaceStore.getState().designProposalId).toBe(original!.id);
 });
 
 describe('proposal wizard lifecycle', () => {
@@ -225,46 +238,40 @@ describe('proposal wizard lifecycle', () => {
     view.unmount();
   });
 
-  it('keeps an incomplete location open and explains why it cannot be saved', async () => {
+  it('saves private street work without requiring a mapped location', async () => {
     ready();
     useProposalStore.setState({ location: null, streetName: '' });
     useWorkspaceStore.setState({ designLocation: null });
     render(<ProposalReview />);
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-    expect(screen.getByRole('alert').textContent).toContain('Choose a street location');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByRole('status').textContent).toContain('Draft saved');
     expect(useCommunityStore.getState().isSaveDesignOpen).toBe(false);
     expect(useProposalStore.getState().afterStreet).not.toBeNull();
     expect(useSavedProposalsStore.getState().proposals).toEqual({});
   });
 
-  it('shows only nearby recorded crash evidence, singular/plural counts, and loading state', () => {
+  it('preserves a sourced crash snapshot only when the resident includes it', () => {
+    initialize();
+    useSafetyDataStore.setState({ enabled: true, isLoading: true });
     const view = render(<BeforeSelector />);
-    expect(screen.queryByText(/recorded crash/)).toBeNull();
-    act(() => {
-      initialize();
-      useSafetyDataStore.setState({ enabled: true, isLoading: true });
-    });
-    expect(screen.getByText('Loading safety data...')).toBeTruthy();
-    act(() =>
-      useSafetyDataStore.setState({
-        crashes: [crash(), crash({ id: 'far', lat: 0 })],
-        isLoading: false,
-      }),
-    );
-    expect(screen.getByText(/1 recorded crash nearby/)).toBeTruthy();
-    expect(screen.getByText(/1 with recorded injuries/)).toBeTruthy();
-    act(() =>
-      useSafetyDataStore.setState({
-        crashes: [
-          crash({ severity: 'unknown', injuries: null }),
-          crash({ id: 'second', severity: 'minor', injuries: 0 }),
-        ],
-      }),
-    );
-    expect(screen.getByText(/2 recorded crashes nearby/)).toBeTruthy();
-    expect(screen.queryByText(/fatal/)).toBeNull();
-    act(() => useSafetyDataStore.setState({ crashes: [crash({ lat: 0 })] }));
-    expect(screen.queryByText(/recorded crash/)).toBeNull();
+    expect(screen.getByText(/Crash evidence and source coverage/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Include this snapshot in brief' })).toBeNull();
+    act(() => useSafetyDataStore.setState({
+      coverage: 'municipal', lastBounds: { north: 40, south: 39, east: -104, west: -105 },
+      sources: [{ sourceId: 'denver', status: 'loaded', count: 2, warnings: [] }],
+      crashes: [crash(), crash({ id: 'far', lat: 0 })], isLoading: false,
+    }));
+    expect(screen.getByText(/1 mapped record within 200 m/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Include this snapshot in brief' }));
+    const snapshot = useProposalStore.getState().briefContext.supportingEvidence;
+    expect(snapshot?.sources[0].label).toContain('Denver');
+    act(() => useSafetyDataStore.setState({ crashes: [] }));
+    expect(useProposalStore.getState().briefContext.supportingEvidence).toEqual(snapshot);
+    fireEvent.click(screen.getByRole('button', { name: 'Update snapshot in brief' }));
+    expect(useProposalStore.getState().briefContext.supportingEvidence?.summary).toContain('0 mapped records');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove snapshot' }));
+    expect(useProposalStore.getState().briefContext.supportingEvidence).toBeUndefined();
     view.unmount();
     render(<TransformationPicker />);
     expect(screen.getByText('What would you like to do?')).toBeTruthy();
@@ -276,7 +283,7 @@ it('preserves the active proposal when storage is full and allows saving or clos
   const storage = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('QuotaExceeded'); });
   render(<ProposalFlow />);
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-  expect(screen.getByRole('alert').textContent).toContain('Drafts could not be saved');
+  expect(screen.getAllByRole('alert').some((alert) => alert.textContent?.includes('could not be saved'))).toBe(true);
   expect(useSavedProposalsStore.getState().proposals).toEqual({});
   expect(useProposalStore.getState().afterStreet).toEqual(proposal.after);
   fireEvent.click(screen.getByRole('button', { name: 'Close proposal' }));
@@ -288,12 +295,13 @@ it('preserves the active proposal when storage is full and allows saving or clos
   expect(Object.keys(useSavedProposalsStore.getState().proposals)).toHaveLength(1);
 });
 
-it('keeps incomplete work in memory when closing the proposal', () => {
+it('saves incomplete work durably when closing the proposal', () => {
   initialize();
   useProposalStore.getState().selectPreset(BEFORE_PRESETS[0]);
   render(<ProposalFlow />);
   fireEvent.click(screen.getByRole('button', { name: 'Close proposal' }));
-  expect(useProposalStore.getState().beforeStreet).not.toBeNull();
+  expect(useProposalStore.getState().beforeStreet).toBeNull();
+  expect(Object.values(useWorkDraftsStore.getState().drafts).some((draft) => draft.kind === 'street' && draft.beforeStreet !== null)).toBe(true);
   expect(useWorkspaceStore.getState().mode).toBe('explore');
 });
 

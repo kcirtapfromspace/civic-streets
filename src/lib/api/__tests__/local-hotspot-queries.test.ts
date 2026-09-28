@@ -8,7 +8,7 @@ import {
   useCreateHotspot,
   useVoteOnHotspot,
 } from '../use-hotspots';
-import { useDesignsByBounds } from '../use-designs';
+import { useDesignById, useDesignsByBounds } from '../use-designs';
 import { useLocalHotspotsStore } from '@/stores/local-hotspots-store';
 import { MOCK_HOTSPOTS as community } from '@/features/community/mock-data';
 import { MOCK_HOTSPOTS as map, MOCK_DESIGNS as designs } from '@/features/map/mock-data';
@@ -221,4 +221,9 @@ it('rejects invalid local photos and never stores supplied external or temporary
     await result.current({ ...community[0], photoUrls: ['blob:expired', 'https://example.com/photo'] });
   });
   expect(useLocalHotspotsStore.getState().hotspots[0].photoUrls).toEqual([]);
+});
+
+it('explains unavailable community design links in demo mode', () => {
+  const { result } = renderHook(() => useDesignById('community-link'));
+  expect(result.current).toEqual({ id: 'community-link', status: 'unavailable' });
 });

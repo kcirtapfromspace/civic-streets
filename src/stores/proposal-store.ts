@@ -11,14 +11,11 @@ import type {
   ObservationSnapshot,
 } from '@/lib/types';
 import { adaptTemplate } from '@/lib/templates/adapter';
-import { useSavedProposalsStore } from './saved-proposals-store';
+import { useWorkDraftsStore, type StreetWork, type StreetWorkStep } from './work-drafts-store';
+import { observationBriefContext } from '@/features/community/observation-brief-store';
+import { BEFORE_PRESETS } from '@/lib/presets/before-presets';
 
-export type ProposalStep =
-  | 'concern'
-  | 'street-selected'
-  | 'before-selected'
-  | 'transform-selected'
-  | 'review';
+export type ProposalStep = StreetWorkStep;
 
 function emptyBriefContext(): DiscussionBriefContext {
   return { concern: '', desiredOutcome: '', requestedNextStep: '', dimensionBasis: 'assumed', dimensionSource: '' };
@@ -61,9 +58,14 @@ export interface ProposalState {
   showBeforeOnMap: boolean;
 
   // Actions
-  initProposal: (streetName: string, location: StreetLocation, observation?: ObservationSnapshot) => void;
+  initProposal: (streetName: string, location: StreetLocation | null, observation?: ObservationSnapshot) => void;
+  initConcern: (locationDescription: string) => void;
   setBriefContext: (context: Partial<DiscussionBriefContext>) => void;
   continueToExplore: () => void;
+  prepareBrief: () => void;
+  getWork: () => StreetWork | null;
+  saveWork: () => boolean;
+  loadWork: (work: StreetWork) => void;
   setRoadPath: (path: Array<{ lat: number; lng: number }>, bearing: number) => void;
   selectPreset: (preset: BeforePreset) => void;
   applyTransformation: (template: TemplateDefinition) => void;
@@ -100,10 +102,10 @@ export const useProposalStore = create<ProposalState>()((set, get) => ({
       createdAt: new Date().toISOString(),
       step: 'concern',
       streetName,
-      location: { ...location },
+      location: location ? { ...location } : null,
       roadPath: [],
       bearing: 0,
-      briefContext: copyBriefContext({ ...emptyBriefContext(), ...(observation ? { concern: observation.description || observation.title, observation } : {}) }),
+      briefContext: copyBriefContext({ ...emptyBriefContext(), ...(observation ? observationBriefContext(observation, observation.source) : {}) }),
       selectedPreset: null,
       beforePresetId: null,
       beforeStreet: null,
@@ -112,8 +114,18 @@ export const useProposalStore = create<ProposalState>()((set, get) => ({
       showBeforeOnMap: true,
     }),
 
+  initConcern: (locationDescription) => get().initProposal(locationDescription, null),
+
   setBriefContext: (context) => set((state) => ({ briefContext: copyBriefContext({ ...state.briefContext, ...context }) })),
   continueToExplore: () => set({ step: 'street-selected' }),
+  prepareBrief: () => set({ step: 'brief' }),
+  getWork: () => {
+    const s = get();
+    if (!s.proposalId || !s.createdAt) return null;
+    return { kind: 'street', id: s.proposalId, name: s.streetName, location: s.location, createdAt: s.createdAt, updatedAt: new Date().toISOString(), step: s.step, roadPath: s.roadPath, bearing: s.bearing, briefContext: s.briefContext, beforePresetId: s.beforePresetId, beforeStreet: s.beforeStreet, afterStreet: s.afterStreet, selectedTemplateId: s.selectedTemplateId, showBeforeOnMap: s.showBeforeOnMap };
+  },
+  saveWork: () => { const work = get().getWork(); return !work || useWorkDraftsStore.getState().save(work); },
+  loadWork: (work) => set({ proposalId: work.id, createdAt: work.createdAt, streetName: work.name, location: work.location, step: work.step, roadPath: work.roadPath, bearing: work.bearing, briefContext: copyBriefContext(work.briefContext), beforePresetId: work.beforePresetId, beforeStreet: work.beforeStreet, afterStreet: work.afterStreet, selectedTemplateId: work.selectedTemplateId, showBeforeOnMap: work.showBeforeOnMap, selectedPreset: BEFORE_PRESETS.find((preset) => preset.id === work.beforePresetId) ?? null }),
 
   setRoadPath: (path, bearing) =>
     set({ roadPath: path, bearing }),
@@ -170,7 +182,9 @@ export const useProposalStore = create<ProposalState>()((set, get) => ({
 
   goBack: () => {
     const { step } = get();
-    if (step === 'review') {
+    if (step === 'brief') {
+      set({ step: 'concern' });
+    } else if (step === 'review') {
       set({ step: 'before-selected', afterStreet: null, selectedTemplateId: null, showBeforeOnMap: true });
     } else if (step === 'before-selected') {
       set({ step: 'street-selected', selectedPreset: null, beforeStreet: null });
@@ -216,13 +230,10 @@ export const useProposalStore = create<ProposalState>()((set, get) => ({
     }),
 
   hasUnsavedChanges: () => {
-    const state = get();
-    if (!state.location) return false;
-    const proposal = state.getProposal();
-    const saved = proposal && useSavedProposalsStore.getState().getProposal(proposal.id);
-    return !proposal || !saved ||
-      JSON.stringify({ ...proposal, briefContext: undefined, metadata: undefined }) !== JSON.stringify({ ...saved, briefContext: undefined, metadata: undefined }) ||
-      JSON.stringify(proposal.briefContext) !== JSON.stringify(saved.briefContext ?? emptyBriefContext());
+    const work = get().getWork();
+    if (!work) return false;
+    const saved = useWorkDraftsStore.getState().drafts[work.id];
+    return !saved || JSON.stringify({ ...work, updatedAt: undefined }) !== JSON.stringify({ ...saved, updatedAt: undefined, archived: undefined, followUp: undefined });
   },
 
   tryLoadProposal: (proposal) => {
@@ -252,3 +263,6 @@ export const useProposalStore = create<ProposalState>()((set, get) => ({
     };
   },
 }));
+
+// Save each user edit, including the concern before any geometry exists.
+useProposalStore.subscribe((state) => { state.saveWork(); });

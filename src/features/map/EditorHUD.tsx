@@ -7,6 +7,8 @@ import { useSafetyDataStore } from '@/features/safety-data/safety-data-store';
 import { useIntersectionStore } from '@/stores/intersection-store';
 import { useMapStore } from './map-store';
 import { SavedDrafts } from '@/features/proposal/SavedDrafts';
+import { useWorkDraftsStore } from '@/stores/work-drafts-store';
+import { MapComparison } from '@/features/proposal/MapComparison';
 
 // Lazy-load editor components to keep initial map bundle small
 const EditorDock = lazy(() =>
@@ -86,7 +88,7 @@ export function EditorHUD() {
 
   // Lock/unlock map context menu
   useEffect(() => {
-    setLockedToLocation(mode === 'design');
+    setLockedToLocation(mode === 'design' || mode === 'place-street');
   }, [mode, setLockedToLocation]);
 
   // Detailed edits belong to the same draft and must survive returning to review.
@@ -104,20 +106,24 @@ export function EditorHUD() {
     if (mode !== 'design' || !currentStreet) {
       return;
     }
+    let active = true;
+    useStreetStore.getState().setValidationStatus('pending');
     import('@/lib/standards')
       .then(({ validateStreet, loadStandards }) => {
+        if (!active) return;
         const standards = loadStandards();
         const results = validateStreet(currentStreet, standards);
         setValidationResults(results);
       })
       .catch(() => {
-        // Standards engine not ready
+        if (active) useStreetStore.getState().setValidationStatus('error');
       });
+    return () => { active = false; };
   }, [currentStreet, mode, setValidationResults]);
 
   // Escape key handler
   useEffect(() => {
-    if (mode === 'explore') return;
+    if (mode === 'explore' || mode === 'place-street') return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -125,15 +131,21 @@ export function EditorHUD() {
           // Save proposal before resetting so it persists on the map
           const proposal = useProposalStore.getState().getProposal();
           try {
+            if (!useProposalStore.getState().saveWork()) throw new Error(useWorkDraftsStore.getState().storageError ?? 'Your work could not be saved. Please retry.');
             if (proposal) {
               useSavedProposalsStore.getState().saveProposal(proposal);
               useProposalStore.getState().reset();
             }
+            useProposalStore.getState().reset();
           } catch (error) {
             setEscapeError((error as Error).message);
             return;
           }
         } else if (mode === 'propose-intersection') {
+          if (!useIntersectionStore.getState().saveWork()) {
+            setEscapeError(useWorkDraftsStore.getState().storageError);
+            return;
+          }
           useIntersectionStore.getState().reset();
         }
         setEscapeError(null);
@@ -162,6 +174,7 @@ export function EditorHUD() {
         {/* Design mode: full HUD */}
         {mode === 'design' && currentStreet && (
           <>
+            <MapComparison className={`absolute right-4 top-16 z-30 ${showElementPanel || showValidationPanel ? 'hidden sm:block' : ''}`} />
             {/* Left side panel: Element list + Properties */}
             <EditorSidePanel
               visible={showElementPanel}
@@ -196,7 +209,7 @@ export function EditorHUD() {
             </div>
 
             {/* Floating toggles for hidden panels */}
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 flex gap-2 pointer-events-auto">
+            <div className="absolute top-2 left-1/2 z-40 -translate-x-1/2 flex max-w-[calc(100%-16px)] gap-2 pointer-events-auto">
               {designProposalId && designProposalId === proposalId && proposalLocation && (
                 <button
                   type="button"

@@ -37,6 +37,9 @@ export function ConcernFields() {
 }
 
 export function ConcernStep() {
+  const location = useProposalStore((s) => s.location);
+  const prepareBrief = useProposalStore((s) => s.prepareBrief);
+  const concern = useProposalStore((s) => s.briefContext.concern);
   const continueToExplore = useProposalStore((s) => s.continueToExplore);
   return (
     <div className="flex flex-col gap-4">
@@ -45,7 +48,10 @@ export function ConcernStep() {
         <p className="mt-1 text-xs leading-relaxed text-[#59646a]">Give the concept a purpose. You can update these notes as you explore.</p>
       </div>
       <ConcernFields />
-      <button onClick={continueToExplore} className="min-h-11 rounded-sm bg-[#172126] px-4 py-2 text-sm font-medium text-white hover:bg-[#2d383e]">Continue to explore</button>
+      <p className="text-xs leading-relaxed text-[#59646a]">A small request does not need a street redesign. Prepare a private brief now, or explore a layout if it helps explain the change.</p>
+      <button onClick={prepareBrief} disabled={!concern.trim()} className="min-h-11 rounded-sm bg-[#172126] px-4 py-2 text-sm font-medium text-white disabled:bg-[#d8dddf] disabled:text-[#59646a]">Prepare a brief</button>
+      <button disabled={!location} onClick={continueToExplore} className="min-h-11 rounded-sm border border-[#d8dddf] px-4 py-2 text-sm font-medium text-[#172126] hover:bg-[#f3f5f5]">Continue to explore</button>
+      {!location && <p className="text-xs text-[#59646a]">This location is described in your own words. A mapped location is needed to explore street layouts; your brief can stand on its own.</p>}
     </div>
   );
 }

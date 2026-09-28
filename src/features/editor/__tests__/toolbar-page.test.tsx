@@ -5,6 +5,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { Toolbar } from '../Toolbar';
 import { EditorDock } from '../EditorDock';
 import { EditorPage } from '../index';
+import { useWorkDraftsStore } from '@/stores/work-drafts-store';
 import { useStreetStore } from '@/stores/street-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useProposalStore } from '@/stores/proposal-store';
@@ -30,6 +31,8 @@ function Route() {
   return <output aria-label="Current route">{useLocation().pathname}</output>;
 }
 beforeEach(() => {
+  useWorkDraftsStore.setState(useWorkDraftsStore.getInitialState());
+  localStorage.clear();
   useStreetStore.setState(useStreetStore.getInitialState());
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState());
   useProposalStore.getState().reset();
@@ -58,6 +61,36 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   vi.useRealTimers();
+});
+
+it('places an existing standalone layout on the map without replacing its draft or context', () => {
+  useStreetStore.getState().setStreet(street());
+  useStreetStore.getState().setBeforeStreet(street());
+  render(<MemoryRouter><Toolbar /><Route /></MemoryRouter>);
+  fireEvent.click(screen.getByRole('button', { name: 'View on map' }));
+  expect(screen.getByLabelText('Current route')).toHaveTextContent('/map');
+  expect(useWorkspaceStore.getState()).toMatchObject({ mode: 'place-street', designProposalId: street().id });
+  expect(useProposalStore.getState()).toMatchObject({ proposalId: street().id, roadPath: [], afterStreet: { name: 'Broadway' } });
+  expect(Object.keys(useWorkDraftsStore.getState().drafts)).toEqual([street().id]);
+});
+
+it('opens an already placed layout in live map editing and keeps failed saves in the editor', () => {
+  useStreetStore.getState().setStreet(street());
+  const view = render(<MemoryRouter><Toolbar /><Route /></MemoryRouter>);
+  const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Full'); });
+  fireEvent.click(screen.getByRole('button', { name: 'View on map' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('could not be saved');
+  expect(useWorkspaceStore.getState().mode).toBe('explore');
+  write.mockRestore();
+  fireEvent.click(screen.getByRole('button', { name: 'View on map' }));
+  const location = { lat: 39.7, lng: -104.9, address: 'Broadway' };
+  act(() => {
+    useProposalStore.setState({ location, roadPath: [location, { lat: 39.701, lng: -104.9 }] });
+    useWorkspaceStore.setState({ mode: 'explore' });
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'View on map' }));
+  expect(useWorkspaceStore.getState()).toMatchObject({ mode: 'design', designLocation: location, designProposalId: street().id });
+  view.unmount();
 });
 
 describe.each([
@@ -134,7 +167,7 @@ describe.each([
     fireEvent.click(screen.getByRole('button', { name: pdfLabel }));
     await waitFor(() => expect(service.pdf).toHaveBeenCalledOnce());
     expect(screen.getByRole('button', { name: 'Exporting...' })).toBeDisabled();
-    expect(service.pdf).toHaveBeenCalledWith(useStreetStore.getState().currentStreet, null, []);
+    expect(service.pdf).toHaveBeenCalledWith(useStreetStore.getState().currentStreet, null, [], undefined, 'pending');
     await act(async () => finish(new Blob(['pdf'])));
     expect(downloads).toEqual(['broadway-cross-section.pdf']);
     expect(revokeURL).toHaveBeenCalledWith('blob:pdf-fixture');
@@ -143,8 +176,6 @@ describe.each([
   it.each([new Error('Renderer unavailable'), 'unknown failure'])(
     'restores controls and explains PDF generation failure',
     async (error) => {
-      const alert = vi.fn();
-      vi.stubGlobal('alert', alert);
       service.pdf.mockRejectedValueOnce(error);
       useStreetStore.getState().setStreet(street());
       render(
@@ -154,15 +185,15 @@ describe.each([
       );
       fireEvent.click(screen.getByRole('button', { name: pdfLabel }));
       await waitFor(() =>
-        expect(alert).toHaveBeenCalledWith(
-          `Export not available yet: ${error instanceof Error ? error.message : 'PDF export failed'}`,
+        expect(screen.getByRole('alert')).toHaveTextContent(
+          `PDF could not be downloaded: ${error instanceof Error ? error.message : 'PDF export failed'}`,
         ),
       );
       expect(useStreetStore.getState().isExporting).toBe(false);
       expect(createURL).not.toHaveBeenCalled();
     },
   );
-  it('routes restricted exports to contact without starting PDF generation', () => {
+  it('downloads a basic resident PDF even without a paid export entitlement', async () => {
     service.canExport = false;
     useStreetStore.getState().setStreet(street());
     render(
@@ -172,8 +203,9 @@ describe.each([
       </MemoryRouter>,
     );
     fireEvent.click(screen.getByRole('button', { name: pdfLabel }));
-    expect(screen.getByLabelText('Current route')).toHaveTextContent('/contact');
-    expect(service.pdf).not.toHaveBeenCalled();
+    await waitFor(() => expect(service.pdf).toHaveBeenCalledOnce());
+    expect(screen.getByLabelText('Current route')).toHaveTextContent('/');
+    expect(screen.getByText('PDF downloaded. Review it before sharing.')).toBeInTheDocument();
   });
 });
 it('collapses the dock, selects a rendered element, and exits to the map', () => {
@@ -218,7 +250,7 @@ it('shows the editor empty state, validates changes, and suppresses after-view w
       <EditorPage />
     </MemoryRouter>,
   );
-  expect(screen.queryByRole('main')).not.toBeInTheDocument();
+  expect(screen.queryByRole('region')).not.toBeInTheDocument();
   act(() => useStreetStore.getState().setStreet(street([])));
   expect(screen.getByText(/No elements in this cross-section/)).toBeInTheDocument();
   service.validate.mockReturnValue([
@@ -233,7 +265,7 @@ it('shows the editor empty state, validates changes, and suppresses after-view w
   expect(useStreetStore.getState().selectedElementId).toBe('sidewalk');
   expect(screen.getByRole('link', { name: 'Skip to main content' })).toHaveAttribute(
     'href',
-    '#main-content',
+    '#street-editor-content',
   );
   act(() => {
     useStreetStore.getState().setBeforeStreet({ ...street(), name: 'Before Broadway' });
@@ -245,8 +277,7 @@ it('shows the editor empty state, validates changes, and suppresses after-view w
   act(() => useStreetStore.getState().toggleBeforeAfter());
   expect(screen.getByRole('alert')).toBeInTheDocument();
 });
-it('announces export completion briefly and handles unavailable standards', async () => {
-  vi.useFakeTimers();
+it('explains unavailable standards without claiming checks passed', async () => {
   service.standards.mockImplementation(() => {
     throw new Error('offline');
   });
@@ -259,10 +290,98 @@ it('announces export completion briefly and handles unavailable standards', asyn
   await act(async () => {
     await Promise.resolve();
   });
-  expect(screen.getByRole('main')).toBeInTheDocument();
-  act(() => useStreetStore.getState().setExporting(true));
-  act(() => useStreetStore.getState().setExporting(false));
-  expect(screen.getByText('PDF export complete.')).toBeInTheDocument();
-  act(() => vi.advanceTimersByTime(3000));
-  expect(screen.queryByText('PDF export complete.')).not.toBeInTheDocument();
+  expect(screen.getByRole('region')).toBeInTheDocument();
+  expect(screen.getByRole('alert')).toHaveTextContent('Dimension checks could not run');
+  expect(screen.queryByText('No flags from selected checks')).not.toBeInTheDocument();
+});
+
+it('preserves a linked purpose in standalone export and offers mobile sections', async () => {
+  const current = street();
+  useStreetStore.getState().setStreet(current);
+  useProposalStore.setState({ afterStreet: current });
+  useProposalStore.getState().setBriefContext({ concern: 'Cannot pass the pole', requestedNextStep: 'Measure the clearance' });
+  render(<MemoryRouter><EditorPage /></MemoryRouter>);
+  fireEvent.click(screen.getByRole('button', { name: 'Street settings' }));
+  expect(screen.getByRole('button', { name: 'Street settings' })).toHaveAttribute('aria-expanded', 'true');
+  fireEvent.click(screen.getByRole('button', { name: 'Edit elements' }));
+  expect(screen.getByRole('button', { name: 'Edit elements' })).toHaveAttribute('aria-pressed', 'true');
+  fireEvent.click(screen.getByRole('button', { name: /^Checks$/ }));
+  expect(screen.getByRole('button', { name: /^Checks$/ })).toHaveAttribute('aria-pressed', 'true');
+  fireEvent.click(screen.getByRole('button', { name: 'Street view' }));
+  await waitFor(() => expect(useStreetStore.getState().validationStatus).toBe('complete'));
+  fireEvent.click(screen.getByRole('button', { name: 'Export PDF' }));
+  await waitFor(() => expect(service.pdf).toHaveBeenCalledWith(current, null, [], useProposalStore.getState().briefContext, 'complete'));
+});
+
+it.each([false, true])('ignores a dimension check that finishes after leaving the editor (failure=%s)', async (failed) => {
+  if (failed) service.standards.mockImplementation(() => { throw new Error('Module unavailable'); });
+  useStreetStore.getState().setStreet(street());
+  const { unmount } = render(<MemoryRouter><EditorPage /></MemoryRouter>);
+  unmount();
+  useStreetStore.getState().setValidationStatus('idle');
+  await act(async () => { await Promise.resolve(); });
+  expect(useStreetStore.getState().validationStatus).toBe('idle');
+});
+it('does not present an element-specific width flag as a total street overflow', async () => {
+  service.validate.mockReturnValue([validation('sidewalk', 'error', 'prowag')]);
+  useStreetStore.getState().setStreet(street());
+  render(<MemoryRouter><EditorPage /></MemoryRouter>);
+  await waitFor(() => expect(useStreetStore.getState().validationStatus).toBe('complete'));
+  expect(screen.queryByText(/This design exceeds/)).not.toBeInTheDocument();
+});
+
+it('retains the linked brief after a replacement template changes the street identity', async () => {
+  useProposalStore.getState().initProposal('Broadway', { lat: 39.7, lng: -104.9, address: 'Broadway' });
+  useProposalStore.setState({ afterStreet: street() });
+  useProposalStore.getState().setBriefContext({ concern: 'Keep the school crossing usable' });
+  useWorkspaceStore.getState().enterDesignMode(undefined, useProposalStore.getState().proposalId!);
+  const replacement = { ...street(), id: 'new-template' };
+  useStreetStore.getState().setStreet(replacement);
+  render(<MemoryRouter><Toolbar /></MemoryRouter>);
+  fireEvent.click(screen.getByRole('button', { name: 'Export PDF' }));
+  await waitFor(() => expect(service.pdf).toHaveBeenCalledWith(replacement, null, [], useProposalStore.getState().briefContext, 'pending'));
+});
+it('carries purpose through a direct dock export when the current geometry matches the draft', async () => {
+  useStreetStore.getState().setStreet(street());
+  useProposalStore.setState({ afterStreet: street() });
+  useProposalStore.getState().setBriefContext({ requestedNextStep: 'Arrange a walk audit' });
+  render(<MemoryRouter><EditorDock /></MemoryRouter>);
+  fireEvent.click(screen.getByRole('button', { name: 'PDF' }));
+  await waitFor(() => expect(service.pdf).toHaveBeenCalledWith(street(), null, [], useProposalStore.getState().briefContext, 'pending'));
+});
+
+describe.each([{ Component: Toolbar, label: 'Export PDF' }, { Component: EditorDock, label: 'PDF' }])('pending $label', ({ Component, label }) => {
+  it.each(['street', 'before', 'checks', 'status', 'purpose', 'leave'] as const)('does not download a stale snapshot after %s changes', async (change) => {
+    let finish!: (value: Blob) => void;
+    service.pdf.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    useStreetStore.getState().setStreet(street());
+    useProposalStore.setState({ afterStreet: street() });
+    const { unmount } = render(<MemoryRouter><Component /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: label }));
+    await waitFor(() => expect(service.pdf).toHaveBeenCalledOnce());
+    act(() => {
+      if (change === 'street') useStreetStore.getState().updateStreetName('Revised Broadway');
+      else if (change === 'before') useStreetStore.getState().setBeforeStreet(street());
+      else if (change === 'checks') useStreetStore.getState().setValidationResults([validation()]);
+      else if (change === 'status') useStreetStore.setState({ validationStatus: 'error' });
+      else if (change === 'purpose') useProposalStore.getState().setBriefContext({ concern: 'Updated request' });
+      else unmount();
+    });
+    await act(async () => finish(new Blob(['old pdf'])));
+    expect(createURL).not.toHaveBeenCalled();
+    expect(useStreetStore.getState().isExporting).toBe(false);
+    if (change !== 'leave') expect(screen.getByRole('alert')).toHaveTextContent('Your work changed');
+  });
+  it('clears the busy state when a failed export finishes after navigation', async () => {
+    let fail!: (reason: Error) => void;
+    service.pdf.mockImplementationOnce(() => new Promise((_resolve, reject) => { fail = reject; }));
+    useStreetStore.getState().setStreet(street());
+    const { unmount } = render(<MemoryRouter><Component /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: label }));
+    await waitFor(() => expect(service.pdf).toHaveBeenCalledOnce());
+    unmount();
+    await act(async () => fail(new Error('Late render failure')));
+    expect(useStreetStore.getState().isExporting).toBe(false);
+    expect(createURL).not.toHaveBeenCalled();
+  });
 });

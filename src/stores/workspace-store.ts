@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type WorkspaceMode = 'explore' | 'configure' | 'design' | 'propose' | 'propose-intersection';
+export type WorkspaceMode = 'explore' | 'configure' | 'design' | 'propose' | 'propose-intersection' | 'place-street';
 
 export interface DesignLocation {
   lat: number;

@@ -8,6 +8,7 @@ export async function generatePDF(
   beforeStreet: StreetSegment | null,
   validationResults: ValidationResult[],
   briefContext?: DiscussionBriefContext,
+  validationStatus: 'idle' | 'pending' | 'complete' | 'error' = 'complete',
 ): Promise<Blob> {
   const { pdf } = await import('@react-pdf/renderer');
   const { StreetReportDocument } = await import('./pdf-document');
@@ -17,6 +18,7 @@ export async function generatePDF(
     beforeStreet,
     validationResults,
     briefContext,
+    validationStatus,
     photos,
     generatedAt: Date.now(),
   });
@@ -24,9 +26,9 @@ export async function generatePDF(
 }
 
 /** Export evidence and a requested next step without inventing a street design. */
-export async function generateObservationPDF(briefContext: DiscussionBriefContext): Promise<Blob> {
+export async function generateObservationPDF(briefContext: DiscussionBriefContext, location?: { name: string; address?: string; lat?: number; lng?: number }): Promise<Blob> {
   const { pdf } = await import('@react-pdf/renderer');
   const { ObservationBriefDocument } = await import('./pdf-document');
   const photos = await loadBriefPhotos(briefContext);
-  return pdf(ObservationBriefDocument({ briefContext, photos, generatedAt: Date.now() })).toBlob();
+  return pdf(ObservationBriefDocument({ briefContext, photos, location, generatedAt: Date.now() })).toBlob();
 }

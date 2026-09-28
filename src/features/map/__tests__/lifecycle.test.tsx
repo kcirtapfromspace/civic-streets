@@ -78,6 +78,11 @@ describe('map lifetime and viewport', () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     await act(() => map.emit('error', { error: new Error('tile unavailable') }));
     expect(log).toHaveBeenCalledWith('[MapLibre]', expect.any(Error));
+    expect(result.current.error).not.toBeNull();
+    await act(() => map.emit('style.load'));
+    expect(result.current.error).toBeNull();
+    await act(() => map.emit('style.load'));
+    expect(result.current.map).toBe(map);
     log.mockRestore();
     unmount();
     expect(map.remove).toHaveBeenCalledOnce();
@@ -192,4 +197,18 @@ it('closes the Street View placeholder through the workspace store', () => {
   expect(screen.getByText('Street View not available with OpenStreetMap')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Close Street View' }));
   expect(useWorkspaceStore.getState().showStreetViewPip).toBe(false);
+});
+
+it('shows a usable recovery error if tiles fail before load, and clears it on recovery', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const container = document.createElement('div');
+  const {result} = renderHook(() => useMapLibre({mapElement: container,center:{lat:39.74,lng:-104.99},zoom:14,mapType:'roadmap'}));
+  const map = maps.instances[0];
+  await act(() => map.emit('error', {error:new Error('offline')}));
+  expect(result.current.error).toContain('describe the location');
+  expect(result.current.isLoaded).toBe(false);
+  await act(() => map.emit('load'));
+  expect(result.current.error).toBeNull();
+  expect(result.current.isLoaded).toBe(true);
+  log.mockRestore();
 });

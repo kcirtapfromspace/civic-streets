@@ -171,18 +171,18 @@ export function MapControls({ map }: MapControlsProps) {
 
   return (
     <>
-      {workspaceMode === 'explore' && (
+      {(workspaceMode === 'explore' || workspaceMode === 'place-street') && (
         <section
           aria-label="Find a street"
           className="absolute left-3 right-3 top-3 z-10 max-w-[420px] sm:left-4 sm:right-auto sm:top-4 sm:w-[420px]"
           data-search-container
         >
           <div className={`${PANEL} p-3 sm:p-4`}>
-            <label htmlFor={`${resultsId}-input`} className="block text-sm font-semibold">
+            <label htmlFor={`${resultsId}-input`} className={workspaceMode === 'place-street' ? 'sr-only' : 'block text-sm font-semibold'}>
               Find your street
             </label>
-            <p id={guidanceId} className="mt-1 text-xs leading-5 text-[#59646a]">
-              Search an address or click a block to mark a problem.
+            <p id={guidanceId} className={workspaceMode === 'place-street' ? 'sr-only' : 'mt-1 text-xs leading-5 text-[#59646a]'}>
+              {workspaceMode === 'place-street' ? 'Find the street, then mark its centerline on the map.' : 'Search an address or click a block to mark a problem.'}
             </p>
             <form
               onSubmit={(event) => {
@@ -190,7 +190,7 @@ export function MapControls({ map }: MapControlsProps) {
                 setShowSuggestions(true);
                 void submitSearch();
               }}
-              className="mt-3 flex min-h-12 items-center rounded-md border border-[#d8dddf] bg-white focus-within:border-[#172126] focus-within:ring-1 focus-within:ring-[#172126]"
+              className={`${workspaceMode === 'place-street' ? '' : 'mt-3'} flex min-h-12 items-center rounded-md border border-[#d8dddf] bg-white focus-within:border-[#172126] focus-within:ring-1 focus-within:ring-[#172126]`}
             >
               <input
                 id={`${resultsId}-input`}
@@ -299,7 +299,7 @@ export function MapControls({ map }: MapControlsProps) {
             </div>
           )}
 
-          {selectedLocation && !showSuggestions && (
+          {selectedLocation && !showSuggestions && workspaceMode === 'explore' && (
             <div className={`${PANEL} mt-2 p-3 sm:p-4`}>
               <p className="text-[10px] font-semibold  text-[#172126]">Location selected</p>
               <p className="mt-1 truncate text-sm font-semibold" title={selectedLocation.address}>

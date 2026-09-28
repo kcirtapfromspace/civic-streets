@@ -19,19 +19,12 @@ function timeAgo(timestamp: number): string {
 }
 
 function getUserName(authorId: string): string {
-  return (
-    MOCK_USERS.find((u: MockUser) => u.id === authorId)?.displayName ??
-    'Anonymous'
-  );
+  return MOCK_USERS.find((u: MockUser) => u.id === authorId)?.displayName ?? 'Anonymous';
 }
 
 // ── Cross-Section Mini Preview ────────────────────────────────────────────
 
-function CrossSectionPreview({
-  elements,
-}: {
-  elements: MockDesign['elements'];
-}) {
+function CrossSectionPreview({ elements }: { elements: MockDesign['elements'] }) {
   return (
     <div
       className="flex h-8 rounded overflow-hidden border border-gray-200"
@@ -71,32 +64,27 @@ export function DesignCard({ design, onOpenEditor }: DesignCardProps) {
     <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-4">
       {/* Header */}
       <div className="flex items-start gap-3">
-        <VoteButton
-          upvotes={design.upvotes}
-          downvotes={0}
-          className="shrink-0"
-        />
+        <VoteButton upvotes={design.upvotes} downvotes={0} className="shrink-0" />
 
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-semibold text-gray-900 truncate">
-            {design.title}
-          </h4>
+          <h4 className="text-sm font-semibold text-gray-900 truncate">{design.title}</h4>
 
           {design.address && (
-            <p className="text-xs text-gray-500 truncate mt-0.5">
-              {design.address}
-            </p>
+            <p className="text-xs text-gray-500 truncate mt-0.5">{design.address}</p>
           )}
 
-          {/* Compliance Badges */}
-          <div className="flex gap-1.5 mt-2">
+          {/* Selected checks are guidance, not a compliance determination. */}
+          <div className="flex flex-wrap gap-1.5 mt-2">
             <Badge variant={design.prowagPass ? 'success' : 'error'}>
-              PROWAG {design.prowagPass ? '\u2713' : '\u2717'}
+              Selected PROWAG widths: {design.prowagPass ? 'no flags' : 'review needed'}
             </Badge>
             <Badge variant={design.nactoPass ? 'success' : 'error'}>
-              NACTO {design.nactoPass ? '\u2713' : '\u2717'}
+              Selected NACTO widths: {design.nactoPass ? 'no flags' : 'review needed'}
             </Badge>
           </div>
+          <p className="mt-2 text-xs text-gray-600">
+            Dimension checks only; accessibility and safety need site review.
+          </p>
         </div>
       </div>
 
@@ -107,16 +95,11 @@ export function DesignCard({ design, onOpenEditor }: DesignCardProps) {
 
       {/* Footer */}
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-        <span className="text-xs text-gray-400">
-          {getUserName(design.authorId)} &middot;{' '}
-          {timeAgo(design.createdAt)}
+        <span className="text-xs text-gray-600">
+          {getUserName(design.authorId)} &middot; {timeAgo(design.createdAt)}
         </span>
 
-        <Button
-          variant="secondary"
-          className="text-xs"
-          onClick={() => onOpenEditor?.(design.id)}
-        >
+        <Button variant="secondary" className="text-xs" onClick={() => onOpenEditor?.(design.id)}>
           Open in Editor
         </Button>
       </div>

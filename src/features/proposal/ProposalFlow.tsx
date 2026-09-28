@@ -5,6 +5,8 @@ import { useSavedProposalsStore } from '@/stores/saved-proposals-store';
 import { BeforeSelector } from './steps/BeforeSelector';
 import { TransformationPicker } from './steps/TransformationPicker';
 import { ProposalReview } from './steps/ProposalReview';
+import { ConcernBrief } from './steps/ConcernBrief';
+import { useWorkDraftsStore } from '@/stores/work-drafts-store';
 import { ConcernFields, ConcernStep } from './steps/ConcernStep';
 
 /**
@@ -19,14 +21,17 @@ export function ProposalFlow() {
   const exitToExplore = useWorkspaceStore((s) => s.exitToExplore);
   const reset = useProposalStore((s) => s.reset);
 
+  const storageError = useWorkDraftsStore((s) => s.storageError);
   const [closeError, setCloseError] = useState<string | null>(null);
   const handleClose = () => {
     const proposal = useProposalStore.getState().getProposal();
     try {
+      if (!useProposalStore.getState().saveWork()) throw new Error(useWorkDraftsStore.getState().storageError!);
       if (proposal) {
         useSavedProposalsStore.getState().saveProposal(proposal);
         reset();
       }
+      reset();
       exitToExplore();
     } catch (error) {
       setCloseError((error as Error).message);
@@ -61,11 +66,13 @@ export function ProposalFlow() {
             <StepIndicator current={step} />
           </div>
 
-          {closeError && <p role="alert" className="px-5 py-2 text-xs text-red-700">{closeError}</p>}
+          {(closeError || storageError) && <div role="alert" className="px-5 py-2 text-sm text-red-800"><p>{closeError || storageError}</p><button className="min-h-11 underline" onClick={() => { if (useProposalStore.getState().saveWork()) setCloseError(null); }}>Retry saving</button></div>}
+          {!storageError && <p className="px-5 py-2 text-xs text-[#59646a]">Saved privately in this browser · Find it in My work</p>}
           {/* Step content */}
           <div className="px-5 pb-5 max-h-[60vh] overflow-y-auto">
             {step === 'concern' && <ConcernStep />}
-            {step !== 'concern' && (
+            {step === 'brief' && <ConcernBrief />}
+            {step !== 'concern' && step !== 'brief' && (
               <details className="mb-4 border-b border-[#d8dddf] pb-2">
                 <summary className="min-h-11 cursor-pointer content-center text-xs font-medium text-[#172126]">Concern &amp; evidence</summary>
                 <div className="pb-2"><ConcernFields /></div>

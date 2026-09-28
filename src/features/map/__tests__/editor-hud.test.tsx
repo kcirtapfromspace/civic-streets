@@ -66,6 +66,14 @@ beforeEach(() => {
   validation.validate.mockReset().mockReturnValue([]);
   validation.load.mockReset().mockReturnValue({});
 });
+
+it('leaves placement Escape handling to the placement panel and suppresses competing location actions', () => {
+  useWorkspaceStore.setState({ mode: 'place-street' });
+  render(<EditorHUD />);
+  expect(useMapStore.getState().lockedToLocation).toBe(true);
+  fireEvent.keyDown(window, { key: 'Escape' });
+  expect(useWorkspaceStore.getState().mode).toBe('place-street');
+});
 afterEach(cleanup);
 it('zooms to configuration and design, validates changes, and reopens hidden editor panels', async () => {
   render(<EditorHUD />);
@@ -134,6 +142,7 @@ it('keeps the editor available if the standards engine fails', async () => {
   expect(await screen.findByText('Editor dock')).toBeInTheDocument();
   await waitFor(() => expect(validation.load).toHaveBeenCalled());
   expect(useStreetStore.getState().validationResults).toEqual([]);
+  expect(useStreetStore.getState().validationStatus).toBe('error');
 });
 
 it('keeps work open after an Escape save failure and protects unsaved changes on reload', async () => {
@@ -148,14 +157,18 @@ it('keeps work open after an Escape save failure and protects unsaved changes on
   render(<EditorHUD />);
   const unsaved = new Event('beforeunload', { cancelable: true });
   window.dispatchEvent(unsaved);
-  expect(unsaved.defaultPrevented).toBe(true);
+  expect(unsaved.defaultPrevented).toBe(false);
   const blocked = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Blocked'); });
+  act(() => useProposalStore.getState().setBriefContext({ concern: 'New notes while storage is full' }));
   fireEvent.keyDown(window, { key: 'Escape' });
-  expect(screen.getByRole('alert')).toHaveTextContent('Drafts could not be saved');
+  expect(screen.getByRole('alert')).toHaveTextContent('could not be saved');
+  const failed = new Event('beforeunload', { cancelable: true });
+  window.dispatchEvent(failed);
+  expect(failed.defaultPrevented).toBe(true);
   expect(useWorkspaceStore.getState().mode).toBe('propose');
   expect(useProposalStore.getState().afterStreet).not.toBeNull();
   blocked.mockRestore();
-  act(() => useSavedProposalsStore.getState().saveProposal(useProposalStore.getState().getProposal()!));
+  act(() => { useProposalStore.getState().saveWork(); useSavedProposalsStore.getState().saveProposal(useProposalStore.getState().getProposal()!); });
   const saved = new Event('beforeunload', { cancelable: true });
   window.dispatchEvent(saved);
   expect(saved.defaultPrevented).toBe(false);
@@ -167,7 +180,7 @@ it('keeps work open after an Escape save failure and protects unsaved changes on
   act(() => useProposalStore.getState().initProposal('Unfinished', location));
   const incomplete = new Event('beforeunload', { cancelable: true });
   window.dispatchEvent(incomplete);
-  expect(incomplete.defaultPrevented).toBe(true);
+  expect(incomplete.defaultPrevented).toBe(false);
 });
 
 
@@ -232,4 +245,19 @@ it('does not attach a standalone editor or an obsolete association to a draft wi
   act(() => useWorkspaceStore.getState().enterDesignMode(location, 'old-proposal-id'));
   act(() => useStreetStore.getState().updateStreetName('Other draft edit'));
   expect(useProposalStore.getState().streetName).toBe('Broadway');
+});
+
+it('does not discard an intersection through Escape when browser storage fails', async () => {
+  useIntersectionStore.getState().initIntersection('Library crossing', location, location);
+  useWorkspaceStore.getState().enterIntersectionMode(location);
+  render(<EditorHUD />);
+  await screen.findByText('Propose intersection');
+  const blocked = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota'); });
+  fireEvent.keyDown(window, {key:'Escape'});
+  expect(screen.getByRole('alert')).toHaveTextContent('could not be saved');
+  expect(useIntersectionStore.getState().intersectionName).toBe('Library crossing');
+  expect(useWorkspaceStore.getState().mode).toBe('propose-intersection');
+  blocked.mockRestore();
+  fireEvent.keyDown(window, {key:'Escape'});
+  expect(useWorkspaceStore.getState().mode).toBe('explore');
 });

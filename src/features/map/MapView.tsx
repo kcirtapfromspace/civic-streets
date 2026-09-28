@@ -21,6 +21,9 @@ import { useCreateHotspot, useHotspotById } from '@/lib/api/use-hotspots';
 import { useStartProposal } from '@/features/proposal/useStartProposal';
 import { convexAvailable } from '@/lib/api/convex-provider';
 import { issueGroupToLegacyCategory } from '@/lib/types/community';
+import { LocationFallback } from './LocationFallback';
+import { useWorkspaceStore } from '@/stores/workspace-store';
+import { StreetPlacement } from './StreetPlacement';
 
 /**
  * MapView — full-viewport MapLibre GL wrapper.
@@ -42,6 +45,9 @@ export function MapView() {
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
   const { hotspot: savedObservation, isLoading: isSavedObservationLoading } = useHotspotById(savedReportId ?? undefined);
   const { startProposal, confirmation } = useStartProposal();
+  const [manualLocation, setManualLocation] = useState(false);
+  const [dismissedMapError, setDismissedMapError] = useState<string | null>(null);
+  const mode = useWorkspaceStore((state) => state.mode);
 
   const [mapElement, setMapElement] = useRefCallback();
 
@@ -90,44 +96,16 @@ export function MapView() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [closeContextMenu]);
 
-  // Generic error fallback
-  if (error) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-50">
-        <div className="max-w-md mx-auto text-center p-8">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-red-100 flex items-center justify-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.5}
-              className="w-8 h-8 text-red-600"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
-              />
-            </svg>
-          </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            Map Error
-          </h2>
-          <p className="text-sm text-gray-600">{error}</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="relative w-full h-full">
       {/* Loading overlay */}
-      {!isLoaded && (
+      {!isLoaded && !error && !manualLocation && mode === 'explore' && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-20">
           <div className="flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
             <span className="text-sm text-gray-500">Loading map...</span>
+            <button type="button" onClick={() => setManualLocation(true)} className="min-h-11 text-sm text-civic-ink underline">Describe a location instead</button>
           </div>
         </div>
       )}
@@ -141,23 +119,29 @@ export function MapView() {
         className="w-full h-full"
       />
 
+      {(manualLocation || (error && error !== dismissedMapError && mode === 'explore')) && <LocationFallback error={error} onClose={() => { setManualLocation(false); setDismissedMapError(error); }} />}
+      {error && error === dismissedMapError && mode === 'explore' && <button type="button" onClick={() => setManualLocation(true)} className="absolute bottom-4 left-4 z-20 min-h-11 border border-civic-line bg-white px-3 text-sm text-civic-ink">Map unavailable · Describe a location</button>}
+
       {/* Map overlay components — only render when loaded */}
       {isLoaded && map && (
         <>
           <MapControls map={map} />
           <EarthView map={map} enabled={is3D} />
           <PinDesignFlow map={map} />
-          <CommunityPinsLayer map={map} />
+          {mode !== 'place-street' && <CommunityPinsLayer map={map} />}
           <ServiceAreaLayer map={map} />
           <SavedProposalsLayer map={map} />
           <ProposalMapOverlay map={map} />
-          <DrawingLayer map={map} />
+          {mode !== 'place-street' && <DrawingLayer map={map} />}
           <DrawingToolbar />
-          <DrawingActionCard />
+          {mode === 'explore' && <DrawingActionCard />}
           <CrashDataLayer map={map} />
-          <EditorHUD />
+
         </>
       )}
+
+      <EditorHUD />
+      {mode === 'place-street' && <StreetPlacement map={isLoaded ? map : null} error={error} />}
 
       {/* Floating issue report form */}
       {savedReportId && !reportFormOpen && (

@@ -23,14 +23,14 @@ describe('bounded PDF evidence loading', () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it('loads at most two allowed image URLs without credentials and keeps isolated photo failures', async () => {
-    const fetcher = vi.fn().mockResolvedValueOnce(new Response('pixels', { headers: { 'content-type': 'image/jpeg' } })).mockRejectedValueOnce(new Error('offline'));
+  it('loads at most three allowed image URLs without credentials and keeps isolated photo failures', async () => {
+    const fetcher = vi.fn().mockResolvedValueOnce(new Response('pixels', { headers: { 'content-type': 'image/jpeg' } })).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(new Response('third', { headers: { 'content-type': 'image/png' } }));
     vi.stubGlobal('fetch', fetcher);
-    const result = await loadBriefPhotos(context(['https://photos.example/first', 'blob:missing', 'https://photos.example/third']));
-    expect(result).toHaveLength(2);
+    const result = await loadBriefPhotos(context(['https://photos.example/first', 'blob:missing', 'https://photos.example/third', 'https://photos.example/not-fetched']));
+    expect(result).toHaveLength(3);
     expect(await result[0].image!.text()).toBe('pixels');
     expect(result[1]).toEqual({ source: 'blob:missing' });
-    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher).toHaveBeenCalledTimes(3);
     expect(fetcher).toHaveBeenCalledWith('https://photos.example/first', expect.objectContaining({ credentials: 'omit', referrerPolicy: 'no-referrer', signal: expect.any(AbortSignal) }));
   });
 

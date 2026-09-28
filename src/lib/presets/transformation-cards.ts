@@ -42,19 +42,19 @@ const ALL_TRANSFORMATIONS: Record<string, TransformationCard> = {
   'complete-street-local': {
     templateId: 'complete-street-local',
     label: 'Complete Street (Local)',
-    description: 'Planting strips, wide sidewalks, and traffic calming',
+    description: 'Planting strips and sidewalks around two travel lanes; compare walking space below',
     icon: 'complete',
   },
   'complete-street-collector': {
     templateId: 'complete-street-collector',
     label: 'Complete Street',
-    description: 'Balanced design with space for all modes of travel',
+    description: 'Sidewalks, bike lanes, and travel lanes; compare the space each receives',
     icon: 'complete',
   },
   'transit-priority-brt': {
     templateId: 'transit-priority-brt',
     label: 'BRT / Transit Priority',
-    description: 'Dedicated bus lanes with enhanced pedestrian space',
+    description: 'Dedicated bus lanes with sidewalks; compare walking space below',
     icon: 'transit',
   },
   'transit-priority-dedicated': {

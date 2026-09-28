@@ -10,10 +10,12 @@ import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useCommunityStore } from '@/features/community/community-store';
 import { useExplorerStore } from '@/features/community/explorer-store';
 import { useReportStore } from '@/features/report/report-store';
+import { street } from '@/features/editor/__tests__/fixtures';
+import { getFunctionName } from 'convex/server';
 import { mapFixture } from '@/features/community/__tests__/map-fixture';
 
 const { backend, auth, provider, refresh, posthogInit, posthogIdentify, analyticsIdentity } = vi.hoisted(() => ({
-  backend: { available: true },
+  backend: { available: true, query: vi.fn() },
   auth: vi.fn(),
   provider: vi.fn(),
   refresh: vi.fn(),
@@ -64,6 +66,7 @@ vi.mock('@/lib/api/billing', () => ({
 vi.mock('convex/react', async (original) => ({
   ...(await original<object>()),
   useQuery: () => null,
+  useConvex: () => backend,
 }));
 vi.mock('@/lib/api/use-service-areas', () => ({
   useServiceAreas: () => [],
@@ -81,6 +84,7 @@ beforeEach(() => {
   analyticsIdentity.userId = undefined;
   posthogIdentify.mockImplementation((userId: string) => { analyticsIdentity.userId = userId; });
   backend.available = true;
+  backend.query.mockReset().mockResolvedValue(null);
   auth.mockReturnValue({ user: null, isLoading: false });
   useStreetStore.setState(useStreetStore.getInitialState());
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState());
@@ -136,8 +140,11 @@ describe('application routes with real page boundaries', () => {
     expect(await screen.findByLabelText('Street Name')).toHaveValue('Main Street');
     first.unmount();
     window.history.replaceState({}, '', '/editor/shared-concept');
+    backend.query.mockResolvedValue({ streetData: JSON.stringify(street()) });
     render(<App />);
-    expect(await screen.findByText('Loading design shared-concept...')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Curbwise — Editing Broadway' })).toBeInTheDocument();
+    expect(getFunctionName(backend.query.mock.calls[0][0])).toBe('designs:getById');
+    expect(backend.query.mock.calls[0][1]).toEqual({ designId: 'shared-concept' });
   });
   it('loads the community explorer and reports missing detail identities without crashing', async () => {
     window.history.replaceState({}, '', '/hotspots');
@@ -150,10 +157,20 @@ describe('application routes with real page boundaries', () => {
   it.each(['/report', '/report/saved-concept'])(
     'loads the editable representative draft at %s',
     async (path) => {
+      if (path.includes('saved-concept')) backend.query.mockResolvedValue({ streetData: JSON.stringify({ ...street(), location: { lat: 39.7, lng: -104.9, address: 'Broadway, Denver' } }) });
       await visit(path, 'Share with Your Representatives');
-      expect(screen.getByRole('textbox', { name: 'Address' })).toHaveValue('');
+      expect(screen.getByRole('textbox', { name: 'Address' })).toHaveValue(path.includes('saved-concept') ? 'Broadway, Denver' : '');
+      if (path.includes('saved-concept')) {
+        await waitFor(() => expect(backend.query).toHaveBeenCalled());
+        expect(backend.query.mock.lastCall?.[1]).toEqual({ designId: 'saved-concept' });
+      }
     },
   );
+  it('offers recovery from a removed or private design report link', async () => {
+    await visit('/report/removed-concept', 'Street concept unavailable');
+    expect(screen.getByRole('link', { name: 'Return to your work on the map' })).toHaveAttribute('href', '/map');
+    expect(screen.queryByRole('textbox', { name: 'Address' })).not.toBeInTheDocument();
+  });
   it.each([
     ['/account', 'Your account'],
     ['/billing/success', 'Contract sync in progress'],

@@ -51,7 +51,7 @@ export const ELEMENT_TYPE_COLORS: Record<string, string> = {
 export const styles = StyleSheet.create({
   // ── Page layout ─────────────────────────────────────
   page: {
-    paddingTop: 36,
+    paddingTop: 76,
     paddingHorizontal: 40,
     paddingBottom: 54,
     fontFamily: 'Helvetica',
@@ -61,6 +61,10 @@ export const styles = StyleSheet.create({
 
   // ── Header/Footer ───────────────────────────────────
   header: {
+    position: 'absolute',
+    top: 30,
+    left: 40,
+    right: 40,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

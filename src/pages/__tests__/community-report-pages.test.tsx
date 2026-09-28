@@ -8,6 +8,7 @@ import ReportPage from '../ReportPage';
 import { MOCK_HOTSPOTS } from '@/features/community/mock-data';
 import { useMapStore } from '@/features/map/map-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
+import { useWorkDraftsStore } from '@/stores/work-drafts-store';
 import { useProposalStore } from '@/stores/proposal-store';
 import { useCommunityStore } from '@/features/community/community-store';
 import { useExplorerStore } from '@/features/community/explorer-store';
@@ -76,7 +77,9 @@ beforeEach(() => {
   useExplorerStore.setState(useExplorerStore.getInitialState());
   useReportStore.getState().reset();
   mapFixture.reset();
-  vi.stubGlobal('localStorage', { getItem: () => null, setItem: vi.fn() });
+  vi.stubGlobal('localStorage', window.localStorage);
+  localStorage.clear();
+  useWorkDraftsStore.setState(useWorkDraftsStore.getInitialState());
   Element.prototype.scrollIntoView = vi.fn();
 });
 afterEach(() => {
@@ -132,21 +135,14 @@ describe('community route orchestration', () => {
       briefContext: { concern: hotspot.description, observation: { id: hotspot.id, title: hotspot.title, photoUrls: hotspot.photoUrls, source: 'community', createdAt: hotspot.createdAt } },
     });
   });
-  it('protects unfinished context when an observation would replace it, and starts only after an explicit choice', () => {
+  it('keeps unfinished context in My work when a new observation starts a proposal', () => {
     useProposalStore.getState().initProposal('Current street', { lat: 39, lng: -104, address: 'Current street' });
     useProposalStore.getState().setBriefContext({ concern: 'Keep this concern' });
+    const previousId = useProposalStore.getState().proposalId!;
     showDetail();
     fireEvent.click(screen.getByRole('button', { name: 'Explore a change here' }));
-    expect(screen.getByRole('dialog', { name: 'Replace unsaved work?' })).toHaveTextContent('Current street');
-    expect(useProposalStore.getState().briefContext.concern).toBe('Keep this concern');
-    fireEvent.click(screen.getByRole('button', { name: 'Keep current work' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(screen.getByText(hotspot.title)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Explore a change here' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Close modal' }));
-    expect(useProposalStore.getState().streetName).toBe('Current street');
-    fireEvent.click(screen.getByRole('button', { name: 'Explore a change here' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Discard changes and start proposal' }));
+    expect(useWorkDraftsStore.getState().drafts[previousId]).toMatchObject({ name: 'Current street', briefContext: { concern: 'Keep this concern' } });
     expect(screen.getByRole('status')).toHaveTextContent('/map');
     expect(useProposalStore.getState().briefContext.observation?.id).toBe(hotspot.id);
   });
