@@ -115,8 +115,8 @@ describe('application routes with real page boundaries', () => {
     await visit('/account', 'Your account');
     expect(posthogIdentify).not.toHaveBeenCalled();
   });
-  it('loads the marketing page without application navigation, then opens the live map through its CTA', async () => {
-    await visit('/', /Turn a street concern into a clear proposal/);
+  it('opens the map from the simple home page', async () => {
+    await visit('/', /What would you change on your street/);
     expect(screen.queryByRole('navigation', { name: 'Main navigation' })).not.toBeInTheDocument();
     fireEvent.click(
       screen.getAllByRole('link').find((link) => link.getAttribute('href') === '/map')!,
@@ -128,7 +128,7 @@ describe('application routes with real page boundaries', () => {
   it.each(['/pricing', '/institutions'])(
     'redirects the legacy %s entry to the resident observation workflow',
     async (path) => {
-      await visit(path, /Turn a street concern into a clear proposal/);
+      await visit(path, /What would you change on your street/);
       expect(window.location.pathname + window.location.hash).toBe('/#features');
       expect(screen.queryByRole('textbox', { name: 'Jurisdiction' })).not.toBeInTheDocument();
       await waitFor(() => expect(Element.prototype.scrollIntoView).toHaveBeenCalled());

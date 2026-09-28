@@ -33,16 +33,15 @@ it.each(['/account', '/account?intent=government&feature=private_projects'])(
     );
     expect(screen.getByRole('heading', { name: 'Your account' })).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Community accounts are unavailable in this demo.',
+      'Accounts are unavailable in this demo.',
     );
-    expect(screen.getByText(/demo posts disappear on reload/)).toHaveTextContent(
-      'private drafts in My work stay in this browser',
-    );
+    expect(screen.getByText('Fictional posts reset on reload. Nothing is published.')).toBeVisible();
+    expect(screen.getByText(/Saved in this browser/)).toBeVisible();
     expect(screen.queryByText('Guest profile')).not.toBeInTheDocument();
     expect(screen.queryByText('Free plan')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Manage billing' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Send request' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Explore example observations/ })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Example observations' })).toHaveAttribute(
       'href',
       '/hotspots',
     );

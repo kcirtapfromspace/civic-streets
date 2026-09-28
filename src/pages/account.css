@@ -17,23 +17,12 @@
   gap: 1.5rem;
   margin-bottom: 1.75rem;
 }
-.account-heading .account-eyebrow {
-  color: #8b5148;
-  font-size: 0.75rem;
-  font-weight: 600;
-  margin-bottom: 0.75rem;
-}
 .account-heading h1 {
   font-size: clamp(2rem, 4vw, 2.625rem);
   font-weight: 650;
   line-height: 1.15;
   letter-spacing: -0.045em;
-  margin: 0 0 0.75rem;
-}
-.account-heading p {
-  font-size: 0.9375rem;
-  line-height: 1.6;
-  color: var(--account-muted);
+  margin: 0;
 }
 .account-text-link {
   display: inline-flex;
@@ -103,12 +92,6 @@
   font-size: 0.75rem;
   line-height: 1.4;
 }
-.account-session-note {
-  flex: 0 0 100%;
-  font-size: 0.8125rem;
-  line-height: 1.7;
-  color: var(--account-muted);
-}
 .account-content-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -121,11 +104,6 @@
   border: 1px solid var(--account-border);
   border-radius: 0.375rem;
   padding: 1.75rem;
-}
-.account-kicker {
-  color: #626f5e;
-  font-size: 0.75rem;
-  margin-bottom: 1rem;
 }
 .account-work h2 {
   font-size: 1.5rem;
@@ -154,25 +132,11 @@
 .account-work-trigger > button:hover {
   background: #303d43;
 }
-.account-work-hint {
-  margin-top: 0.75rem;
-  font-size: 0.8125rem;
-  line-height: 1.7;
-  color: var(--account-muted);
-}
 .account-storage-note {
-  display: flex;
-  gap: 0.75rem;
-  border-top: 1px solid var(--account-border);
-  margin-top: 1.5rem;
-  padding-top: 1.25rem;
+  margin-top: 1.25rem;
   color: var(--account-muted);
   font-size: 0.8125rem;
   line-height: 1.7;
-}
-.account-storage-note > span {
-  color: #69765f;
-  font-size: 1.125rem;
 }
 .account-actions {
   padding-top: 0.25rem;
@@ -180,12 +144,6 @@
 .account-actions h2 {
   font-size: 1rem;
   font-weight: 600;
-}
-.account-actions > p {
-  font-size: 0.8125rem;
-  color: var(--account-muted);
-  margin: 0.5rem 0 0.75rem;
-  line-height: 1.7;
 }
 .account-action {
   display: flex;
@@ -207,20 +165,10 @@
   width: 1.5rem;
   height: 1.5rem;
 }
-.account-action > span:nth-child(2) {
-  min-width: 0;
-}
 .account-action strong {
   display: block;
   font-size: 0.875rem;
   font-weight: 600;
-}
-.account-action > span:nth-child(2) > span {
-  display: block;
-  font-size: 0.8125rem;
-  color: var(--account-muted);
-  margin-top: 0.375rem;
-  line-height: 1.7;
 }
 .account-action-arrow {
   margin-left: auto;
@@ -240,27 +188,9 @@
 .account-sharing {
   border-top: 1px solid var(--account-border);
   padding-top: 1.5rem;
-}
-.account-sharing h2 {
-  font-size: 1rem;
-  font-weight: 600;
-}
-.account-sharing-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3rem;
-  margin-top: 1.25rem;
-}
-.account-sharing h3 {
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-.account-sharing p {
   color: var(--account-muted);
   font-size: 0.8125rem;
   line-height: 1.8;
-  margin-top: 0.5rem;
-  max-width: 56ch;
 }
 .account-billing {
   border-block: 1px solid var(--account-border);
@@ -272,9 +202,6 @@
   min-height: 2.75rem;
   padding: 0.875rem 0;
   font-weight: 600;
-}
-.account-billing-body {
-  padding-bottom: 1.25rem;
 }
 .account-detail-list {
   display: grid;
@@ -332,10 +259,6 @@
   }
   .account-work {
     padding: 1.25rem;
-  }
-  .account-sharing-grid {
-    grid-template-columns: 1fr;
-    gap: 1.25rem;
   }
   .account-footer {
     align-items: flex-start;

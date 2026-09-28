@@ -192,6 +192,12 @@ describe('map and feed explorer integration', () => {
     expect(useExplorerStore.getState().polygonFilter).toBeNull();
     fireEvent.click(screen.getAllByRole('button', { name: 'School crossing✕' })[0]);
     expect(useExplorerStore.getState().polygonFilter).toHaveLength(4);
+    fireEvent.click(screen.getAllByRole('button', { name: '×' })[0]);
+    expect(useExplorerStore.getState().polygonFilter).toBeNull();
+    expect(screen.getAllByText('Showing 20 of 25 observations')).toHaveLength(2);
+    expect(screen.queryByText('Custom area')).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'School crossing✕' })[0]);
+    expect(screen.getAllByText('Showing 1 of 1 observation')).toHaveLength(2);
     fireEvent.click(screen.getAllByRole('button', { name: 'Clear all' })[0]);
     act(() => {
       saveArea({

@@ -13,6 +13,12 @@ const { searchPlaces, map } = vi.hoisted(() => ({
     remove: vi.fn(),
     isStyleLoaded: () => true,
     flyTo: vi.fn(),
+    getBounds: vi.fn(() => ({
+      getSouth: () => 39.7,
+      getNorth: () => 39.8,
+      getWest: () => -105,
+      getEast: () => -104.9,
+    })),
   },
 }));
 vi.mock('@/lib/api/geocoding', () => ({ searchPlaces }));
@@ -33,6 +39,21 @@ describe('community map submitted search', () => {
     clearPlaceSearchCache();
   });
   afterEach(cleanup);
+
+  it('stops reporting map bounds when the parent disconnects its area filter', () => {
+    const onBoundsChange = vi.fn();
+    const view = render(<ExplorerMinimap hotspots={[]} onBoundsChange={onBoundsChange} />);
+    const moveEnd = map.on.mock.calls.find(([event]) => event === 'moveend')![1];
+    moveEnd();
+    expect(onBoundsChange).toHaveBeenCalledWith({
+      minLat: 39.7, maxLat: 39.8, minLng: -105, maxLng: -104.9,
+    });
+
+    view.rerender(<ExplorerMinimap hotspots={[]} />);
+    expect(() => moveEnd()).not.toThrow();
+    expect(onBoundsChange).toHaveBeenCalledTimes(1);
+    expect(map.getBounds).toHaveBeenCalledTimes(1);
+  });
 
   it('waits for explicit submission and moves the map only when a result is selected', async () => {
     searchPlaces.mockResolvedValue([

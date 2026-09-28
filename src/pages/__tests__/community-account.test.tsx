@@ -62,9 +62,9 @@ it.each([
   render(page(route));
   expect(screen.getByRole('heading', { name: 'Urban Hawk 43' })).toBeVisible();
   expect(screen.getByText('Guest profile')).toBeVisible();
-  expect(screen.getByText(/won’t follow you to another device/)).toBeVisible();
-  expect(screen.getByRole('heading', { name: 'Your private drafts' })).toBeVisible();
-  expect(screen.getByRole('heading', { name: 'Take part in your neighborhood' })).toBeVisible();
+  expect(screen.getByText('This profile stays in this browser.')).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Your drafts' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Get involved' })).toBeVisible();
   expect(
     screen.queryByText(/For towns|Your plan|Set up a team|Not included|Civic Free|unknown_feature/),
   ).not.toBeInTheDocument();
@@ -72,7 +72,7 @@ it.each([
   expect(organization).not.toHaveBeenCalled();
   expect(government).not.toHaveBeenCalled();
   expect(screen.getByText(/Clearing browser data removes drafts/)).toBeVisible();
-  expect(screen.getByText(/Observations and comments you post are public/)).toBeVisible();
+  expect(screen.getByText('Drafts stay private. Posts and comments are public.')).toBeVisible();
 });
 
 it('keeps drafts accessible while a profile is loading or unavailable, without inventing a guest', () => {
@@ -98,8 +98,8 @@ it('shows a verified identity without implying that private drafts sync to its a
   expect(screen.getByRole('heading', { name: 'Community member' })).toBeVisible();
   expect(screen.getByText('resident@example.org')).toBeVisible();
   expect(screen.getByText('Signed in')).toBeVisible();
-  expect(screen.queryByText(/linked to this browser/)).not.toBeInTheDocument();
-  expect(screen.getByText(/Saved on this browser, including after reload/)).toBeVisible();
+  expect(screen.queryByText('This profile stays in this browser.')).not.toBeInTheDocument();
+  expect(screen.getByText(/Saved in this browser/)).toBeVisible();
 });
 
 it('opens existing saved work with its identity and purpose intact', () => {
@@ -155,9 +155,9 @@ it('preserves current work and the new place when storage fails, then permits re
 });
 
 it.each([
-  ['Explore community observations', 'Community destination'],
+  ['Community observations', 'Community destination'],
   ['Open the map', 'Map destination'],
-  ['Sketch a street idea', 'Street editor destination'],
+  ['Sketch a street', 'Street editor destination'],
 ])('takes the member from %s to its working destination', (link, destination) => {
   render(page());
   fireEvent.click(screen.getByRole('link', { name: new RegExp(link) }));
