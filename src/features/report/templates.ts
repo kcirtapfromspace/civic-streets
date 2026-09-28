@@ -1,5 +1,5 @@
-// Report template generator — produces professional civic engagement messages
-// References NACTO and PROWAG standards where relevant
+// Report template generator — prepares resident concerns and preliminary concepts.
+// Recorded activity and limited automated checks do not establish consensus or approval.
 
 export interface ReportTemplateInput {
   repName: string;
@@ -65,13 +65,8 @@ export function generateReportBody(input: ReportTemplateInput): string {
       ? formatCategory(input.hotspotCategory)
       : 'safety';
 
-    const voterPhrase =
-      input.hotspotVotes && input.hotspotVotes > 1
-        ? `${input.hotspotVotes} community members`
-        : 'community members';
-
     lines.push(
-      `This location has been identified as a ${categoryLabel} concern by ${voterPhrase} on Curbwise, a civic engagement platform for street safety.`,
+      `I would like you to review a ${categoryLabel} concern at this location.`,
     );
 
     if (input.hotspotDescription) {
@@ -80,7 +75,7 @@ export function generateReportBody(input: ReportTemplateInput): string {
 
     if (input.hotspotTitle) {
       lines.push(
-        `The concern is titled "${input.hotspotTitle}" and reflects observed conditions at this location.`,
+        `The linked report on Curbwise is titled "${input.hotspotTitle}".`,
       );
     }
 
@@ -90,22 +85,22 @@ export function generateReportBody(input: ReportTemplateInput): string {
   // Design section
   if (variant === 'design-proposal' || variant === 'combined') {
     lines.push(
-      'I have prepared a street design concept that addresses this area using nationally recognized street design standards.',
+      'I would like to discuss a preliminary street design concept for this area.',
     );
 
     if (input.designElements) {
       lines.push(
-        `The proposed design includes ${input.designElements}, following guidance from the NACTO Urban Street Design Guide.`,
+        `The concept explores ${input.designElements}.`,
       );
     }
 
     if (input.prowagCompliant === true) {
       lines.push(
-        'The design meets PROWAG (Public Right-of-Way Accessibility Guidelines) accessibility requirements, ensuring the street is safe and usable for people of all abilities.',
+        'The concept is marked as passing Curbwise’s selected PROWAG checks.',
       );
     } else if (input.prowagCompliant === false) {
       lines.push(
-        'The design concept is a starting point for discussion. Some elements may require adjustment to fully meet PROWAG accessibility standards, which I am committed to incorporating.',
+        'The concept is marked as having issues in Curbwise’s selected PROWAG checks that need review.',
       );
     }
 
@@ -114,6 +109,10 @@ export function generateReportBody(input: ReportTemplateInput): string {
         `The design concept, "${input.designTitle}," is available for your review.`,
       );
     }
+
+    lines.push(
+      'This preliminary concept requires site measurements and professional review. Curbwise’s checks do not establish accessibility compliance, engineering approval, or city approval.',
+    );
 
     lines.push('');
   }
@@ -125,15 +124,17 @@ export function generateReportBody(input: ReportTemplateInput): string {
     );
     lines.push('');
     lines.push(
-      'The NACTO Urban Street Design Guide and PROWAG accessibility guidelines provide excellent frameworks for improvements that serve all community members.',
+      'I would welcome a review of site conditions and applicable design and accessibility requirements.',
     );
     lines.push('');
   }
 
-  // Community support
-  if (input.communityVotes && input.communityVotes > 1) {
+  // The caller supplies recorded counts only. Avoid adding overlapping counts
+  // from a report and concept or presenting activity as neighborhood consensus.
+  const recordedVotes = Math.max(input.hotspotVotes ?? 0, input.communityVotes ?? 0);
+  if (Number.isSafeInteger(recordedVotes) && recordedVotes > 0) {
     lines.push(
-      `This issue has received ${input.communityVotes} upvotes from community members, demonstrating broad support for improvement at this location.`,
+      `A linked report or concept has ${recordedVotes} recorded ${recordedVotes === 1 ? 'upvote' : 'upvotes'} on Curbwise. This activity count does not establish wider community support.`,
     );
     lines.push('');
   }

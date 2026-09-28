@@ -7,6 +7,7 @@ import { EditorDock } from '../EditorDock';
 import { EditorPage } from '../index';
 import { useStreetStore } from '@/stores/street-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
+import { useProposalStore } from '@/stores/proposal-store';
 import { street, validation } from './fixtures';
 const service = vi.hoisted(() => ({
   canExport: true,
@@ -31,6 +32,7 @@ function Route() {
 beforeEach(() => {
   useStreetStore.setState(useStreetStore.getInitialState());
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState());
+  useProposalStore.getState().reset();
   useStreetStore.temporal.getState().clear();
   service.canExport = true;
   service.pdf.mockReset().mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' }));
@@ -190,6 +192,25 @@ it('collapses the dock, selects a rendered element, and exits to the map', () =>
   expect(useWorkspaceStore.getState().dockExpanded).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: 'Exit design mode' }));
   expect(useWorkspaceStore.getState().mode).toBe('explore');
+});
+
+it('returns linked edits to the brief before export so evidence and measurement-source checks remain available', () => {
+  const location = { lat: 39.7, lng: -104.9, address: 'Broadway' };
+  const before = street();
+  useProposalStore.getState().initProposal('Broadway', location);
+  useProposalStore.getState().setBriefContext({ concern: 'Narrow sidewalk', dimensionBasis: 'measured', dimensionSource: '' });
+  useProposalStore.setState({ beforeStreet: before, afterStreet: before, beforePresetId: 'local', selectedTemplateId: 'test' });
+  const proposalId = useProposalStore.getState().proposalId!;
+  useWorkspaceStore.getState().enterDesignMode(location, proposalId);
+  useStreetStore.getState().setStreet({ ...before, id: 'replacement-template-id', name: 'Broadway revised' });
+  service.canExport = false;
+  render(<MemoryRouter><EditorDock /><Route /></MemoryRouter>);
+  expect(screen.queryByRole('button', { name: 'PDF' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Review & export brief' }));
+  expect(service.pdf).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('Current route')).toHaveTextContent('/');
+  expect(useWorkspaceStore.getState()).toMatchObject({ mode: 'propose', designLocation: location, designProposalId: null });
+  expect(useProposalStore.getState()).toMatchObject({ step: 'review', proposalId, streetName: 'Broadway revised', afterStreet: { id: 'replacement-template-id', location }, beforeStreet: before, briefContext: { concern: 'Narrow sidewalk', dimensionBasis: 'measured', dimensionSource: '' } });
 });
 it('shows the editor empty state, validates changes, and suppresses after-view warnings during comparison', async () => {
   render(

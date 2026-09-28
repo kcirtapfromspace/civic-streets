@@ -1,595 +1,209 @@
-// WS3: PDF Document — React components for @react-pdf/renderer
-import React from 'react';
-import { Document, Page, View, Text } from '@react-pdf/renderer';
-import type { StreetSegment, ValidationResult, CrossSectionElement } from '@/lib/types';
+import { Document, Page, View, Text, Image } from '@react-pdf/renderer';
+import type { DiscussionBriefContext, StreetSegment, ValidationResult } from '@/lib/types';
+import type { BriefPhoto } from './pdf-evidence';
 import { styles, colors, ELEMENT_TYPE_COLORS } from './pdf-styles';
 
-// ── Helper functions ────────────────────────────────────────────────────────
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  } catch {
-    return iso;
-  }
+function displayName(value: string): string {
+  return value.split('-').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 }
 
-function elementDisplayName(type: string): string {
-  return type
-    .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
+function dateLabel(value: number): string {
+  const date = new Date(value);
+  return Number.isFinite(date.getTime())
+    ? date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
+    : 'Date unavailable';
 }
 
-function sideLabel(side: string): string {
-  return side.charAt(0).toUpperCase() + side.slice(1);
+function PageHeader({ title }: { title: string }) {
+  return <View style={styles.header}>
+    <Text style={styles.headerTitle}>{title}</Text>
+    <Text style={styles.headerDate}>Curbwise</Text>
+  </View>;
 }
 
-function severitySymbol(severity: string): string {
-  switch (severity) {
-    case 'error': return 'FAIL';
-    case 'warning': return 'WARN';
-    case 'info': return 'INFO';
-    default: return '--';
-  }
+function PageFooter() {
+  return <View style={styles.footer} fixed>
+    <Text style={styles.footerText}>Discussion material · No engineering approval implied</Text>
+    <Text style={styles.footerText} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
+  </View>;
 }
 
-function getElementStatus(
-  element: CrossSectionElement,
-  validationResults: ValidationResult[],
-): { label: string; color: string } {
-  const elementResults = validationResults.filter((r) => r.elementId === element.id);
-  if (elementResults.some((r) => r.severity === 'error')) {
-    return { label: 'FAIL', color: colors.error };
-  }
-  if (elementResults.some((r) => r.severity === 'warning')) {
-    return { label: 'WARN', color: colors.warning };
-  }
-  return { label: 'PASS', color: colors.pass };
+function BriefField({ label, text }: { label: string; text?: string }) {
+  return <View style={{ marginBottom: 12 }}>
+    <Text style={styles.sectionSubtitle}>{label}</Text>
+    <Text style={styles.body}>{text?.trim() || 'Not provided.'}</Text>
+  </View>;
 }
 
-// ── Reusable page components ────────────────────────────────────────────────
+const SOURCE_LABELS = {
+  community: 'Community observation',
+  example: 'Example observation · Not a verified community submission',
+  'browser-session': 'Browser-session observation · Not a published community submission',
+};
 
-function PageHeader({ streetName }: { streetName: string }) {
-  return (
-    <View style={styles.header}>
-      <Text style={styles.headerTitle}>{streetName} — Street Design Concept Report</Text>
-      <Text style={styles.headerDate}>Curbwise</Text>
+function BriefPage({ title, briefContext, photos, location, generatedAt, evidenceOnly = false }: {
+  title: string;
+  briefContext?: DiscussionBriefContext;
+  photos: BriefPhoto[];
+  location?: StreetSegment['location'];
+  generatedAt: number;
+  evidenceOnly?: boolean;
+}) {
+  const observation = briefContext?.observation;
+  const place = observation ?? location;
+  return <Page size="LETTER" style={styles.page}>
+    <PageHeader title="Discussion brief" />
+    <Text style={styles.briefTitle}>{title}</Text>
+    <Text style={styles.body}>{place?.address || 'Address not provided.'}</Text>
+    {place && <Text style={styles.caption}>Location: {place.lat.toFixed(5)}, {place.lng.toFixed(5)}</Text>}
+    <BriefField label="The concern" text={briefContext?.concern} />
+    <BriefField label="What we would like to improve" text={briefContext?.desiredOutcome} />
+    <BriefField label="What we are asking for" text={briefContext?.requestedNextStep} />
+    {observation ? <View>
+      <Text style={styles.sectionSubtitle}>Observation evidence</Text>
+      <Text style={styles.caption}>{SOURCE_LABELS[observation.source]}</Text>
+      <Text style={styles.caption}>Saved {dateLabel(observation.createdAt)} · Reference: {observation.id}</Text>
+      <Text style={styles.body}>{observation.description || 'No original notes supplied.'}</Text>
+      <Text style={styles.caption}>Snapshot retained with this brief; the source may have changed. The saved date is not a verified photo capture date.</Text>
+      {photos.map((photo, index) => <View key={`${index}-${photo.source}`} wrap={false} style={{ marginTop: 12 }}>
+        {photo.image && <Image src={photo.image} style={styles.evidencePhoto} />}
+        <Text style={styles.caption}>{photo.image ? `Observation photo ${index + 1}` : `Observation photo ${index + 1} unavailable for this export. Reopen the observation to view it.`}</Text>
+      </View>)}
+      {observation.photoUrls.length === 0 && <Text style={styles.caption}>No photos attached.</Text>}
+      {observation.photoUrls.length > 2 && <Text style={styles.caption}>The first two attached photos are included when available; additional photos remain in the source observation.</Text>}
+    </View> : <Text style={styles.caption}>No linked observation supplied. The concern and location have not been independently verified.</Text>}
+    <Text style={[styles.caption, { marginTop: 18 }]}>
+      {evidenceOnly
+        ? 'Evidence-only brief. No street geometry or standards checks are included. This document does not submit a request to an agency.'
+        : 'Concept for discussion. Review the dimensions, assumptions, and limited checks on the following pages. This document does not submit a request to an agency.'}
+    </Text>
+    <Text style={styles.caption}>Prepared {dateLabel(generatedAt)} (UTC).</Text>
+    <PageFooter />
+  </Page>;
+}
+
+function DimensionNote({ context }: { context?: DiscussionBriefContext }) {
+  const basis = context?.dimensionBasis ?? 'assumed';
+  return <View style={styles.note}>
+    <Text style={styles.body}>Existing-condition dimension basis: {displayName(basis)}.</Text>
+    <Text style={styles.caption}>{basis === 'measured'
+      ? 'The author describes existing dimensions as measured; Curbwise has not verified the measurements.'
+      : 'Existing dimensions are working assumptions, not a verified site survey.'}</Text>
+    <Text style={styles.caption}>Proposed widths remain concept allocations, not surveyed conditions.</Text>
+    <Text style={styles.caption}>Source or method: {context?.dimensionSource.trim() || 'Not provided.'}</Text>
+  </View>;
+}
+
+function CrossSection({ street, label }: { street: StreetSegment; label: string }) {
+  const validWidths = street.elements.length > 0 && street.elements.every((element) => Number.isFinite(element.width) && element.width > 0);
+  const totalWidth = street.elements.reduce((sum, element) => sum + element.width, 0);
+  return <View wrap={false} style={{ marginBottom: 16 }}>
+    <Text style={[styles.sectionSubtitle, { marginTop: 6, marginBottom: 4 }]}>{label}</Text>
+    <Text style={styles.caption}>Declared right-of-way: {street.totalROWWidth} ft · {displayName(street.direction)}</Text>
+    {validWidths ? <View style={styles.crossSectionContainer}>
+      {street.elements.map((element, index) => <View key={element.id} style={[
+        styles.crossSectionElement,
+        { width: `${(element.width / totalWidth) * 100}%`, backgroundColor: ELEMENT_TYPE_COLORS[element.type] },
+      ]}>
+        {element.width / totalWidth >= 0.04 && <>
+          <Text style={styles.crossSectionNumber}>{index + 1}</Text>
+          <Text style={styles.crossSectionNumber}>{element.width} ft</Text>
+        </>}
+      </View>)}
+    </View> : <Text style={styles.body}>Diagram unavailable: every element needs a positive, finite width.</Text>}
+    <Text style={styles.caption}>{street.elements.map((element, index) => `${index + 1}. ${element.label || displayName(element.type)} (${element.width} ft)`).join(' · ')}</Text>
+  </View>;
+}
+
+function ChangeSummary({ before, after }: { before: StreetSegment; after: StreetSegment }) {
+  const types = [...new Set([...before.elements, ...after.elements].map((element) => element.type))];
+  const changes = types.flatMap((type) => {
+    const beforeWidth = before.elements.filter((element) => element.type === type).reduce((sum, element) => sum + element.width, 0);
+    const afterWidth = after.elements.filter((element) => element.type === type).reduce((sum, element) => sum + element.width, 0);
+    const delta = afterWidth - beforeWidth;
+    return Math.abs(delta) < 0.01 ? [] : [`${displayName(type)}: ${beforeWidth.toFixed(1)} ft to ${afterWidth.toFixed(1)} ft (${delta > 0 ? '+' : ''}${delta.toFixed(1)} ft)`];
+  });
+  return <View>
+    <Text style={styles.sectionSubtitle}>Space allocation changes</Text>
+    {changes.length > 0 ? changes.map((change) => <Text key={change} style={[styles.body, { fontSize: 9, marginBottom: 3 }]}>{change}</Text>) : <Text style={styles.body}>No width allocation changes by element type.</Text>}
+    <Text style={styles.caption}>Widths are summed by element type across the street. These changes do not predict traffic, safety, accessibility, or other real-world outcomes.</Text>
+  </View>;
+}
+
+function ConceptPage({ currentStreet, beforeStreet, briefContext }: StreetReportDocumentProps) {
+  return <Page size="LETTER" style={styles.page}>
+    <PageHeader title="A concept to discuss" />
+    <DimensionNote context={briefContext} />
+    {beforeStreet ? <CrossSection street={beforeStreet} label="Before · recorded or assumed layout" /> : <Text style={styles.caption}>No before layout supplied.</Text>}
+    <CrossSection street={currentStreet} label="After · proposed layout" />
+    {beforeStreet && <ChangeSummary before={beforeStreet} after={currentStreet} />}
+    <Text style={[styles.caption, { marginTop: 12 }]}>Schematic cross-sections, proportional within each diagram. Intersection geometry, grades, and conditions along the street are not represented.</Text>
+    <PageFooter />
+  </Page>;
+}
+
+function WidthTable({ street }: { street: StreetSegment }) {
+  const columns = ['24%', '10%', '12%', '12%', '12%', '30%'];
+  return <View style={styles.table}>
+    <View style={styles.tableHeader}>
+      {['Element', 'Side', 'Width', 'Min.', 'Rec. min.', 'Stored guidance source'].map((label, index) => <Text key={label} style={[styles.tableHeaderCell, { width: columns[index] }]}>{label}</Text>)}
     </View>
-  );
+    {street.elements.map((element) => <View key={element.id} style={styles.tableRow} wrap={false}>
+      {[element.label || displayName(element.type), displayName(element.side), `${element.width} ft`, `${element.constraints.absoluteMin} ft`, `${element.constraints.recommendedMin} ft`, element.constraints.source].map((value, index) => <Text key={index} style={[styles.tableCell, { width: columns[index] }]}>{value}</Text>)}
+    </View>)}
+  </View>;
 }
 
-function PageFooter({ pageLabel }: { pageLabel: string }) {
-  return (
-    <View style={styles.footer} fixed>
-      <Text style={styles.footerText}>Generated by Curbwise</Text>
-      <Text style={styles.footerText}>{pageLabel}</Text>
-    </View>
-  );
+function ChecksPage({ currentStreet, validationResults, generatedAt }: StreetReportDocumentProps) {
+  const errors = validationResults.filter((result) => result.severity === 'error').length;
+  const warnings = validationResults.filter((result) => result.severity === 'warning').length;
+  const notes = validationResults.filter((result) => result.severity === 'info').length;
+  return <Page size="LETTER" style={styles.page}>
+    <PageHeader title="Appendix · Dimensions and limited checks" />
+    <Text style={styles.sectionTitle}>{currentStreet.name}</Text>
+    <Text style={styles.body}>Declared right-of-way: {currentStreet.totalROWWidth} ft · Curb-to-curb: {currentStreet.curbToCurbWidth} ft</Text>
+    <Text style={styles.caption}>Functional class: {displayName(currentStreet.functionalClass)}{currentStreet.metadata.templateId ? ` · Template: ${currentStreet.metadata.templateId}` : ''}</Text>
+    <WidthTable street={currentStreet} />
+    <Text style={styles.caption}>Min. and recommended minimum values above are stored element guidance, not a complete specification or proof that local requirements are met.</Text>
+    <Text style={styles.sectionSubtitle}>Selected dimensional checks</Text>
+    <Text style={styles.body}>The validator compares supported element widths against stored minimum, maximum, and recommended widths, including applicable stored PROWAG width entries and NACTO guidance. It also compares summed widths with the declared right-of-way and curb-to-curb widths.</Text>
+    <Text style={styles.body}>Reported findings: {errors} errors · {warnings} warnings · {notes} guidance notes</Text>
+    <Text style={styles.caption}>These are findings, not a count of checks performed. An empty result does not establish compliance or approval.</Text>
+    {validationResults.map((result, index) => <View key={index} style={[styles.validationItem, { borderLeftColor: colors[result.severity] }]} wrap={false}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.validationMessage}>{displayName(result.severity)} · {result.message}</Text>
+        <Text style={styles.validationCitation}>{result.citation} · Entered: {result.currentValue} ft · Comparison value: {result.requiredValue} ft</Text>
+      </View>
+    </View>)}
+    {validationResults.length === 0 && <Text style={styles.body}>No findings were reported by the selected dimensional checks.</Text>}
+    <Text style={styles.sectionSubtitle}>Still to be assessed</Text>
+    <Text style={styles.body}>Local requirements, verified site dimensions, right-of-way boundaries, slopes, crossing and curb-ramp details, sight distance, traffic operations, drainage, utilities, construction feasibility, and broader accessibility are not assessed here.</Text>
+    <Text style={styles.body}>Citations identify guidance stored in the app. Check the original sources, their applicability, and current local requirements with the intended reviewer. This is not a comprehensive engineering, legal, or accessibility assessment.</Text>
+    <Text style={styles.caption}>Prepared with Curbwise on {dateLabel(generatedAt)} (UTC). Use this brief to discuss a next step, not as construction documentation.</Text>
+    <PageFooter />
+  </Page>;
 }
-
-// ── Page 1: Cover/Summary ───────────────────────────────────────────────────
-
-function CoverPage({ street }: { street: StreetSegment }) {
-  return (
-    <Page size="LETTER" style={styles.page}>
-      <View style={styles.coverContainer}>
-        <Text style={styles.coverTitle}>Street Design{'\n'}Concept Report</Text>
-        <View style={styles.coverDivider} />
-        <Text style={styles.coverStreetName}>{street.name}</Text>
-        <Text style={styles.coverMeta}>
-          Total ROW Width: {street.totalROWWidth} ft
-        </Text>
-        <Text style={styles.coverMeta}>
-          Curb-to-Curb Width: {street.curbToCurbWidth} ft
-        </Text>
-        <Text style={styles.coverMeta}>
-          Direction: {street.direction === 'two-way' ? 'Two-Way' : 'One-Way'}
-        </Text>
-        <Text style={styles.coverMeta}>
-          Functional Class: {street.functionalClass
-            .split('-')
-            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-            .join(' ')}
-        </Text>
-        {street.metadata.templateId && (
-          <Text style={styles.coverMeta}>
-            Template: {street.metadata.templateId}
-          </Text>
-        )}
-        <View style={[styles.coverDivider, { marginTop: 30 }]} />
-        <Text style={styles.coverMeta}>
-          {formatDate(street.metadata.createdAt)}
-        </Text>
-      </View>
-      <PageFooter pageLabel="Cover" />
-    </Page>
-  );
-}
-
-// ── Page 2: Cross-Section Diagram ───────────────────────────────────────────
-
-function CrossSectionPage({ street }: { street: StreetSegment }) {
-  const totalWidth = street.elements.reduce((acc, el) => acc + el.width, 0);
-
-  return (
-    <Page size="LETTER" style={styles.page}>
-      <PageHeader streetName={street.name} />
-      <Text style={styles.sectionTitle}>Cross-Section Diagram</Text>
-      <Text style={{ fontSize: 9, color: colors.textLight, marginBottom: 8 }}>
-        Total Right-of-Way: {street.totalROWWidth} ft | Elements shown proportional
-        to width
-      </Text>
-
-      {/* Simplified cross-section using View primitives */}
-      <View style={styles.crossSectionContainer}>
-        {street.elements.map((el) => {
-          const widthPercent = `${((el.width / totalWidth) * 100).toFixed(1)}%`;
-          const bgColor = ELEMENT_TYPE_COLORS[el.type] || colors.buffer;
-          // Use white text on dark backgrounds, dark text on light ones
-          const isDark = ['travel-lane', 'turn-lane', 'bike-lane-protected', 'transit-lane'].includes(el.type);
-          const textColor = isDark ? colors.white : '#333333';
-
-          return (
-            <View
-              key={el.id}
-              style={[
-                styles.crossSectionElement,
-                {
-                  width: widthPercent,
-                  backgroundColor: bgColor,
-                  borderRightWidth: 0.5,
-                  borderRightColor: 'rgba(255,255,255,0.4)',
-                },
-              ]}
-            >
-              <Text style={[styles.crossSectionLabel, { color: textColor }]}>
-                {el.label || elementDisplayName(el.type)}
-              </Text>
-              <Text style={[styles.crossSectionWidth, { color: textColor }]}>
-                {el.width} ft
-              </Text>
-            </View>
-          );
-        })}
-      </View>
-
-      {/* Legend */}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 12, gap: 8 }}>
-        {street.elements.map((el) => (
-          <View key={el.id} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12, marginBottom: 4 }}>
-            <View
-              style={{
-                width: 10,
-                height: 10,
-                backgroundColor: ELEMENT_TYPE_COLORS[el.type] || colors.buffer,
-                marginRight: 4,
-                borderRadius: 1,
-              }}
-            />
-            <Text style={{ fontSize: 7, color: colors.text }}>
-              {el.label || elementDisplayName(el.type)} ({el.width} ft)
-            </Text>
-          </View>
-        ))}
-      </View>
-
-      <PageFooter pageLabel="Cross-Section" />
-    </Page>
-  );
-}
-
-// ── Page 3: Width Table ─────────────────────────────────────────────────────
-
-function WidthTablePage({
-  street,
-  validationResults,
-}: {
-  street: StreetSegment;
-  validationResults: ValidationResult[];
-}) {
-  // Column widths as percentages
-  const col = { type: '18%', side: '10%', width: '10%', recMin: '12%', rec: '12%', prowag: '12%', status: '10%', source: '16%' };
-
-  return (
-    <Page size="LETTER" style={styles.page}>
-      <PageHeader streetName={street.name} />
-      <Text style={styles.sectionTitle}>Element Width Summary</Text>
-
-      <View style={styles.table}>
-        {/* Header row */}
-        <View style={styles.tableHeader}>
-          <Text style={[styles.tableHeaderCell, { width: col.type }]}>Element</Text>
-          <Text style={[styles.tableHeaderCell, { width: col.side }]}>Side</Text>
-          <Text style={[styles.tableHeaderCell, { width: col.width }]}>Width</Text>
-          <Text style={[styles.tableHeaderCell, { width: col.recMin }]}>Rec. Min</Text>
-          <Text style={[styles.tableHeaderCell, { width: col.rec }]}>Recommended</Text>
-          <Text style={[styles.tableHeaderCell, { width: col.prowag }]}>PROWAG Min</Text>
-          <Text style={[styles.tableHeaderCell, { width: col.status }]}>Status</Text>
-          <Text style={[styles.tableHeaderCell, { width: col.source }]}>Source</Text>
-        </View>
-
-        {/* Data rows */}
-        {street.elements.map((el, i) => {
-          const status = getElementStatus(el, validationResults);
-          const rowStyle = i % 2 === 0 ? styles.tableRow : styles.tableRowAlt;
-
-          return (
-            <View key={el.id} style={rowStyle}>
-              <Text style={[styles.tableCell, { width: col.type }]}>
-                {el.label || elementDisplayName(el.type)}
-              </Text>
-              <Text style={[styles.tableCell, { width: col.side }]}>
-                {sideLabel(el.side)}
-              </Text>
-              <Text style={[styles.tableCell, { width: col.width, fontFamily: 'Helvetica-Bold' }]}>
-                {el.width} ft
-              </Text>
-              <Text style={[styles.tableCell, { width: col.recMin }]}>
-                {el.constraints.recommendedMin} ft
-              </Text>
-              <Text style={[styles.tableCell, { width: col.rec }]}>
-                {el.constraints.recommended} ft
-              </Text>
-              <Text style={[styles.tableCell, { width: col.prowag }]}>
-                {el.constraints.prowagRequired ? `${el.constraints.absoluteMin} ft` : '--'}
-              </Text>
-              <Text
-                style={[
-                  styles.tableCell,
-                  { width: col.status, fontFamily: 'Helvetica-Bold', color: status.color },
-                ]}
-              >
-                {status.label}
-              </Text>
-              <Text style={[styles.tableCell, { width: col.source, fontSize: 6 }]}>
-                {el.constraints.source}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
-
-      {/* Summary boxes */}
-      <View style={styles.summaryBox}>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{street.totalROWWidth}</Text>
-          <Text style={styles.summaryLabel}>Total ROW (ft)</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{street.curbToCurbWidth}</Text>
-          <Text style={styles.summaryLabel}>Curb-to-Curb (ft)</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{street.elements.length}</Text>
-          <Text style={styles.summaryLabel}>Elements</Text>
-        </View>
-      </View>
-
-      <PageFooter pageLabel="Width Table" />
-    </Page>
-  );
-}
-
-// ── Page 4: Standards Compliance ─────────────────────────────────────────────
-
-function CompliancePage({
-  street,
-  validationResults,
-}: {
-  street: StreetSegment;
-  validationResults: ValidationResult[];
-}) {
-  const errors = validationResults.filter((r) => r.severity === 'error');
-  const warnings = validationResults.filter((r) => r.severity === 'warning');
-  const infos = validationResults.filter((r) => r.severity === 'info');
-
-  const prowagResults = validationResults.filter((r) => r.constraint === 'prowag');
-  const nactoResults = validationResults.filter((r) => r.constraint === 'nacto');
-
-  const prowagPass = prowagResults.length === 0;
-  const nactoViolations = nactoResults.filter((r) => r.severity === 'warning').length;
-
-  return (
-    <Page size="LETTER" style={styles.page}>
-      <PageHeader streetName={street.name} />
-      <Text style={styles.sectionTitle}>Standards Compliance</Text>
-
-      {/* Compliance summary */}
-      <View style={styles.summaryBox}>
-        <View style={styles.summaryItem}>
-          <Text style={[styles.summaryValue, { color: prowagPass ? colors.pass : colors.error }]}>
-            {prowagPass ? 'PASS' : 'FAIL'}
-          </Text>
-          <Text style={styles.summaryLabel}>PROWAG Compliance</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={[styles.summaryValue, { color: nactoViolations === 0 ? colors.pass : colors.warning }]}>
-            {nactoViolations === 0 ? 'PASS' : `${nactoViolations} issues`}
-          </Text>
-          <Text style={styles.summaryLabel}>NACTO Compliance</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={[styles.summaryValue, { color: errors.length > 0 ? colors.error : colors.pass }]}>
-            {errors.length}
-          </Text>
-          <Text style={styles.summaryLabel}>Errors</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={[styles.summaryValue, { color: warnings.length > 0 ? colors.warning : colors.pass }]}>
-            {warnings.length}
-          </Text>
-          <Text style={styles.summaryLabel}>Warnings</Text>
-        </View>
-      </View>
-
-      {/* Errors */}
-      {errors.length > 0 && (
-        <>
-          <Text style={styles.sectionSubtitle}>Errors ({errors.length})</Text>
-          {errors.map((r, i) => (
-            <View key={`err-${i}`} style={[styles.validationItem, { borderLeftColor: colors.error }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.validationMessage}>
-                  <Text style={{ fontFamily: 'Helvetica-Bold', color: colors.error }}>
-                    {severitySymbol(r.severity)}{' '}
-                  </Text>
-                  {r.message}
-                </Text>
-                <Text style={styles.validationCitation}>
-                  {r.citation} | Current: {r.currentValue} ft | Required: {r.requiredValue} ft
-                </Text>
-              </View>
-            </View>
-          ))}
-        </>
-      )}
-
-      {/* Warnings */}
-      {warnings.length > 0 && (
-        <>
-          <Text style={styles.sectionSubtitle}>Warnings ({warnings.length})</Text>
-          {warnings.map((r, i) => (
-            <View key={`warn-${i}`} style={[styles.validationItem, { borderLeftColor: colors.warning }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.validationMessage}>
-                  <Text style={{ fontFamily: 'Helvetica-Bold', color: colors.warning }}>
-                    {severitySymbol(r.severity)}{' '}
-                  </Text>
-                  {r.message}
-                </Text>
-                <Text style={styles.validationCitation}>
-                  {r.citation} | Current: {r.currentValue} ft | Required: {r.requiredValue} ft
-                </Text>
-              </View>
-            </View>
-          ))}
-        </>
-      )}
-
-      {/* Info */}
-      {infos.length > 0 && (
-        <>
-          <Text style={styles.sectionSubtitle}>Informational ({infos.length})</Text>
-          {infos.map((r, i) => (
-            <View key={`info-${i}`} style={[styles.validationItem, { borderLeftColor: colors.info }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.validationMessage}>
-                  <Text style={{ fontFamily: 'Helvetica-Bold', color: colors.info }}>
-                    {severitySymbol(r.severity)}{' '}
-                  </Text>
-                  {r.message}
-                </Text>
-                <Text style={styles.validationCitation}>
-                  {r.citation} | Current: {r.currentValue} ft | Recommended: {r.requiredValue} ft
-                </Text>
-              </View>
-            </View>
-          ))}
-        </>
-      )}
-
-      {/* No issues */}
-      {validationResults.length === 0 && (
-        <View style={[styles.validationItem, { borderLeftColor: colors.pass }]}>
-          <Text style={[styles.validationMessage, { color: colors.pass, fontFamily: 'Helvetica-Bold' }]}>
-            All elements meet PROWAG and NACTO standards. No issues found.
-          </Text>
-        </View>
-      )}
-
-      <PageFooter pageLabel="Standards Compliance" />
-    </Page>
-  );
-}
-
-// ── Page 5: Before/After Comparison ─────────────────────────────────────────
-
-function ComparisonPage({
-  currentStreet,
-  beforeStreet,
-}: {
-  currentStreet: StreetSegment;
-  beforeStreet: StreetSegment;
-}) {
-  // Build element comparison: match by index position for simple comparison
-  const maxElements = Math.max(currentStreet.elements.length, beforeStreet.elements.length);
-  const col = { label: '22%', before: '18%', after: '18%', change: '18%', type: '24%' };
-
-  return (
-    <Page size="LETTER" style={styles.page}>
-      <PageHeader streetName={currentStreet.name} />
-      <Text style={styles.sectionTitle}>Before / After Comparison</Text>
-
-      {/* Summary comparison */}
-      <View style={styles.summaryBox}>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{beforeStreet.totalROWWidth}</Text>
-          <Text style={styles.summaryLabel}>Before ROW (ft)</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{currentStreet.totalROWWidth}</Text>
-          <Text style={styles.summaryLabel}>After ROW (ft)</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{beforeStreet.elements.length}</Text>
-          <Text style={styles.summaryLabel}>Before Elements</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{currentStreet.elements.length}</Text>
-          <Text style={styles.summaryLabel}>After Elements</Text>
-        </View>
-      </View>
-
-      <Text style={styles.sectionSubtitle}>Element-by-Element Comparison</Text>
-
-      <View style={styles.table}>
-        <View style={styles.tableHeader}>
-          <Text style={[styles.tableHeaderCell, { width: col.label }]}>Position</Text>
-          <Text style={[styles.tableHeaderCell, { width: col.type }]}>Element</Text>
-          <Text style={[styles.tableHeaderCell, { width: col.before }]}>Before (ft)</Text>
-          <Text style={[styles.tableHeaderCell, { width: col.after }]}>After (ft)</Text>
-          <Text style={[styles.tableHeaderCell, { width: col.change }]}>Change</Text>
-        </View>
-
-        {Array.from({ length: maxElements }).map((_, i) => {
-          const before = beforeStreet.elements[i];
-          const after = currentStreet.elements[i];
-          const rowStyle = i % 2 === 0 ? styles.tableRow : styles.tableRowAlt;
-
-          const beforeWidth = before?.width ?? 0;
-          const afterWidth = after?.width ?? 0;
-          const diff = afterWidth - beforeWidth;
-          const diffStr = diff > 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1);
-          const diffColor = diff > 0 ? colors.pass : diff < 0 ? colors.error : colors.text;
-
-          return (
-            <View key={`cmp-${i}`} style={rowStyle}>
-              <Text style={[styles.tableCell, { width: col.label }]}>
-                #{i + 1}
-              </Text>
-              <Text style={[styles.tableCell, { width: col.type }]}>
-                {after
-                  ? after.label || elementDisplayName(after.type)
-                  : before
-                    ? `(removed) ${before.label || elementDisplayName(before.type)}`
-                    : '--'}
-              </Text>
-              <Text style={[styles.tableCell, { width: col.before }]}>
-                {before ? `${before.width}` : '--'}
-              </Text>
-              <Text style={[styles.tableCell, { width: col.after }]}>
-                {after ? `${after.width}` : '--'}
-              </Text>
-              <Text
-                style={[
-                  styles.tableCell,
-                  { width: col.change, fontFamily: 'Helvetica-Bold', color: diffColor },
-                ]}
-              >
-                {before || after ? diffStr : '--'}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
-
-      <PageFooter pageLabel="Before / After" />
-    </Page>
-  );
-}
-
-// ── Final Page: Disclaimer ──────────────────────────────────────────────────
-
-function DisclaimerPage({ street }: { street: StreetSegment }) {
-  return (
-    <Page size="LETTER" style={styles.page}>
-      <PageHeader streetName={street.name} />
-
-      <View style={styles.disclaimerBox}>
-        <Text style={styles.disclaimerTitle}>Disclaimer</Text>
-
-        <Text style={styles.disclaimerText}>
-          This report is for conceptual planning purposes only. It is intended to support
-          early-stage design discussions and community engagement, not to serve as construction
-          documentation.
-        </Text>
-
-        <Text style={styles.disclaimerText}>
-          Design dimensions should be verified by a licensed professional engineer before
-          advancing to preliminary or final design. Site-specific conditions including
-          utilities, drainage, grading, right-of-way boundaries, and subsurface conditions
-          must be evaluated by qualified professionals.
-        </Text>
-
-        <Text style={styles.disclaimerText}>
-          PROWAG citations reference the Public Right-of-Way Accessibility Guidelines
-          (proposed rule, 2023 edition). NACTO citations reference the NACTO Urban Street
-          Design Guide (2013) and the NACTO Transit Street Design Guide (2016). Local
-          jurisdiction standards may supersede these national guidelines.
-        </Text>
-
-        <Text style={styles.disclaimerText}>
-          The cross-section visualization is a schematic representation. Actual street
-          geometry will vary based on horizontal and vertical alignment, intersection design,
-          and other factors not represented in this cross-section view.
-        </Text>
-
-        <Text style={[styles.disclaimerText, { marginTop: 12, fontFamily: 'Helvetica-Bold' }]}>
-          Generated: {formatDate(new Date().toISOString())}
-        </Text>
-        <Text style={styles.disclaimerText}>
-          Tool: Curbwise v0.1.0
-        </Text>
-      </View>
-
-      <PageFooter pageLabel="Disclaimer" />
-    </Page>
-  );
-}
-
-// ── Main Document Component ─────────────────────────────────────────────────
 
 interface StreetReportDocumentProps {
   currentStreet: StreetSegment;
   beforeStreet: StreetSegment | null;
   validationResults: ValidationResult[];
+  briefContext?: DiscussionBriefContext;
+  photos: BriefPhoto[];
+  generatedAt: number;
 }
 
-export function StreetReportDocument({
-  currentStreet,
-  beforeStreet,
-  validationResults,
-}: StreetReportDocumentProps) {
-  return (
-    <Document
-      title={`${currentStreet.name} — Street Design Concept Report`}
-      author="Curbwise"
-      subject="Street Design Concept Report"
-    >
-      {/* Page 1: Cover */}
-      <CoverPage street={currentStreet} />
+export function StreetReportDocument(props: StreetReportDocumentProps) {
+  return <Document title={`${props.currentStreet.name} · Discussion brief`} author="Curbwise" subject="Street concern and concept for discussion">
+    <BriefPage title={props.currentStreet.name} briefContext={props.briefContext} photos={props.photos} location={props.currentStreet.location} generatedAt={props.generatedAt} />
+    <ConceptPage {...props} />
+    <ChecksPage {...props} />
+  </Document>;
+}
 
-      {/* Page 2: Cross-Section */}
-      <CrossSectionPage street={currentStreet} />
-
-      {/* Page 3: Width Table */}
-      <WidthTablePage street={currentStreet} validationResults={validationResults} />
-
-      {/* Page 4: Standards Compliance */}
-      <CompliancePage street={currentStreet} validationResults={validationResults} />
-
-      {/* Page 5: Before/After (conditional) */}
-      {beforeStreet && (
-        <ComparisonPage currentStreet={currentStreet} beforeStreet={beforeStreet} />
-      )}
-
-      {/* Final Page: Disclaimer */}
-      <DisclaimerPage street={currentStreet} />
-    </Document>
-  );
+export function ObservationBriefDocument({ briefContext, photos, generatedAt }: { briefContext: DiscussionBriefContext; photos: BriefPhoto[]; generatedAt: number }) {
+  const title = briefContext.observation?.title || 'Street concern';
+  return <Document title={`${title} · Discussion brief`} author="Curbwise" subject="Observation evidence for discussion">
+    <BriefPage title={title} briefContext={briefContext} photos={photos} generatedAt={generatedAt} evidenceOnly />
+  </Document>;
 }

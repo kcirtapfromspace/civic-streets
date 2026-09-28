@@ -3,14 +3,6 @@ import { useProposalStore } from '@/stores/proposal-store';
 import { getTransformationsForPreset, type TransformationCard } from '@/lib/presets/transformation-cards';
 import { loadTemplates } from '@/lib/templates';
 
-const ICON_MAP: Record<TransformationCard['icon'], string> = {
-  bike: '🚲',
-  diet: '🍃',
-  complete: '🌳',
-  transit: '🚌',
-  shared: '🤝',
-};
-
 export function TransformationPicker() {
   const selectedPreset = useProposalStore((s) => s.selectedPreset);
   const applyTransformation = useProposalStore((s) => s.applyTransformation);
@@ -35,7 +27,8 @@ export function TransformationPicker() {
       <div className="flex items-center gap-2.5">
         <button
           onClick={goBack}
-          className="text-gray-300 hover:text-gray-500 transition-all duration-300 ease-spring p-1 rounded-full hover:bg-gray-100/80"
+          aria-label="Back to street layout"
+          className="min-h-11 min-w-11 flex items-center justify-center text-[#59646a] hover:text-[#172126] transition-colors rounded-sm hover:bg-[#f3f5f5]"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
             <path fillRule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clipRule="evenodd" />
@@ -45,7 +38,7 @@ export function TransformationPicker() {
           <h3 className="text-sm font-bold text-gray-900 tracking-tight">
             What would you like to do?
           </h3>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-[#59646a] mt-0.5">
             Starting from: {selectedPreset?.label}
           </p>
         </div>
@@ -56,22 +49,20 @@ export function TransformationPicker() {
           <button
             key={card.templateId}
             onClick={() => handleSelect(card)}
-            className={`flex items-center gap-3.5 p-4 rounded-2xl ring-1 ring-gray-100 bg-gray-50/50 hover:ring-blue-200 hover:bg-blue-50/40 transition-all duration-300 ease-spring text-left group active:scale-[0.98] animate-fade-up stagger-${i + 1}`}
+            className={`flex items-center gap-3.5 p-4 rounded-sm border border-[#d8dddf] bg-white hover:border-[#172126] hover:bg-[#f3f5f5] transition-colors duration-150 text-left group active:scale-[0.98] animate-fade-up stagger-${i + 1}`}
           >
-            <span className="text-lg flex-shrink-0">
-              {ICON_MAP[card.icon]}
-            </span>
+            <span aria-hidden="true" className="text-sm tabular-nums text-[#59646a]">{String(i + 1).padStart(2, '0')}</span>
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-semibold text-gray-900 group-hover:text-blue-700 transition-all duration-300 ease-spring">
+              <div className="text-[13px] font-semibold text-gray-900 group-hover:text-[#172126] transition-colors">
                 {card.label}
               </div>
-              <div className="text-[11px] text-gray-400 mt-0.5 leading-snug">
+              <div className="text-[11px] text-[#59646a] mt-0.5 leading-snug">
                 {card.description}
               </div>
             </div>
             {/* Trailing icon in its own circle */}
-            <div className="w-7 h-7 rounded-full bg-gray-100/80 group-hover:bg-blue-100 flex items-center justify-center flex-shrink-0 transition-all duration-300 ease-spring group-hover:translate-x-0.5">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-gray-300 group-hover:text-blue-500 transition-all duration-300 ease-spring">
+            <div className="w-7 h-7 rounded-full bg-gray-100/80 group-hover:bg-[#e8ebed] flex items-center justify-center flex-shrink-0 transition-colors duration-150">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-[#59646a] group-hover:text-[#172126] transition-colors duration-150">
                 <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
               </svg>
             </div>

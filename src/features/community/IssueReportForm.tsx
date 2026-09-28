@@ -1,12 +1,15 @@
 import React, { useState, useCallback, useEffect, useRef, useId, useMemo } from 'react';
 import { ConvexError } from 'convex/values';
-import { Button } from '@/components/ui';
 import { captureAnalytics } from '@/lib/analytics';
+import { convexAvailable } from '@/lib/api/convex-provider';
 import type { IssueGroup, IssueType, HotspotSeverity } from '@/lib/types/community';
 import { ISSUE_GROUP_LABELS, ISSUE_GROUP_COLORS, SEVERITY_LABELS } from '@/lib/types/community';
 import { getIssueTypesByGroup, getIssueTypeConfig, ISSUE_GROUP_ICONS } from '@/lib/config/issue-types';
 import { processImages, type ProcessedImage } from '../../lib/images/process-image';
 import { MAX_PHOTO_BYTES, MAX_REPORT_PHOTOS, PHOTO_CONTENT_TYPE } from '../../../shared/photo-upload';
+
+import { ReportAssistance } from './ReportAssistance';
+import type { Id } from '../../../convex/_generated/dataModel';
 
 import { findReportingArea } from '../../../shared/reporting-areas';
 
@@ -32,6 +35,7 @@ function bumpSeverity(severity: HotspotSeverity): HotspotSeverity {
 // ── Form output ───────────────────────────────────────────────────────────
 
 export interface IssueReportFormData {
+  reportAssistanceId?: Id<'reportAssistance'>;
   location: { lat: number; lng: number; address: string };
   group: IssueGroup;
   issueType: IssueType;
@@ -90,6 +94,7 @@ export function IssueReportForm({
   const [title, setTitle] = useState('');
   const [titleEdited, setTitleEdited] = useState(false);
   const [description, setDescription] = useState('');
+  const assistanceId = useRef<Id<'reportAssistance'> | undefined>(undefined);
 
   // Anti-abuse: honeypot + timing
   const [honeypotValue, setHoneypotValue] = useState('');
@@ -253,6 +258,7 @@ export function IssueReportForm({
       const finalTitle = (titleEdited && title.trim()) ? title.trim() : autoTitle;
       try {
         await onSubmit({
+          reportAssistanceId: assistanceId.current,
           location: { lat: initialLat, lng: initialLng, address: address.trim() },
           group: selectedGroup,
           issueType: selectedType,
@@ -284,48 +290,46 @@ export function IssueReportForm({
 
   // ── Step indicator ──────────────────────────────────────────────────
 
-  const stepLabels = ['Photo & Location', "What's Wrong?", 'Details'];
+  const stepLabels = ['Location & photo', 'What did you notice?', 'More details'];
 
   return (
     <form
       onSubmit={handleSubmit}
       aria-busy={isSubmitting}
-      className="bg-white rounded-lg shadow-lg max-w-lg w-full mx-auto"
+      className="mx-auto w-full max-w-lg bg-white text-civic-ink"
     >
       <fieldset disabled={isSubmitting} className="min-w-0">
       {!reportingAllowed && (
         <p role="alert" className="px-5 pt-4 text-sm text-amber-800">
-          You can search anywhere in the US. To report a problem, choose a map location in Chicago, Denver, or New York City.
+          You can search anywhere in the US. To save an observation, choose a map location in Chicago, Denver, or New York City.
         </p>
       )}
       {/* Header */}
       <div className="px-5 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">
-            Report a Problem
+            {stepLabels[step - 1]}
           </h2>
           <span className="text-xs text-gray-400">
-            Step {step} of 3
+            {step === 3 ? 'Optional' : `Step ${step} of 2`}
           </span>
         </div>
         <p className="mt-2 text-xs text-gray-600">
-          Community reports are open in the Chicago, Denver, and New York City pilot areas.
-          Sending a report to a city is a separate step.
+          {convexAvailable
+            ? 'Save the location, what you noticed, and photos to the public map. Capture is currently available in the Chicago, Denver, and New York City pilot areas.'
+            : 'Demo mode: your observation stays in this browser session and disappears on reload. It is not published.'}
         </p>
         {/* Step dots */}
         <div className="flex gap-1.5 mt-2">
-          {stepLabels.map((label, i) => (
+          {stepLabels.slice(0, 2).map((label, i) => (
             <div
               key={label}
               className={`h-1 rounded-full flex-1 transition-colors ${
-                i + 1 <= step ? 'bg-blue-500' : 'bg-gray-200'
+                i + 1 <= step ? 'bg-civic-ink' : 'bg-gray-200'
               }`}
             />
           ))}
         </div>
-        <p className="text-xs text-gray-500 mt-1.5">
-          {stepLabels[step - 1]}
-        </p>
       </div>
 
       {/* Honeypot fields - invisible to users, bots will fill them */}
@@ -364,7 +368,7 @@ export function IssueReportForm({
                 aria-label="Upload photos by clicking or dragging"
                 className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
                   isDragOver
-                    ? 'border-blue-400 bg-blue-50'
+                    ? 'border-civic-ink bg-civic-wash'
                     : photoDataUrls.length > 0
                       ? 'border-green-300 bg-green-50'
                       : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
@@ -447,10 +451,10 @@ export function IssueReportForm({
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="e.g. Oak St & 5th Ave, Portland, OR"
                 required
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-civic-ink"
               />
               {address && (
-                <p className="text-xs text-gray-400 mt-1">Pre-filled from map — edit if needed</p>
+                <p className="text-xs text-gray-400 mt-1">The pin sets the location. You can edit its address label.</p>
               )}
             </div>
           </div>
@@ -459,6 +463,12 @@ export function IssueReportForm({
         {/* ── STEP 2: What's wrong? ─────────────────────────────────── */}
         {step === 2 && (
           <div className="space-y-4">
+            <div>
+              <label htmlFor={descId} className="block text-xs font-medium text-gray-600 mb-1">Describe what you noticed (optional)</label>
+              <textarea id={descId} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000}
+                placeholder="For example, a parked car blocks the curb ramp every morning…" rows={3}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-civic-ink resize-none" />
+            </div>
             {/* Group tiles — 2×4 grid */}
             <div>
               <p className="text-xs font-medium text-gray-600 mb-2">
@@ -473,12 +483,13 @@ export function IssueReportForm({
                       type="button"
                       onClick={() => {
                         setSelectedGroup(group);
-                        setSelectedType(null);
+                        setSelectedType(group === 'other' ? 'other' : null);
                         if (!severityOverridden) setSeverity('medium');
                       }}
-                      className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border text-center transition-colors ${
+                      aria-pressed={isSelected}
+                      className={`flex min-h-16 flex-col items-center gap-1 p-2.5 rounded border text-center transition-colors ${
                         isSelected
-                          ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
+                          ? 'border-civic-ink bg-civic-wash ring-1 ring-civic-ink'
                           : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                       }`}
                     >
@@ -496,7 +507,7 @@ export function IssueReportForm({
                         <path d={ISSUE_GROUP_ICONS[group]} />
                       </svg>
                       <span className={`text-[10px] leading-tight ${
-                        isSelected ? 'text-blue-700 font-medium' : 'text-gray-600'
+                        isSelected ? 'text-civic-ink font-medium' : 'text-gray-600'
                       }`}>
                         {ISSUE_GROUP_LABELS[group]}
                       </span>
@@ -507,7 +518,7 @@ export function IssueReportForm({
             </div>
 
             {/* Subtype pills */}
-            {selectedGroup && subtypes.length > 0 && (
+            {selectedGroup && subtypes.length > 1 && (
               <div>
                 <p className="text-xs font-medium text-gray-600 mb-2">
                   Specific issue
@@ -520,9 +531,10 @@ export function IssueReportForm({
                         key={t.slug}
                         type="button"
                         onClick={() => handleTypeSelect(t.slug)}
-                        className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
+                        aria-pressed={isSelected}
+                        className={`min-h-11 px-3 py-1.5 text-xs rounded border transition-colors ${
                           isSelected
-                            ? 'border-blue-500 bg-blue-100 text-blue-700 font-medium'
+                            ? 'border-civic-ink bg-civic-wash text-civic-ink font-medium'
                             : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                         }`}
                       >
@@ -533,6 +545,20 @@ export function IssueReportForm({
                 </div>
               </div>
             )}
+
+            <details className="text-xs text-civic-muted">
+              <summary className="min-h-11 cursor-pointer py-3">Help choosing a category</summary>
+            <ReportAssistance
+              key={JSON.stringify([description, initialLat, initialLng])}
+              input={{ description, lat: initialLat, lng: initialLng }}
+              onResult={(id) => { assistanceId.current = id; }}
+              onApply={(issueType) => {
+                const config = getIssueTypeConfig(issueType)!;
+                setSelectedGroup(config.group);
+                handleTypeSelect(config.slug);
+              }}
+            />
+            </details>
 
             {/* Severity badge + blocking toggle */}
             {selectedType && (
@@ -627,7 +653,7 @@ export function IssueReportForm({
                 }}
                 placeholder="Auto-generated — edit if you'd like"
                 maxLength={120}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-civic-ink"
               />
               {!titleEdited && autoTitle && (
                 <p className="text-xs text-gray-400 mt-1">Auto-generated from your selection</p>
@@ -647,7 +673,8 @@ export function IssueReportForm({
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="What you noticed, when it happened, how it affects you..."
                 rows={3}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 resize-none"
+                maxLength={5000}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-civic-ink resize-none"
               />
             </div>
 
@@ -699,54 +726,54 @@ export function IssueReportForm({
         </div>
       )}
 
-      {/* Footer navigation */}
-      <div className="px-5 py-4 border-t border-gray-200 flex gap-2 justify-between">
+      {/* Capture is complete after selecting an issue; extra details are optional. */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-civic-line px-5 py-4">
         <div>
           {step > 1 && (
-            <Button type="button" variant="ghost" onClick={goBack}>
+            <button type="button" onClick={goBack} className="min-h-11 rounded px-3 text-sm text-civic-muted hover:bg-civic-wash disabled:opacity-50">
               Back
-            </Button>
+            </button>
           )}
           {step === 1 && onCancel && (
-            <Button type="button" variant="ghost" onClick={onCancel}>
+            <button type="button" onClick={onCancel} className="min-h-11 rounded px-3 text-sm text-civic-muted hover:bg-civic-wash disabled:opacity-50">
               Cancel
-            </Button>
+            </button>
           )}
         </div>
-
-        <div className="flex gap-2">
-          {step < 3 && (
-            <Button
+        <div className="flex flex-wrap items-center gap-2">
+          {step === 1 && (
+            <button
               type="button"
-              variant="primary"
-              disabled={isProcessingImages || (step === 1 ? !canAdvanceStep1 : !canAdvanceStep2)}
+              disabled={isProcessingImages || !canAdvanceStep1}
               onClick={goNext}
+              className="min-h-11 rounded bg-civic-ink px-4 text-sm font-medium text-white hover:bg-black disabled:opacity-40"
             >
               Next
-            </Button>
+            </button>
           )}
-          {step === 3 && (
-            <>
-              {onCancel && (
-                <Button type="button" variant="ghost" onClick={onCancel}>
-                  Cancel
-                </Button>
-              )}
-              <Button type="submit" variant="primary" disabled={isSubmitting || isProcessingImages || !canAdvanceStep2}>
-                {isSubmitting ? 'Submitting...' : 'Submit Report'}
-              </Button>
-            </>
-          )}
-          {/* Skip to submit from step 2 */}
-          {step === 2 && canAdvanceStep2 && (
-            <Button
-              type="submit"
-              variant="ghost"
-              disabled={isSubmitting || isProcessingImages}
-              className="text-xs"
+          {step === 2 && (
+            <button
+              type="button"
+              disabled={isProcessingImages || !canAdvanceStep2}
+              onClick={goNext}
+              className="min-h-11 rounded px-3 text-sm text-civic-muted hover:bg-civic-wash disabled:opacity-40"
             >
-              {isSubmitting ? 'Submitting...' : 'Skip details & submit'}
-            </Button>
+              Add details
+            </button>
+          )}
+          {step === 3 && onCancel && (
+            <button type="button" onClick={onCancel} className="min-h-11 rounded px-3 text-sm text-civic-muted hover:bg-civic-wash disabled:opacity-50">
+              Cancel
+            </button>
+          )}
+          {step > 1 && (
+            <button
+              type="submit"
+              disabled={isSubmitting || isProcessingImages || !canAdvanceStep2}
+              className="min-h-11 rounded bg-civic-ink px-4 text-sm font-medium text-white hover:bg-black disabled:opacity-40"
+            >
+              {isSubmitting ? 'Saving...' : 'Save observation'}
+            </button>
           )}
         </div>
       </div>
@@ -756,10 +783,10 @@ export function IssueReportForm({
 }
 
 function reportErrorMessage(error: unknown): string {
-  const fallback = 'Your report could not be saved. Please try again.';
+  const fallback = 'Your observation could not be saved. Please try again.';
   if (error instanceof ConvexError) {
     return typeof error.data === 'string' && error.data.trim() ? error.data : fallback;
   }
   if (!(error instanceof Error) || error.message.startsWith('[CONVEX')) return fallback;
-  return error.message.split('\n')[0] || 'Your report could not be saved. Please try again.';
+  return error.message.split('\n')[0] || 'Your observation could not be saved. Please try again.';
 }

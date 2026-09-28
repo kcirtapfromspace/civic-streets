@@ -11,6 +11,7 @@ export interface DesignLocation {
 export interface WorkspaceState {
   mode: WorkspaceMode;
   designLocation: DesignLocation | null;
+  designProposalId: string | null;
 
   // Panel visibility (design mode)
   showElementPanel: boolean;
@@ -20,7 +21,7 @@ export interface WorkspaceState {
 
   // Actions
   enterConfigureMode: (location: DesignLocation) => void;
-  enterDesignMode: (location?: DesignLocation) => void;
+  enterDesignMode: (location?: DesignLocation, proposalId?: string) => void;
   enterProposeMode: (location: DesignLocation) => void;
   enterIntersectionMode: (location: DesignLocation) => void;
   exitToExplore: () => void;
@@ -36,6 +37,7 @@ export interface WorkspaceState {
 export const useWorkspaceStore = create<WorkspaceState>()((set) => ({
   mode: 'explore',
   designLocation: null,
+  designProposalId: null,
 
   showElementPanel: true,
   showValidationPanel: true,
@@ -46,12 +48,14 @@ export const useWorkspaceStore = create<WorkspaceState>()((set) => ({
     set({
       mode: 'configure',
       designLocation: location,
+      designProposalId: null,
     }),
 
-  enterDesignMode: (location) =>
+  enterDesignMode: (location, proposalId) =>
     set((state) => ({
       mode: 'design',
       designLocation: location ?? state.designLocation,
+      designProposalId: proposalId ?? null,
       showElementPanel: true,
       showValidationPanel: true,
       dockExpanded: true,
@@ -61,17 +65,20 @@ export const useWorkspaceStore = create<WorkspaceState>()((set) => ({
     set({
       mode: 'propose',
       designLocation: location,
+      designProposalId: null,
     }),
 
   enterIntersectionMode: (location) =>
     set({
       mode: 'propose-intersection',
       designLocation: location,
+      designProposalId: null,
     }),
 
   exitToExplore: () =>
     set({
       mode: 'explore',
+      designProposalId: null,
       showStreetViewPip: false,
     }),
 

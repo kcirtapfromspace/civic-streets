@@ -77,7 +77,7 @@ describe('civic reporting routes', () => {
       submitCivicReport({ ...denverReport, lat: 40.7128, lng: -74.006 }),
     ).resolves.toEqual({
       success: false,
-      deepLinkUrl: 'https://portal.311.nyc.gov/sr-step1/',
+      deepLinkUrl: 'https://portal.311.nyc.gov/report-problems/',
     });
   });
 

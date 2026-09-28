@@ -40,7 +40,10 @@ function makeMap(zoom = 13) {
   const sources = new Map<string, maplibregl.GeoJSONSourceSpecification>();
   const layers = new Map<string, maplibregl.LayerSpecification>();
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
+  let removed = false;
   const map = {
+    getStyle: () => removed ? undefined : { version: 8, sources: {}, layers: [] },
+    remove: () => { removed = true; sources.clear(); layers.clear(); },
     getZoom: vi.fn(() => zoom),
     getBounds: () => ({
       getSouth: () => 39.73,
@@ -49,8 +52,14 @@ function makeMap(zoom = 13) {
       getEast: () => -104.98,
     }),
     isStyleLoaded: vi.fn(() => true),
-    getSource: (id: string) => sources.get(id),
-    getLayer: (id: string) => layers.get(id),
+    getSource: (id: string) => {
+      if (removed) throw new Error('Map style was destroyed');
+      return sources.get(id);
+    },
+    getLayer: (id: string) => {
+      if (removed) throw new Error('Map style was destroyed');
+      return layers.get(id);
+    },
     addSource: vi.fn((id: string, source: maplibregl.GeoJSONSourceSpecification) =>
       sources.set(id, source),
     ),
@@ -256,4 +265,36 @@ describe('crash map layer behavior', () => {
     rerender(<CrashDataLayer map={null} />);
     expect(view.listenerCount('moveend')).toBe(0);
   });
+
+  it('cleans up listeners and pending fetches after the parent destroys the map style', () => {
+    const view = makeMap();
+    const { unmount } = render(<CrashDataLayer map={view.instance} />);
+    expect(view.sources.size).toBe(1);
+    view.map.remove();
+    expect(() => unmount()).not.toThrow();
+    expect(view.listenerCount('moveend')).toBe(0);
+    expect(view.listenerCount('click')).toBe(0);
+    expect(view.listenerCount('styledata')).toBe(0);
+    act(() => vi.advanceTimersByTime(1000));
+    expect(fetchForBounds).not.toHaveBeenCalled();
+  });
+
+  it('cancels deferred layer attachment when disabled or unmounted before style loading completes', () => {
+    const view = makeMap();
+    view.map.isStyleLoaded.mockReturnValue(false);
+    const { unmount } = render(<CrashDataLayer map={view.instance} />);
+    expect(view.listenerCount('styledata')).toBe(1);
+    act(() => useSafetyDataStore.getState().setEnabled(false));
+    expect(view.listenerCount('styledata')).toBe(0);
+    act(() => view.emit('styledata'));
+    expect(view.sources.size).toBe(0);
+    act(() => useSafetyDataStore.setState({ enabled: true, crashes: [crash] }));
+    expect(view.listenerCount('styledata')).toBe(1);
+    view.map.remove();
+    expect(() => unmount()).not.toThrow();
+    expect(view.listenerCount('styledata')).toBe(0);
+    act(() => view.emit('styledata'));
+    expect(view.map.addSource).not.toHaveBeenCalled();
+  });
+
 });

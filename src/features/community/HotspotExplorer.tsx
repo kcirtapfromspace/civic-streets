@@ -197,7 +197,7 @@ export function HotspotExplorer({ onSelectHotspot }: HotspotExplorerProps) {
     <div className="p-4">
       {/* Header */}
       <h2 className="text-lg font-bold text-gray-900 mb-4">
-        Community Hotspots
+        Observations
       </h2>
 
       {/* Saved areas */}
@@ -220,7 +220,7 @@ export function HotspotExplorer({ onSelectHotspot }: HotspotExplorerProps) {
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search hotspots..."
+            placeholder="Search observations..."
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           />
         </div>
@@ -303,11 +303,11 @@ export function HotspotExplorer({ onSelectHotspot }: HotspotExplorerProps) {
       {isLoading ? (
         <div className="flex items-center gap-2 py-4">
           <div className="w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-          <span className="text-xs text-gray-400">Loading hotspots...</span>
+          <span className="text-xs text-gray-400">Loading observations...</span>
         </div>
       ) : (
         <p className="text-xs text-gray-400 mb-3">
-          Showing {Math.min(visibleCount, filtered.length)} of {filtered.length} hotspot{filtered.length !== 1 ? 's' : ''}
+          Showing {Math.min(visibleCount, filtered.length)} of {filtered.length} observation{filtered.length !== 1 ? 's' : ''}
         </p>
       )}
 
@@ -321,7 +321,7 @@ export function HotspotExplorer({ onSelectHotspot }: HotspotExplorerProps) {
       {!isLoading && filtered.length === 0 && (
         <div className="text-center py-12">
           <p className="text-sm text-gray-400">
-            No hotspots match your filters.
+            No observations match your filters.
           </p>
         </div>
       )}

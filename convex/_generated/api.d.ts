@@ -25,6 +25,8 @@ import type * as hotspots from "../hotspots.js";
 import type * as http from "../http.js";
 import type * as organizations from "../organizations.js";
 import type * as rateLimit from "../rateLimit.js";
+import type * as reportAssistance from "../reportAssistance.js";
+import type * as reportAssistanceValidators from "../reportAssistanceValidators.js";
 import type * as reports from "../reports.js";
 import type * as reviewThreads from "../reviewThreads.js";
 import type * as serviceAreas from "../serviceAreas.js";
@@ -55,6 +57,8 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   organizations: typeof organizations;
   rateLimit: typeof rateLimit;
+  reportAssistance: typeof reportAssistance;
+  reportAssistanceValidators: typeof reportAssistanceValidators;
   reports: typeof reports;
   reviewThreads: typeof reviewThreads;
   serviceAreas: typeof serviceAreas;

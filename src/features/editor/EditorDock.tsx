@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStreetStore } from '@/stores/street-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
+import { useProposalStore } from '@/stores/proposal-store';
 import { CrossSectionSVG } from '@/features/renderer';
 import { COMMON_ROW_WIDTHS, UNITS } from '@/lib/constants';
 import { Button, Select, Tooltip } from '@/components/ui';
@@ -50,9 +51,18 @@ export function EditorDock() {
   const dockExpanded = useWorkspaceStore((s) => s.dockExpanded);
   const toggleDock = useWorkspaceStore((s) => s.toggleDock);
   const exitToExplore = useWorkspaceStore((s) => s.exitToExplore);
+  const designProposalId = useWorkspaceStore((s) => s.designProposalId);
+  const proposalId = useProposalStore((s) => s.proposalId);
+  const proposalLocation = useProposalStore((s) => s.location);
+  const isProposalEditing = Boolean(designProposalId && designProposalId === proposalId && proposalLocation);
 
   const handleExport = useCallback(async () => {
     if (!currentStreet) return;
+    if (isProposalEditing && proposalLocation) {
+      useProposalStore.setState({ afterStreet: { ...currentStreet, location: proposalLocation }, streetName: currentStreet.name, step: 'review' });
+      useWorkspaceStore.getState().enterProposeMode(proposalLocation);
+      return;
+    }
     if (!canExport) {
       navigate(contactHref);
       return;
@@ -82,6 +92,8 @@ export function EditorDock() {
     }
   }, [
     currentStreet,
+    isProposalEditing,
+    proposalLocation,
     beforeStreet,
     validationResults,
     setExporting,
@@ -193,12 +205,12 @@ export function EditorDock() {
             disabled={isExporting}
             className="text-xs px-2 py-1"
             title={
-              canExport
+              canExport || isProposalEditing
                 ? undefined
                 : 'Contact Curbwise to unlock branded export delivery'
             }
           >
-            {isExporting ? 'Exporting...' : 'PDF'}
+            {isExporting ? 'Exporting...' : isProposalEditing ? 'Review & export brief' : 'PDF'}
           </Button>
 
           <div className="w-px h-5 bg-gray-200" aria-hidden="true" />

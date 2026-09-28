@@ -16,6 +16,7 @@ import type { CrossSectionElement, StreetLocation } from '@/lib/types';
 const location: StreetLocation = { lat: 39.74, lng: -104.99, address: 'Example Street' };
 const template = getTemplateById('road-diet-4to3')!;
 beforeEach(() => {
+  localStorage.clear();
   useStreetStore.setState(useStreetStore.getInitialState());
   useProposalStore.setState(useProposalStore.getInitialState());
   useIntersectionStore.setState(useIntersectionStore.getInitialState());
@@ -406,5 +407,17 @@ describe('proposal, drawing and workspace workflows', () => {
       upvotes: 0,
       downvotes: 0,
     });
+  });
+
+  it.each(['configure', 'design', 'propose', 'intersection', 'explore'] as const)('clears a linked proposal when leaving for %s', (destination) => {
+    const workspace = useWorkspaceStore.getState();
+    workspace.enterDesignMode(location, 'proposal-123');
+    expect(useWorkspaceStore.getState().designProposalId).toBe('proposal-123');
+    if (destination === 'configure') workspace.enterConfigureMode(location);
+    if (destination === 'design') workspace.enterDesignMode(location);
+    if (destination === 'propose') workspace.enterProposeMode(location);
+    if (destination === 'intersection') workspace.enterIntersectionMode(location);
+    if (destination === 'explore') workspace.exitToExplore();
+    expect(useWorkspaceStore.getState().designProposalId).toBeNull();
   });
 });

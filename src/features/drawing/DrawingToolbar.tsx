@@ -1,3 +1,5 @@
+import { useEffect, useId, useRef, useState } from 'react';
+import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useDrawingStore, type DrawingTool } from '@/stores/drawing-store';
 
 interface ToolConfig {
@@ -14,9 +16,27 @@ const TOOLS: ToolConfig[] = [
     hint: 'drag along street',
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" className="w-7 h-7">
-        <path d="M6 26L10 6h2l-3 18M20 26l3-18h2L22 26" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M15 8v3M15 14v3M15 20v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="0.5 3" />
-        <path d="M9 16l4-3v6l4-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
+        <path
+          d="M6 26L10 6h2l-3 18M20 26l3-18h2L22 26"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+        <path
+          d="M15 8v3M15 14v3M15 20v3"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeDasharray="0.5 3"
+        />
+        <path
+          d="M9 16l4-3v6l4-3"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.6"
+        />
       </svg>
     ),
   },
@@ -27,7 +47,12 @@ const TOOLS: ToolConfig[] = [
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" className="w-7 h-7">
         <circle cx="16" cy="16" r="9" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M16 4v6M16 22v6M4 16h6M22 16h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path
+          d="M16 4v6M16 22v6M4 16h6M22 16h6"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
         <circle cx="16" cy="16" r="2.5" fill="currentColor" opacity="0.5" />
       </svg>
     ),
@@ -38,23 +63,43 @@ const TOOLS: ToolConfig[] = [
     hint: 'draw freely',
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" className="w-7 h-7">
-        <path d="M7 25c3-2 5-10 9-12s6 4 9-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path
+          d="M7 25c3-2 5-10 9-12s6 4 9-6"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
         <circle cx="7" cy="25" r="2" fill="currentColor" opacity="0.5" />
-        <path d="M24 6l2 1-1 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d="M24 6l2 1-1 2"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </svg>
     ),
   },
 ];
 
-function getStatusText(tool: DrawingTool, isDragging: boolean, isSnapping: boolean, hasSelection: boolean): string {
+function getStatusText(
+  tool: DrawingTool,
+  isDragging: boolean,
+  isSnapping: boolean,
+  hasSelection: boolean,
+): string {
   if (isSnapping) return 'Snapping to road...';
   if (isDragging) return 'Release to finish';
   if (hasSelection) return 'Road selected — design it or clear';
   switch (tool) {
-    case 'road': return 'Click and drag along a road';
-    case 'intersection': return 'Click on an intersection';
-    case 'newroad': return 'Click and drag to draw a new road';
-    default: return 'Select a tool to start building';
+    case 'road':
+      return 'Click and drag along a road';
+    case 'intersection':
+      return 'Click on an intersection';
+    case 'newroad':
+      return 'Click and drag to draw a new road';
+    default:
+      return 'Select a tool to start building';
   }
 }
 
@@ -66,69 +111,97 @@ export function DrawingToolbar() {
   const selectedPath = useDrawingStore((s) => s.selectedPath);
   const clear = useDrawingStore((s) => s.clear);
 
+  const workspaceMode = useWorkspaceStore((s) => s.mode);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const launcherRef = useRef<HTMLButtonElement>(null);
+  const toolsId = useId();
   const isActive = activeTool !== 'select';
-  const statusText = isActive
-    ? getStatusText(activeTool, isDragging, isSnapping, !!selectedPath)
-    : null;
+  const statusText = getStatusText(activeTool, isDragging, isSnapping, !!selectedPath);
+  const isOpen = isExpanded || isActive;
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || !isOpen || workspaceMode !== 'explore') return;
+      clear();
+      setActiveTool('select');
+      setIsExpanded(false);
+      launcherRef.current?.focus();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, clear, setActiveTool, workspaceMode]);
+
+  if (workspaceMode !== 'explore') return null;
 
   return (
-    <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10">
-      <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.06] flex flex-col items-center overflow-hidden">
-        {/* Status bar */}
-        {statusText && (
-          <div className="w-full px-4 pt-2.5 pb-1.5 flex items-center justify-center gap-2">
-            {isSnapping ? (
-              <div className="w-3 h-3 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
-            ) : isDragging ? (
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            ) : null}
-            <span className="text-[11px] text-gray-500 font-medium">{statusText}</span>
+    <div
+      className="absolute bottom-4 left-3 z-30 flex flex-col items-start gap-2 sm:left-4"
+      data-drawing-tools
+    >
+      {isOpen && (
+        <section
+          id={toolsId}
+          aria-label="Drawing tools"
+          className="max-h-[45dvh] w-[min(320px,calc(100vw-88px))] overflow-y-auto overscroll-contain rounded-lg border border-[#d8dddf] bg-white p-2 text-[#172126]"
+        >
+          <p role="status" className="px-2 py-2 text-xs leading-5 text-[#59646a]">
+            {statusText}
+          </p>
+          <div className="grid grid-cols-1 gap-1">
+            {TOOLS.map(({ tool, label, hint, icon }) => {
+              const selected = activeTool === tool;
+              return (
+                <button
+                  type="button"
+                  key={tool}
+                  aria-pressed={selected}
+                  onClick={() => setActiveTool(selected ? 'select' : tool)}
+                  className={`flex min-h-12 items-center gap-3 rounded-md px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#172126] ${selected ? 'bg-[#172126] text-white' : 'hover:bg-[#f3f5f5]'}`}
+                >
+                  <span aria-hidden="true">{icon}</span>
+                  <span className="flex flex-col gap-0.5">
+                    <span className="text-xs font-semibold">{label}</span>
+                    <span
+                      className={`text-[11px] ${selected ? 'text-white/80' : 'text-[#59646a]'}`}
+                    >
+                      {hint}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
-        )}
-
-        {/* Tool buttons */}
-        <div className="flex items-stretch gap-0.5 p-1.5">
-          {TOOLS.map(({ tool, label, hint, icon }) => {
-            const selected = activeTool === tool;
-
-            return (
-              <button
-                key={tool}
-                onClick={() => setActiveTool(selected ? 'select' : tool)}
-                className={`group flex flex-col items-center gap-1 px-4 py-2.5 rounded-xl transition-all duration-200 min-w-[100px] ${
-                  selected
-                    ? 'bg-blue-600 text-white shadow-[0_2px_12px_rgba(59,130,246,0.3)]'
-                    : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100/60'
-                }`}
-              >
-                <div className={`transition-transform duration-200 ${selected ? 'scale-110' : 'group-hover:scale-105'}`}>
-                  {icon}
-                </div>
-                <span className="text-[11px] font-bold leading-tight">{label}</span>
-                <span className={`text-[9px] leading-tight ${selected ? 'text-blue-100' : 'text-gray-400'}`}>
-                  {hint}
-                </span>
-              </button>
-            );
-          })}
-
-          {/* Close / back to explore */}
           {isActive && (
             <button
+              type="button"
               onClick={() => {
                 clear();
                 setActiveTool('select');
               }}
-              className="flex items-center justify-center px-2 ml-0.5 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200"
               title="Exit build mode (Esc)"
+              className="mt-1 min-h-11 w-full rounded-md px-3 text-left text-xs font-semibold text-[#172126] hover:bg-[#f3f5f5] focus-visible:outline-2 focus-visible:outline-[#172126]"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-              </svg>
+              Stop drawing
             </button>
           )}
-        </div>
-      </div>
+        </section>
+      )}
+      <button
+        ref={launcherRef}
+        type="button"
+        aria-expanded={isOpen}
+        aria-controls={toolsId}
+        onClick={() => {
+          if (isOpen) {
+            clear();
+            setActiveTool('select');
+          }
+          setIsExpanded(!isOpen);
+        }}
+        className="min-h-11 rounded-lg border border-[#d8dddf] bg-white px-3 text-xs font-semibold text-[#172126] transition-colors hover:bg-[#f3f5f5] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#172126]"
+      >
+        {isOpen ? 'Close draw tools' : 'Draw tools'}
+      </button>
     </div>
   );
 }

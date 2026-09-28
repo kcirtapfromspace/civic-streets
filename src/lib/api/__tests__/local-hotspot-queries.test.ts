@@ -180,3 +180,45 @@ it.each([undefined, 'votes', 'newest', 'nearest'] as const)(
     expect(result.current.isLoading).toBe(false);
   },
 );
+
+it('retains local prepared photos independently of temporary form preview URLs', async () => {
+  const { result } = renderHook(() => useCreateHotspot());
+  let id!: string;
+  await act(async () => {
+    id = await result.current({
+      ...community[0],
+      photoUrls: ['blob:temporary-form-preview'],
+      processedImages: [{ blob: new Blob(['photo bytes'], { type: 'image/jpeg' }), exif: null }],
+    });
+  });
+  const saved = useLocalHotspotsStore.getState().hotspots.find((hotspot) => hotspot.id === id)!;
+  expect(saved.photoUrls).toEqual(['data:image/jpeg;base64,cGhvdG8gYnl0ZXM=']);
+  expect(saved.photoUrls).not.toContain('blob:temporary-form-preview');
+});
+
+it.each(['error', 'abort'] as const)('preserves local report state when photo reading fails with %s', async (event) => {
+  vi.stubGlobal('FileReader', class {
+    onerror!: () => void;
+    onabort!: () => void;
+    readAsDataURL() { this[event === 'error' ? 'onerror' : 'onabort'](); }
+  });
+  const { result } = renderHook(() => useCreateHotspot());
+  await expect(result.current({
+    ...community[0],
+    processedImages: [{ blob: new Blob(['photo bytes'], { type: 'image/jpeg' }), exif: null }],
+  })).rejects.toThrow('A photo could not be saved in this browser session');
+  expect(useLocalHotspotsStore.getState().hotspots).toEqual([]);
+});
+
+it('rejects invalid local photos and never stores supplied external or temporary URLs', async () => {
+  const { result } = renderHook(() => useCreateHotspot());
+  await expect(result.current({
+    ...community[0],
+    processedImages: [{ blob: new Blob([], { type: 'image/jpeg' }), exif: null }],
+  })).rejects.toThrow('A photo could not be prepared');
+  expect(useLocalHotspotsStore.getState().hotspots).toEqual([]);
+  await act(async () => {
+    await result.current({ ...community[0], photoUrls: ['blob:expired', 'https://example.com/photo'] });
+  });
+  expect(useLocalHotspotsStore.getState().hotspots[0].photoUrls).toEqual([]);
+});

@@ -28,11 +28,11 @@ async function reverseGeocodeStreetName(point: LatLng): Promise<string | null> {
 }
 
 function removeLayerSafe(map: maplibregl.Map, id: string) {
-  if (map.getLayer(id)) map.removeLayer(id);
+  if (map.getStyle() && map.getLayer(id)) map.removeLayer(id);
 }
 
 function removeSourceSafe(map: maplibregl.Map, id: string) {
-  if (map.getSource(id)) map.removeSource(id);
+  if (map.getStyle() && map.getSource(id)) map.removeSource(id);
 }
 
 function cleanupTrail(map: maplibregl.Map) {

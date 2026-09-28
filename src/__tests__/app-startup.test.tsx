@@ -112,7 +112,7 @@ describe('application routes with real page boundaries', () => {
     expect(posthogIdentify).not.toHaveBeenCalled();
   });
   it('loads the marketing page without application navigation, then opens the live map through its CTA', async () => {
-    await visit('/', /Find the dangerous block/);
+    await visit('/', /Turn a street concern into a clear proposal/);
     expect(screen.queryByRole('navigation', { name: 'Main navigation' })).not.toBeInTheDocument();
     fireEvent.click(
       screen.getAllByRole('link').find((link) => link.getAttribute('href') === '/map')!,
@@ -122,10 +122,11 @@ describe('application routes with real page boundaries', () => {
     expect(window.location.pathname).toBe('/map');
   });
   it.each(['/pricing', '/institutions'])(
-    'redirects the legacy %s entry to the government onboarding section',
+    'redirects the legacy %s entry to the resident observation workflow',
     async (path) => {
-      await visit(path, /Find the dangerous block/);
-      expect(window.location.pathname + window.location.hash).toBe('/#government');
+      await visit(path, /Turn a street concern into a clear proposal/);
+      expect(window.location.pathname + window.location.hash).toBe('/#features');
+      expect(screen.queryByRole('textbox', { name: 'Jurisdiction' })).not.toBeInTheDocument();
       await waitFor(() => expect(Element.prototype.scrollIntoView).toHaveBeenCalled());
     },
   );
@@ -141,9 +142,9 @@ describe('application routes with real page boundaries', () => {
   it('loads the community explorer and reports missing detail identities without crashing', async () => {
     window.history.replaceState({}, '', '/hotspots');
     const first = render(<App />);
-    expect(await screen.findAllByRole('heading', { name: 'Community Hotspots' })).toHaveLength(2);
+    expect(await screen.findAllByRole('heading', { name: 'Observations' })).toHaveLength(2);
     first.unmount();
-    await visit('/hotspot/unknown', 'Hotspot Not Found');
+    await visit('/hotspot/unknown', 'Observation not found');
     expect(screen.getByText('unknown')).toBeInTheDocument();
   });
   it.each(['/report', '/report/saved-concept'])(

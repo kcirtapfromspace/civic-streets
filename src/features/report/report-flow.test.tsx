@@ -7,9 +7,11 @@ import { ReportBuilder } from './ReportBuilder';
 import { useReportStore } from './report-store';
 import type { DesignPin, HotspotPin } from '@/lib/types';
 
-const { access } = vi.hoisted(() => ({
+const { access, backend } = vi.hoisted(() => ({
   access: { canAccess: false, contactHref: '/institutions' },
+  backend: { available: true },
 }));
+vi.mock('@/lib/api/convex-provider', () => ({ get convexAvailable() { return backend.available; } }));
 vi.mock('@/lib/billing/access', () => ({
   useBillingAccess: () => access,
   getGovernmentContactHref: () => '/institutions',
@@ -62,6 +64,7 @@ function addOffice() {
 beforeEach(() => {
   useMapStore.setState({ selectedLocation: { lat: 39.74, lng: -104.99, address: 'Denver' } });
   useReportStore.getState().reset();
+  backend.available = true;
   access.canAccess = false;
   vi.spyOn(window, 'open').mockReturnValue(null);
   vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
@@ -74,6 +77,21 @@ afterEach(() => {
 });
 
 describe('resident email-draft flow', () => {
+  it.each([true, false])('uses public vote counts only with a connected community source (%s)', (connected) => {
+    backend.available = connected;
+    useReportStore.setState({
+      step: 3, address: 'Denver', hotspotId: hotspot.id, designId: design.id,
+      selectedReps: [office],
+    });
+    renderWizard({ hotspot, design });
+    const message = (screen.getByLabelText('Message') as HTMLTextAreaElement).value;
+    expect(message).toContain('preliminary');
+    if (connected) expect(message).toContain('7 recorded upvotes');
+    else expect(message).not.toMatch(/recorded upvotes|community members|broad support/);
+    expect(message).not.toContain('4 recorded upvotes');
+    expect(window.open).not.toHaveBeenCalled();
+  });
+
   it.each([null, { lat: 34.05, lng: -118.24, address: 'Los Angeles' }])('gates all wizard tools without an eligible map location: %s', (selectedLocation) => {
     useMapStore.setState({ selectedLocation });
     useReportStore.setState({ step: 4, address: 'Denver', selectedReps: [office], subject: 'Issue', body: 'Please review.' });
@@ -97,6 +115,10 @@ describe('resident email-draft flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
     addOffice();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByLabelText('Address')).toHaveValue('Example crossing, Denver');
+    expect(useReportStore.getState().selectedReps).toEqual([office]);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     // Adding an already selected office must not duplicate the recipient list.
     addOffice();
     expect(useReportStore.getState().selectedReps).toHaveLength(1);

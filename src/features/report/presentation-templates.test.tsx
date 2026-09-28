@@ -84,7 +84,7 @@ it.each([
   {
     context: { hotspotCategory: 'poor-sidewalk', hotspotVotes: 8 },
     subject: 'Street Safety Concern at Broadway',
-    included: 'Poor Sidewalk concern by 8 community members',
+    included: 'review a Poor Sidewalk concern',
   },
   {
     context: {
@@ -93,12 +93,12 @@ it.each([
       prowagCompliant: true,
     },
     subject: 'Street Design Proposal for Broadway',
-    included: 'design meets PROWAG',
+    included: 'passing Curbwise’s selected PROWAG checks',
   },
   {
     context: { designTitle: 'Concept', prowagCompliant: false },
     subject: 'Street Design Proposal for Broadway',
-    included: 'Some elements may require adjustment',
+    included: 'issues in Curbwise’s selected PROWAG checks',
   },
   {
     context: { designTitle: 'Untested concept' },
@@ -113,7 +113,7 @@ it.each([
       senderName: 'Resident',
     },
     subject: 'Street Safety Concern and Design Proposal for Broadway',
-    included: '12 upvotes',
+    included: '12 recorded upvotes',
   },
 ])('creates an appropriate reviewable draft for $subject', ({ context, subject, included }) => {
   const input = { repName: 'Council Office', address: 'Broadway', ...context };
@@ -122,6 +122,39 @@ it.each([
   expect(body).toContain('Dear Council Office,');
   expect(body).toContain(included);
   expect(body.endsWith(context.senderName ?? '[Your Name]')).toBe(true);
-  if (context.prowagCompliant === undefined) expect(body).not.toContain('design meets PROWAG');
-  if (!context.communityVotes) expect(body).not.toContain('upvotes from community members');
+  expect(body).not.toMatch(/design meets PROWAG|broad support|upvotes from community members|nationally recognized/);
+  if (context.designTitle) {
+    expect(body).toContain('preliminary street design concept');
+    expect(body).toContain('do not establish accessibility compliance, engineering approval, or city approval');
+  }
 });
+
+it.each([undefined, 0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+  'omits unsupported vote claims when recorded count is %s',
+  (votes) => {
+    const body = generateReportBody({
+      repName: 'Council Office', address: 'Broadway', hotspotTitle: 'Missing ramp',
+      hotspotVotes: votes, communityVotes: votes,
+    });
+    expect(body).toContain('I would like you to review a safety concern');
+    expect(body).not.toMatch(/upvotes?|community members|reflects observed conditions/);
+  },
+);
+
+it.each([
+  { hotspotVotes: 1, communityVotes: undefined, expected: '1 recorded upvote on Curbwise' },
+  { hotspotVotes: undefined, communityVotes: 1, expected: '1 recorded upvote on Curbwise' },
+  { hotspotVotes: 8, communityVotes: 8, expected: '8 recorded upvotes on Curbwise' },
+  { hotspotVotes: 8, communityVotes: 12, expected: '12 recorded upvotes on Curbwise' },
+])('reports recorded counts without inventing consensus or adding overlapping votes: $expected',
+  ({ hotspotVotes, communityVotes, expected }) => {
+    const body = generateReportBody({
+      repName: 'Council Office', address: 'Broadway', hotspotTitle: 'Missing ramp',
+      hotspotVotes, communityVotes,
+    });
+    expect(body).toContain(expected);
+    expect(body).toContain('This activity count does not establish wider community support.');
+    expect(body.match(/recorded upvotes?/g)).toHaveLength(1);
+    expect(body).not.toMatch(/\d+ community members|broad support/);
+  },
+);

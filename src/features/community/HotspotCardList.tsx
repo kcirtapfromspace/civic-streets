@@ -6,6 +6,7 @@ import {
 } from '@/lib/types/community';
 import type { HotspotSeverity, HotspotStatus } from '@/lib/types/community';
 import { useCommunityStore } from './community-store';
+import { convexAvailable } from '@/lib/api/convex-provider';
 import type { MockHotspot } from './mock-data';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -102,6 +103,11 @@ const HotspotCardItem = React.forwardRef<HTMLButtonElement, HotspotCardItemProps
               <Badge variant={STATUS_VARIANTS[hotspot.status]}>
                 {STATUS_LABELS[hotspot.status]}
               </Badge>
+              {!convexAvailable && (
+                <Badge variant="warning">
+                  {hotspot.id.startsWith('local-') ? 'Browser session only' : 'Fictional example'}
+                </Badge>
+              )}
             </div>
 
             {/* Address */}

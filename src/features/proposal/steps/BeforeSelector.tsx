@@ -4,17 +4,9 @@ import { useProposalStore } from '@/stores/proposal-store';
 import { useSafetyDataStore } from '@/features/safety-data/safety-data-store';
 import type { BeforePreset } from '@/lib/types';
 
-const PRESET_ICONS: Record<string, string> = {
-  '2-lane-residential': '🏘',
-  '2-lane-with-parking': '🅿',
-  '4-lane-no-median': '🚗',
-  '4-lane-with-parking': '🏬',
-  '4-lane-with-median': '🛣',
-  '5-lane-center-turn': '↔',
-};
-
 export function BeforeSelector() {
   const selectPreset = useProposalStore((s) => s.selectPreset);
+  const goBack = useProposalStore((s) => s.goBack);
   const location = useProposalStore((s) => s.location);
   const crashes = useSafetyDataStore((s) => s.crashes);
   const isLoading = useSafetyDataStore((s) => s.isLoading);
@@ -37,12 +29,13 @@ export function BeforeSelector() {
 
   return (
     <div className="flex flex-col gap-4">
+      <button onClick={goBack} className="min-h-11 self-start text-xs font-medium text-[#59646a] hover:text-[#172126]">← Back to concern</button>
       <div>
         <h3 className="text-sm font-bold text-gray-900 tracking-tight">
           What does this street look like today?
         </h3>
-        <p className="text-xs text-gray-400 mt-1">
-          Pick the closest match — you can refine later.
+        <p className="text-xs text-[#59646a] mt-1">
+          Pick an approximate layout. You can adjust widths later; these are not street measurements.
         </p>
       </div>
 
@@ -64,7 +57,7 @@ export function BeforeSelector() {
       {enabled && !nearbyCrashSummary && isLoading && (
         <div className="bg-gray-50 rounded-xl px-3.5 py-2.5 flex items-center gap-2">
           <div className="w-3 h-3 border-2 border-orange-200 border-t-orange-500 rounded-full animate-spin" />
-          <span className="text-[11px] text-gray-400">Loading safety data...</span>
+          <span className="text-[11px] text-[#59646a]">Loading safety data...</span>
         </div>
       )}
 
@@ -73,7 +66,6 @@ export function BeforeSelector() {
           <PresetCard
             key={preset.id}
             preset={preset}
-            icon={PRESET_ICONS[preset.id] ?? '🛤'}
             index={i}
             onClick={() => selectPreset(preset)}
           />
@@ -85,30 +77,30 @@ export function BeforeSelector() {
 
 function PresetCard({
   preset,
-  icon,
   index,
   onClick,
 }: {
   preset: BeforePreset;
-  icon: string;
   index: number;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-start gap-3 p-3.5 rounded-2xl ring-1 ring-gray-100 bg-gray-50/50 hover:ring-blue-200 hover:bg-blue-50/40 transition-all duration-300 ease-spring text-left group active:scale-[0.98] animate-fade-up stagger-${index + 1}`}
+      className={`flex items-start gap-3 p-3.5 rounded-sm border border-[#d8dddf] bg-white hover:border-[#172126] hover:bg-[#f3f5f5] transition-colors duration-150 text-left group active:scale-[0.98] animate-fade-up stagger-${index + 1}`}
     >
-      <span className="text-lg flex-shrink-0 mt-0.5">{icon}</span>
+      <svg aria-hidden="true" viewBox="0 0 24 32" className="h-8 w-6 shrink-0 text-[#59646a]" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M3 2v28M21 2v28M12 2v6m0 4v8m0 4v6" />
+      </svg>
       <div className="min-w-0">
-        <div className="text-[13px] font-semibold text-gray-900 group-hover:text-blue-700 transition-all duration-300 ease-spring">
+        <div className="text-[13px] font-semibold text-gray-900 group-hover:text-[#172126] transition-colors">
           {preset.label}
         </div>
-        <div className="text-[11px] text-gray-400 mt-0.5 leading-snug">
+        <div className="text-[11px] text-[#59646a] mt-0.5 leading-snug">
           {preset.description}
         </div>
-        <div className="text-[10px] text-gray-300 mt-1.5 font-medium tracking-wide uppercase">
-          {preset.rowWidth} ft ROW
+        <div className="text-xs text-[#59646a] mt-1.5 font-medium">
+          {preset.rowWidth} ft assumed width
         </div>
       </div>
     </button>

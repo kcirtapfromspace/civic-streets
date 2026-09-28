@@ -6,6 +6,7 @@ import { claimPhotoUploads, resolveStorageUrls } from './storage';
 import type { Doc } from './_generated/dataModel';
 import { findReportingArea } from '../shared/reporting-areas';
 import { MAX_REPORT_PHOTOS } from '../shared/photo-upload';
+import { attachAssistance } from './reportAssistance';
 
 /** Explicit public projection: hidden photo GPS/time and device data stay private. */
 function publicHotspot(h: Doc<'hotspots'>) {
@@ -45,6 +46,7 @@ function pointInPolygon(point: [number, number], polygon: [number, number][]): b
 
 export const create = mutation({
   args: {
+    reportAssistanceId: v.optional(v.id('reportAssistance')),
     sessionToken: v.string(),
     title: v.string(),
     description: v.string(),
@@ -199,6 +201,9 @@ export const create = mutation({
 
     // Ownership validation and attachment commit atomically with the report.
     await claimPhotoUploads(ctx, user._id, photoStorageIds, hotspotId);
+    if (args.reportAssistanceId) {
+      await attachAssistance(ctx, args.reportAssistanceId, user._id, hotspotId, args, args.issueType);
+    }
 
     // Keep timing for abuse review, not hidden photo GPS or device fingerprints.
 

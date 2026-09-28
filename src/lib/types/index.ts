@@ -16,6 +16,8 @@ export type {
   TemplateDefinition,
   BeforePreset,
   StreetProposal,
+  DiscussionBriefContext,
+  ObservationSnapshot,
 } from './street';
 
 export type {

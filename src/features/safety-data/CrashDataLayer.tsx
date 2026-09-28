@@ -72,6 +72,8 @@ export function CrashDataLayer({ map }: CrashDataLayerProps) {
     if (!map) return;
 
     const cleanup = () => {
+      // The parent may have already removed the map and its style.
+      if (!map.getStyle()) return;
       if (map.getLayer(HEATMAP_LAYER)) map.removeLayer(HEATMAP_LAYER);
       if (map.getLayer(POINTS_LAYER)) map.removeLayer(POINTS_LAYER);
       if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);
@@ -152,7 +154,10 @@ export function CrashDataLayer({ map }: CrashDataLayerProps) {
       map.once('styledata', addLayers);
     }
 
-    return cleanup;
+    return () => {
+      map.off('styledata', addLayers);
+      cleanup();
+    };
   }, [map, enabled, crashes, showHeatmap, showPoints, filters, styleVersion, getFiltered]);
 
   // Click handler for point popups

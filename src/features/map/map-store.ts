@@ -6,7 +6,12 @@ export interface ReportFormLocation {
   address: string;
 }
 
+export const DEFAULT_MAP_CENTER = { lat: 39.7392, lng: -104.9903 };
+export const DEFAULT_MAP_ZOOM = 12;
+
 export interface MapState {
+  initialLocationStatus: 'idle' | 'loading' | 'located' | 'fallback' | 'skipped';
+  initialLocationLabel: string | null;
   center: { lat: number; lng: number };
   zoom: number;
   mapType: 'roadmap' | 'satellite' | 'hybrid';
@@ -50,9 +55,11 @@ export interface MapState {
 }
 
 export const useMapStore = create<MapState>()((set) => ({
-  // Default center: US center
-  center: { lat: 39.8283, lng: -98.5795 },
-  zoom: 4,
+  // Useful immediately, even when the optional IP lookup is blocked or unavailable.
+  center: DEFAULT_MAP_CENTER,
+  zoom: DEFAULT_MAP_ZOOM,
+  initialLocationStatus: 'idle',
+  initialLocationLabel: null,
   mapType: 'roadmap',
   is3D: false,
 
@@ -68,8 +75,8 @@ export const useMapStore = create<MapState>()((set) => ({
   reportFormOpen: false,
   reportFormLocation: null,
 
-  setCenter: (center) => set({ center }),
-  setZoom: (zoom) => set({ zoom }),
+  setCenter: (center) => set({ center, initialLocationStatus: 'skipped' }),
+  setZoom: (zoom) => set({ zoom, initialLocationStatus: 'skipped' }),
   setMapType: (type) => set({ mapType: type }),
 
   toggle3D: () =>
@@ -92,14 +99,17 @@ export const useMapStore = create<MapState>()((set) => ({
     set((state) => ({ showServiceAreas: !state.showServiceAreas })),
   setActiveServiceAreaOrgId: (orgId) => set({ activeServiceAreaOrgId: orgId }),
 
-  setSelectedLocation: (location) => set({ selectedLocation: location }),
+  setSelectedLocation: (location) => set((state) => ({ selectedLocation: location,
+    initialLocationStatus: location ? 'skipped' : state.initialLocationStatus })),
 
-  setLockedToLocation: (locked) => set({ lockedToLocation: locked }),
-  openContextMenu: (position) => set({ contextMenuPosition: position }),
+  setLockedToLocation: (locked) => set((state) => ({ lockedToLocation: locked,
+    initialLocationStatus: locked ? 'skipped' : state.initialLocationStatus })),
+  openContextMenu: (position) => set((state) => ({ contextMenuPosition: position,
+    initialLocationStatus: position ? 'skipped' : state.initialLocationStatus })),
   closeContextMenu: () => set({ contextMenuPosition: null }),
 
   openReportForm: (location) =>
-    set({ reportFormOpen: true, reportFormLocation: location }),
+    set({ reportFormOpen: true, reportFormLocation: location, initialLocationStatus: 'skipped' }),
   closeReportForm: () =>
     set({ reportFormOpen: false, reportFormLocation: null }),
 }));

@@ -18,6 +18,7 @@ const port = vi.hoisted(() => ({
 }));
 vi.mock('convex/react', () => ({ useConvex: () => port.client }));
 vi.mock('../auth', () => ({ useAuth: () => port.auth }));
+vi.mock('../convex-provider', () => ({ convexAvailable: true }));
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((done) => {

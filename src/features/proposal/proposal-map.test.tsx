@@ -31,6 +31,7 @@ function ready() {
   return useProposalStore.getState().getProposal()!;
 }
 beforeEach(() => {
+  localStorage.clear();
   useProposalStore.getState().reset();
   useWorkspaceStore.setState({ mode: 'explore' });
   useSavedProposalsStore.setState({ proposals: {} });
@@ -135,7 +136,7 @@ describe('active and saved proposal map lifecycle', () => {
       const map = new MapFake();
       const proposal = ready();
       map.styleLoaded = false;
-      useWorkspaceStore.setState({ mode: 'propose' });
+      useWorkspaceStore.setState({ mode: kind === 'active' ? 'propose' : 'explore' });
       useSavedProposalsStore.getState().saveProposal(proposal);
       const renderLayer = () =>
         render(
@@ -169,7 +170,7 @@ describe('active and saved proposal map lifecycle', () => {
       const map = new MapFake();
       map.styleLoaded = false;
       const proposal = ready();
-      useWorkspaceStore.setState({ mode: 'propose' });
+      useWorkspaceStore.setState({ mode: kind === 'active' ? 'propose' : 'explore' });
       useSavedProposalsStore.getState().saveProposal(proposal);
       const view = render(
         kind === 'active' ? (
@@ -218,7 +219,8 @@ describe('active and saved proposal map lifecycle', () => {
       { layer: { id: `saved-${proposal.id}-element-fill-0` } },
     ]);
     await act(async () => map.emit('click', { point: { x: 0, y: 0 } }));
-    expect(useSavedProposalsStore.getState().getProposal(proposal.id)).toBeUndefined();
+    expect(useSavedProposalsStore.getState().getProposal(proposal.id)).toEqual(proposal);
+    expect(map.sources.size).toBe(0);
     expect(useProposalStore.getState()).toMatchObject({
       afterStreet: proposal.afterStreet,
       location: proposal.location,
@@ -287,4 +289,18 @@ describe('road snapping provider boundary', () => {
       expect(await snapToRoad(path)).toBe(path);
     },
   );
+});
+
+it('can leave a map with saved proposals after the parent map has already been removed', () => {
+  const map = new MapFake();
+  const proposal = ready();
+  useProposalStore.getState().reset();
+  useSavedProposalsStore.getState().saveProposal(proposal);
+  const { unmount } = render(<SavedProposalsLayer map={map.asMap()} />);
+  expect(map.layers.size).toBeGreaterThan(0);
+  // MapLibre removes its style with the map; getLayer/getSource then throw.
+  map.remove();
+  map.getLayer.mockImplementation(() => { throw new Error('Map style removed'); });
+  map.getSource.mockImplementation(() => { throw new Error('Map style removed'); });
+  expect(unmount).not.toThrow();
 });

@@ -16,6 +16,7 @@ import type { HotspotPin, DesignPin } from '@/lib/types';
 import { HOTSPOT_CATEGORY_LABELS } from '@/lib/types';
 import { getGovernmentContactHref, useBillingAccess } from '@/lib/billing/access';
 import { captureAnalytics } from '@/lib/analytics';
+import { convexAvailable } from '@/lib/api/convex-provider';
 
 // ── Props ──────────────────────────────────────────────────────────────────
 
@@ -185,7 +186,7 @@ function StepContext({
               </Button>
             )}
           </div>
-          {hotspotId && (
+          {hotspotId && convexAvailable && (
             <p className="text-xs text-gray-600 mt-1">
               {hotspot.upvotes} upvote{hotspot.upvotes === 1 ? '' : 's'} from
               community members
@@ -346,15 +347,17 @@ function StepCompose({
     if (hotspotId && hotspot) {
       input.hotspotTitle = hotspot.title;
       input.hotspotCategory = hotspot.category;
-      input.hotspotVotes = hotspot.upvotes;
-      input.communityVotes = hotspot.upvotes;
+      if (convexAvailable) {
+        input.hotspotVotes = hotspot.upvotes;
+        input.communityVotes = hotspot.upvotes;
+      }
     }
 
     if (designId && design) {
       input.designTitle = design.title;
       input.designElements = design.elements;
       input.prowagCompliant = design.prowagPass;
-      if (design.upvotes) {
+      if (convexAvailable && design.upvotes) {
         input.communityVotes = Math.max(
           input.communityVotes ?? 0,
           design.upvotes,

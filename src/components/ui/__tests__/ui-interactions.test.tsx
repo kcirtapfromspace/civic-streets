@@ -237,3 +237,53 @@ describe('dialogs and transient feedback', () => {
     expect(screen.getByText('Recovered editor')).toBeInTheDocument();
   });
 });
+
+it('keeps a form open on accidental Escape/backdrop clicks and focuses its own cancel action', () => {
+  vi.useFakeTimers();
+  const close = vi.fn();
+  const { rerender, unmount } = render(<Modal isOpen title="Draft" onClose={close} dismissible={false}><button>Cancel draft</button><input aria-label="Draft note" /></Modal>);
+  act(() => vi.runAllTimers());
+  expect(screen.queryByRole('button', { name: 'Close modal' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Cancel draft' })).toHaveFocus();
+  fireEvent.keyDown(document, { key: 'Escape' });
+  fireEvent.click(screen.getByRole('dialog'));
+  expect(close).not.toHaveBeenCalled();
+  screen.getByRole('textbox').focus();
+  fireEvent.keyDown(document, { key: 'Tab' });
+  expect(screen.getByRole('button', { name: 'Cancel draft' })).toHaveFocus();
+  rerender(<Modal isOpen title="Draft" onClose={close} dismissible={false}><p>Loading</p></Modal>);
+  fireEvent.keyDown(document, { key: 'Tab' });
+  unmount();
+});
+
+it('excludes honeypots and hidden controls from initial focus and tab wrapping', () => {
+  vi.useFakeTimers();
+  const { rerender } = render(<Modal isOpen title="Report" onClose={vi.fn()} dismissible={false}>
+    <input aria-label="Honeypot" tabIndex={-1} />
+    <div aria-hidden="true"><button>Hidden action</button></div>
+    <div hidden><a href="#hidden">Hidden link</a></div>
+    <button>First action</button><button>Last action</button>
+  </Modal>);
+  act(() => vi.runAllTimers());
+  expect(screen.getByRole('button', { name: 'First action' })).toHaveFocus();
+  fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+  expect(screen.getByRole('button', { name: 'Last action' })).toHaveFocus();
+  fireEvent.keyDown(document, { key: 'Tab' });
+  expect(screen.getByRole('button', { name: 'First action' })).toHaveFocus();
+  rerender(<Modal isOpen title="Report" onClose={vi.fn()} dismissible={false}><p>Saving…</p></Modal>);
+  act(() => vi.runAllTimers());
+  expect(screen.getByRole('dialog')).toHaveFocus();
+  fireEvent.keyDown(document, { key: 'Tab' });
+  expect(screen.getByRole('dialog')).toHaveFocus();
+});
+
+it.each([true, false])('consumes Escape so the workspace behind the dialog cannot exit (dismissible=%s)', (dismissible) => {
+  const close = vi.fn();
+  const workspaceEscape = vi.fn();
+  window.addEventListener('keydown', workspaceEscape);
+  render(<Modal isOpen title="Review" onClose={close} dismissible={dismissible}><button>Continue</button></Modal>);
+  fireEvent.keyDown(document, { key: 'Escape', bubbles: true });
+  expect(close).toHaveBeenCalledTimes(dismissible ? 1 : 0);
+  expect(workspaceEscape).not.toHaveBeenCalled();
+  window.removeEventListener('keydown', workspaceEscape);
+});

@@ -17,6 +17,8 @@ export class MapFake {
   center = { lat: 39.7, lng: -104.9 };
   zoom = 12;
   styleLoaded = true;
+  removed = false;
+  getStyle = vi.fn(() => this.removed ? undefined : { version: 8, sources: {}, layers: [] });
   on = vi.fn((event: string, listener: Listener) => {
     if (!this.listeners.has(event)) this.listeners.set(event, new Set());
     this.listeners.get(event)!.add(listener);
@@ -79,6 +81,7 @@ export class MapFake {
   setStyle = vi.fn();
   addControl = vi.fn();
   remove = vi.fn(() => {
+    this.removed = true;
     this.listeners.clear();
     this.sources.clear();
     this.layers.clear();

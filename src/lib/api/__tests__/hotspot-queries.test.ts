@@ -123,12 +123,10 @@ it('omits unset filters and supports fallback creation times and vote totals', (
     createdAt: 50,
     upvotes: 0,
   });
-  expect(result.current.hotspots.find((item) => item.id === recent._id)?.createdAt).toBeGreaterThan(
-    1000,
-  );
+  expect(result.current.hotspots.find((item) => item.id === recent._id)?.createdAt).toBe(0);
 });
 
-it('queries real IDs while keeping old demo links readable and missing IDs empty', () => {
+it('queries backend records without replacing missing or legacy IDs with fictional examples', () => {
   const { result, rerender } = renderHook((id: string | undefined) => useHotspotById(id), {
     initialProps: undefined as string | undefined,
   });
@@ -144,16 +142,15 @@ it('queries real IDs while keeping old demo links readable and missing IDs empty
   rerender(old._id);
   expect(result.current).toEqual({ hotspot: null, isLoading: false });
   rerender(community[0].id);
-  expect(result.current.hotspot).toEqual(community[0]);
+  expect(result.current).toEqual({ hotspot: null, isLoading: false });
+  expect(port.query.mock.lastCall?.[1]).toBe('skip');
   const mapOnly = map.find((pin) => !community.some((hotspot) => hotspot.id === pin.id))!;
   expect(mapOnly).toBeDefined();
   rerender(mapOnly.id);
-  expect(result.current.hotspot).toMatchObject({
-    id: mapOnly.id,
-    title: mapOnly.title,
-    authorId: 'unknown',
-    photoUrls: [],
-  });
+  expect(result.current).toEqual({ hotspot: null, isLoading: false });
+  expect(port.query.mock.lastCall?.[1]).toBe('skip');
+  rerender('local-h1');
+  expect(result.current.hotspot).toBeNull();
   rerender('missing');
   expect(result.current.hotspot).toBeNull();
 });
@@ -239,10 +236,10 @@ it.each([undefined, 'votes', 'newest', 'nearest'] as const)(
 
 it('only votes on backend IDs with a readable active session', async () => {
   const { result } = renderHook(useVoteOnHotspot);
-  await result.current(old._id, 1);
+  await expect(result.current(old._id, 1)).rejects.toThrow('Your voting session is still getting ready');
   expect(port.mutation).not.toHaveBeenCalled();
   localStorage.setItem('curbwise-session', 'session');
-  await result.current('h1', 1);
+  await expect(result.current('h1', 1)).rejects.toThrow('Only published reports');
   expect(port.mutation).not.toHaveBeenCalled();
   await result.current(old._id, -1);
   expect(port.mutation).toHaveBeenCalledExactlyOnceWith({
@@ -255,6 +252,31 @@ it('only votes on backend IDs with a readable active session', async () => {
       throw new Error('Storage disabled');
     },
   });
-  await result.current(old._id, 1);
+  await expect(result.current(old._id, 1)).rejects.toThrow('Your voting session is still getting ready');
   expect(port.mutation).toHaveBeenCalledTimes(1);
+});
+
+it('keeps a successful empty backend result empty in list and map views', () => {
+  port.raw = { page: [] };
+  const { result: list } = renderHook(useHotspotsList);
+  expect(list.current).toEqual({ hotspots: [], isLoading: false });
+  port.raw = [];
+  const { result: bounds } = renderHook(useHotspotsByBounds);
+  expect(bounds.current).toEqual({ hotspots: [], isLoading: false });
+});
+
+it.each([true, false])('retains optional captured details including a %s blocking answer for list and detail reads', (isBlocking) => {
+  const captured = { ...recent, issueGroup: 'sidewalk', issueType: 'no-curb-ramp', isBlocking };
+  port.raw = { page: [captured, old] };
+  const list = renderHook(useHotspotsList);
+  expect(list.result.current.hotspots.find((item) => item.id === recent._id)).toMatchObject({
+    issueGroup: 'sidewalk', issueType: 'no-curb-ramp', isBlocking,
+  });
+  expect(list.result.current.hotspots.find((item) => item.id === old._id)).toMatchObject({
+    issueGroup: undefined, issueType: undefined, isBlocking: undefined,
+  });
+  list.unmount();
+  port.raw = captured;
+  const detail = renderHook(() => useHotspotById(recent._id));
+  expect(detail.result.current.hotspot).toMatchObject({ issueGroup: 'sidewalk', issueType: 'no-curb-ramp', isBlocking });
 });

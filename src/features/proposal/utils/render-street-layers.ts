@@ -137,6 +137,8 @@ export function renderStreetOnMap(
 
 /** Remove layers by ID from the map (safe if already removed). */
 export function cleanupMapLayers(map: maplibregl.Map, layerIds: string[]) {
+  // React can remove the parent map before child overlays clean up on navigation.
+  if (!map.getStyle()) return;
   for (const id of layerIds) {
     if (map.getLayer(id)) map.removeLayer(id);
   }
@@ -144,5 +146,6 @@ export function cleanupMapLayers(map: maplibregl.Map, layerIds: string[]) {
 
 /** Remove a source by ID from the map (safe if already removed). */
 export function cleanupMapSource(map: maplibregl.Map, sourceId: string) {
+  if (!map.getStyle()) return;
   if (map.getSource(sourceId)) map.removeSource(sourceId);
 }

@@ -211,3 +211,25 @@ it('does not attach a pending service area after its component unmounts', async 
   await map.emit('styledata');
   expect(map.sources.size).toBe(0);
 });
+
+
+it.each(['community', 'service-area'] as const)(
+  'cleans up %s layers after the parent has destroyed the map style',
+  (layer) => {
+    useMapStore.setState({ showHeatmap: true, showServiceAreas: true });
+    const map = new MapFake();
+    const { unmount } = render(layer === 'community'
+      ? <CommunityPinsLayer map={map.asMap()} />
+      : <ServiceAreaLayer map={map.asMap()} activeServiceAreas={[areas[0]]} />);
+    expect(map.sources.size).toBe(1);
+    map.remove();
+    map.getLayer.mockImplementation(() => { throw new Error('Map style was destroyed'); });
+    map.getSource.mockImplementation(() => { throw new Error('Map style was destroyed'); });
+    expect(() => unmount()).not.toThrow();
+    expect(map.off).toHaveBeenCalledWith('style.load', expect.any(Function));
+    expect(map.off).toHaveBeenCalledWith('styledata', expect.any(Function));
+    if (layer === 'community') {
+      for (const marker of provider.markers) expect(marker.remove).toHaveBeenCalled();
+    }
+  },
+);

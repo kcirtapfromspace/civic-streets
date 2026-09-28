@@ -35,6 +35,16 @@ afterEach(() => {
 });
 
 describe('community issue draft and submission', () => {
+  it('starts with capture fields and requires a location before continuing', () => {
+    const submit = vi.fn();
+    render(<IssueReportForm initialLat={39.74} initialLng={-104.99} onSubmit={submit} />);
+    expect(screen.getByRole('heading', { name: 'Location & photo' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Location' })).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+    expect(screen.queryByRole('link', { name: /reporting|311/i })).not.toBeInTheDocument();
+    expect(submit).not.toHaveBeenCalled();
+  });
+
   it.each([[34.05, -118.24], [42.36, -71.06], [0, 0]])('blocks reporting outside the pilots (%s, %s)', (lat, lng) => {
     const submit = vi.fn();
     const { container } = render(<IssueReportForm initialLat={lat} initialLng={lng} initialAddress="Selected place" onSubmit={submit} />);
@@ -48,7 +58,33 @@ describe('community issue draft and submission', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
     choosePothole();
-    expect(screen.getByRole('button', { name: 'Skip details & submit' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Save observation' })).toBeEnabled();
+  });
+
+  it('captures an uncategorized observation directly without extra details or a city request', async () => {
+    const submit = vi.fn().mockResolvedValue(undefined);
+    const { container } = render(<IssueReportForm initialLat={39.74} initialLng={-104.99} initialAddress="Colfax, Denver" onSubmit={submit} />);
+    fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files: [sourcePhoto] } });
+    await screen.findByRole('img', { name: 'Upload 1' });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Describe what you noticed (optional)' }), {
+      target: { value: 'Sand collects on this turn after rain.' },
+    });
+    expect(screen.getByRole('button', { name: 'Save observation' })).toBeDisabled();
+    expect(screen.getByText('Help choosing a category').closest('details')).not.toHaveAttribute('open');
+    fireEvent.click(screen.getByRole('button', { name: 'Other' }));
+    expect(screen.getByRole('button', { name: 'Other' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('textbox', { name: 'Title' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save observation' }));
+    await waitFor(() => expect(submit).toHaveBeenCalledOnce());
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({
+      location: { lat: 39.74, lng: -104.99, address: 'Colfax, Denver' },
+      group: 'other', issueType: 'other', title: 'Other near Colfax',
+      description: 'Sand collects on this turn after rain.',
+      severity: 'medium', isBlocking: false,
+      processedImages: [expect.objectContaining({ width: 640, height: 480 })],
+    }));
+    expect(screen.queryByRole('link', { name: /reporting|311/i })).not.toBeInTheDocument();
   });
 
   it('requires location and an issue, supports back/cancel, and derives severity from issue type and blocking', async () => {
@@ -75,15 +111,15 @@ describe('community issue draft and submission', () => {
     fireEvent.click(screen.getByRole('button', { name: 'High' }));
     fireEvent.click(screen.getByRole('button', { name: 'Low' }));
     fireEvent.click(screen.getByRole('button', { name: 'Sidewalk & Path' }));
-    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save observation' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'No Curb Ramp' }));
     fireEvent.click(screen.getByRole('switch'));
     expect(screen.getByRole('button', { name: 'Low' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add details' }));
     expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('No Curb Ramp near Colfax');
     expect(screen.getByText('Blocking')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Skip details & submit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save observation' }));
     await waitFor(() => expect(submit).toHaveBeenCalledOnce());
     expect(submit.mock.calls[0][0]).toMatchObject({
       location: { lat: 39.74, lng: -104.99, address: 'Colfax, Denver' },
@@ -120,15 +156,15 @@ describe('community issue draft and submission', () => {
       target: { value: 'bot-field' },
     });
     choosePothole();
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add details' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), {
       target: { value: '  Large pothole at crossing  ' },
     });
     fireEvent.change(screen.getByRole('textbox', { name: /Any details/ }), {
       target: { value: '  Wheelchair route blocked  ' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Submit Report' }));
-    expect(screen.getByRole('button', { name: 'Submitting...' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Save observation' }));
+    expect(screen.getByRole('button', { name: 'Saving...' })).toBeDisabled();
     fireEvent.submit(container.querySelector('form')!);
     expect(submit).toHaveBeenCalledOnce();
     await act(async () => rejectFirst(new Error('Please sign in again.\nInternal stack trace')));
@@ -138,7 +174,7 @@ describe('community issue draft and submission', () => {
     expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue(
       '  Large pothole at crossing  ',
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Submit Report' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save observation' }));
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
     expect(submit).toHaveBeenCalledTimes(2);
     expect(captureAnalytics).toHaveBeenCalledOnce();
@@ -152,27 +188,27 @@ describe('community issue draft and submission', () => {
   });
   it.each([
     [new ConvexError('Add a photo before submitting.'), 'Add a photo before submitting.'],
-    [new ConvexError({ code: 'INTERNAL' }), 'Your report could not be saved. Please try again.'],
+    [new ConvexError({ code: 'INTERNAL' }), 'Your observation could not be saved. Please try again.'],
     [
       new Error('[CONVEX M(reports)] internal details'),
-      'Your report could not be saved. Please try again.',
+      'Your observation could not be saved. Please try again.',
     ],
-    ['unstructured provider failure', 'Your report could not be saved. Please try again.'],
+    ['unstructured provider failure', 'Your observation could not be saved. Please try again.'],
   ])('shows safe actionable feedback for a rejected report', async (error, message) => {
     render(<IssueReportForm initialLat={39.74} initialLng={-104.99} initialAddress="Denver" onSubmit={vi.fn().mockRejectedValue(error)} />);
     choosePothole();
-    fireEvent.click(screen.getByRole('button', { name: 'Skip details & submit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save observation' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(message);
     expect(captureAnalytics).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Skip details & submit' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Save observation' })).toBeEnabled();
   });
   it('uses the suggested title when a user clears an edited title', async () => {
     const submit = vi.fn().mockResolvedValue(undefined);
     render(<IssueReportForm initialLat={39.74} initialLng={-104.99} initialAddress="Colfax, Denver" onSubmit={submit} />);
     choosePothole();
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add details' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), { target: { value: ' ' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Submit Report' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save observation' }));
     await waitFor(() => expect(submit).toHaveBeenCalledOnce());
     expect(submit.mock.calls[0][0].title).toBe('Pothole near Colfax');
   });
@@ -220,9 +256,9 @@ describe('issue photo preparation interactions', () => {
     fireEvent.keyDown(drop, { key: 'Tab' });
     expect(picker).toHaveBeenCalledTimes(3);
     fireEvent.dragOver(drop);
-    expect(drop).toHaveClass('bg-blue-50');
+    expect(drop).toHaveClass('bg-civic-wash');
     fireEvent.dragLeave(drop);
-    expect(drop).not.toHaveClass('bg-blue-50');
+    expect(drop).not.toHaveClass('bg-civic-wash');
     fireEvent.drop(drop, { dataTransfer: { files: [] } });
     fireEvent.change(input, { target: { files: [] } });
     fireEvent.drop(drop, { dataTransfer: { files: [sourcePhoto] } });
@@ -238,7 +274,7 @@ describe('issue photo preparation interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     fireEvent.click(screen.getByRole('button', { name: 'Road & Surface' }));
     fireEvent.click(screen.getByRole('button', { name: 'Pothole' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add details' }));
     expect(screen.getByText('1 photo attached')).toBeInTheDocument();
   });
   it('offers retry after decoding failure and rejects an invalid prepared upload', async () => {

@@ -1,4 +1,4 @@
-import type { IssueTypeConfig, IssueGroup } from '@/lib/types/community';
+import type { IssueTypeConfig, IssueGroup } from '../types/community';
 
 // ── Issue type config — single source of truth ──────────────────────────
 // Each entry defines a subtype within an IssueGroup, its default severity,

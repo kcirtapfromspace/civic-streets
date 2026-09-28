@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui';
 import { useBilling } from '@/lib/api/billing';
+import { convexAvailable } from '@/lib/api/convex-provider';
 import { useOrganizationContext } from '@/lib/api/organization';
 import { useGovernmentHub } from '@/lib/api/government';
 import { useToast } from '@/components/ui/Toast';
@@ -56,6 +57,42 @@ function readableStatus(value: string): string {
 }
 
 export default function AccountPage() {
+  return convexAvailable ? <ConnectedAccountPage /> : <DemoAccountPage />;
+}
+
+function DemoAccountPage() {
+  return (
+    <div className="min-h-full bg-[#f3f5f5] px-5 py-10 text-[#172126] sm:py-16">
+      <section
+        className="mx-auto max-w-xl rounded-lg border border-[#d8dddf] bg-white p-6 sm:p-8"
+        aria-labelledby="demo-account-heading"
+      >
+        <h1 id="demo-account-heading" className="text-2xl font-semibold tracking-tight">
+          Your account
+        </h1>
+        <p role="status" className="mt-5 text-sm font-semibold">
+          Accounts are unavailable in this demo.
+        </p>
+        <p className="mt-2 text-sm leading-6 text-[#59646a]">
+          This demo is not connected to the community service. No account, shared profile, or
+          billing access is available here.
+        </p>
+        <p className="mt-3 text-sm leading-6 text-[#59646a]">
+          You can still explore the map and try marking a problem. Demo records stay in this browser
+          session and disappear on reload.
+        </p>
+        <Link
+          className="mt-6 inline-flex min-h-11 items-center rounded-md bg-[#172126] px-4 text-sm font-semibold text-white hover:bg-[#303d43] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#172126]"
+          to="/map"
+        >
+          Back to map
+        </Link>
+      </section>
+    </div>
+  );
+}
+
+function ConnectedAccountPage() {
   const [searchParams] = useSearchParams();
   const { showToast } = useToast();
   const {

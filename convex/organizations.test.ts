@@ -263,6 +263,11 @@ describe('backend registration', () => {
           args: [{}],
         }),
         expect.objectContaining({
+          name: 'reportAssistance:cleanup',
+          schedule: { type: 'interval', hours: 1 },
+          args: [{}],
+        }),
+        expect.objectContaining({
           name: 'rateLimit:purgeOldRateLimits',
           schedule: { type: 'interval', hours: 6 },
           args: [{}],
@@ -270,6 +275,6 @@ describe('backend registration', () => {
       ]),
     );
     // Real Convex execution above depends on schema indexes and runtime registration.
-    expect(Object.keys(jobs)).toHaveLength(4);
+    expect(Object.keys(jobs)).toHaveLength(5);
   });
 });

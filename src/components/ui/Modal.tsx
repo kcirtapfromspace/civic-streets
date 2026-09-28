@@ -7,11 +7,18 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  /** For forms with their own guarded Cancel action; avoid losing work accidentally. */
+  dismissible?: boolean;
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+function focusableElements(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>(
+    'button:not(:disabled), [href], input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), [tabindex]:not(:disabled)',
+  )).filter((element) => element.tabIndex >= 0 && !element.closest('[hidden], [inert], [aria-hidden="true"]'));
+}
+
+export function Modal({ isOpen, onClose, title, children, dismissible = true }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
-  const firstFocusableRef = useRef<HTMLButtonElement>(null);
   const lastFocusRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
 
@@ -19,16 +26,20 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        e.preventDefault();
+        e.stopPropagation();
+        if (dismissible) onClose();
         return;
       }
 
       if (e.key !== 'Tab' || !overlayRef.current) return;
 
-      const focusable = overlayRef.current.querySelectorAll<HTMLElement>(
-        'button:not(:disabled), [href], input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"]):not(:disabled)',
-      );
-      if (focusable.length === 0) return;
+      const focusable = focusableElements(overlayRef.current);
+      if (focusable.length === 0) {
+        e.preventDefault();
+        overlayRef.current.focus();
+        return;
+      }
 
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -45,7 +56,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
         }
       }
     },
-    [onClose],
+    [onClose, dismissible],
   );
 
   useEffect(() => {
@@ -57,9 +68,10 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
     // Add keydown listener
     document.addEventListener('keydown', handleKeyDown);
 
-    // Focus the close button on open
+    // Focus a safe action without moving the page behind the dialog.
     requestAnimationFrame(() => {
-      firstFocusableRef.current?.focus();
+      const root = overlayRef.current;
+      if (root) (focusableElements(root)[0] ?? root).focus();
     });
 
     // Prevent body scroll
@@ -76,7 +88,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   if (!isOpen) return null;
 
   const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === overlayRef.current) {
+    if (dismissible && e.target === overlayRef.current) {
       onClose();
     }
   };
@@ -85,19 +97,19 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
     <div
       ref={overlayRef}
       onClick={handleOverlayClick}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#172126]/45"
       role="dialog"
+      tabIndex={-1}
       aria-modal="true"
       aria-labelledby={titleId}
     >
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 id={titleId} className="text-lg font-semibold text-gray-900">{title}</h2>
-          <button
-            ref={firstFocusableRef}
+      <div className="bg-[#ffffff] border border-[#d8dddf] rounded-sm shadow-lg max-w-4xl w-full mx-4 max-h-[85dvh] flex flex-col">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-[#d8dddf]">
+          <h2 id={titleId} className="text-lg font-semibold text-[#172126]">{title}</h2>
+          {dismissible && <button
             onClick={onClose}
             aria-label="Close modal"
-            className="p-1 text-gray-400 rounded hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="min-h-11 min-w-11 flex items-center justify-center text-gray-600 rounded hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#172126]"
           >
             <svg
               width="20"
@@ -113,9 +125,9 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
                 strokeLinecap="round"
               />
             </svg>
-          </button>
+          </button>}
         </div>
-        <div className="flex-1 overflow-y-auto p-6">{children}</div>
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6">{children}</div>
       </div>
     </div>
   );

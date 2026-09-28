@@ -10,6 +10,8 @@ import { MOCK_HOTSPOTS } from '../mock-data';
 import { mapFixture } from './map-fixture';
 import { saveArea } from '../SavedAreas';
 
+const backend = vi.hoisted(() => ({ connected: true }));
+vi.mock('@/lib/api/convex-provider', () => ({ get convexAvailable() { return backend.connected; } }));
 const { useHotspotsList } = vi.hoisted(() => ({ useHotspotsList: vi.fn() }));
 vi.mock('@/lib/api/use-hotspots', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -30,6 +32,7 @@ const hotspots = Array.from({ length: 25 }, (_, index) => ({
 const storage = new Map<string, string>();
 
 beforeEach(() => {
+  backend.connected = true;
   useCommunityStore.setState(useCommunityStore.getInitialState());
   useExplorerStore.setState(useExplorerStore.getInitialState());
   useHotspotsList.mockReset().mockReturnValue({ hotspots, isLoading: false });
@@ -53,13 +56,13 @@ describe('community feed and card interactions', () => {
     const select = vi.fn(),
       create = vi.fn();
     render(<HotspotFeed onSelectHotspot={select} onCreateReport={create} />);
-    expect(screen.getByText('25 hotspots found')).toBeInTheDocument();
+    expect(screen.getByText('25 observations found')).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(10);
     for (const age of ['just now', '5m ago', '2h ago', '5d ago', '2mo ago'])
       expect(screen.getAllByText(age)).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: /Load More/ }));
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(20);
-    fireEvent.click(screen.getByRole('button', { name: /Report Issue/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Add observation/ }));
     expect(create).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByRole('button', { name: /^Crossing 0 / }));
     expect(select).toHaveBeenCalledWith('h0');
@@ -78,14 +81,14 @@ describe('community feed and card interactions', () => {
       status: 'resolved',
       sort: 'newest',
     });
-    fireEvent.change(screen.getByPlaceholderText('Search hotspots...'), {
+    fireEvent.change(screen.getByPlaceholderText('Search observations...'), {
       target: { value: 'BROADWAY' },
     });
-    expect(screen.getByText('1 hotspot found')).toBeInTheDocument();
-    fireEvent.change(screen.getByPlaceholderText('Search hotspots...'), {
+    expect(screen.getByText('1 observation found')).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText('Search observations...'), {
       target: { value: 'nothing-matches' },
     });
-    expect(screen.getByText('No hotspots match your filters.')).toBeInTheDocument();
+    expect(screen.getByText('No observations match your filters.')).toBeInTheDocument();
     fireEvent.change(screen.getByRole('combobox', { name: 'Category' }), { target: { value: '' } });
     fireEvent.change(screen.getByRole('combobox', { name: 'Status' }), { target: { value: '' } });
     expect(useCommunityStore.getState().feedFilter).toEqual({
@@ -97,8 +100,8 @@ describe('community feed and card interactions', () => {
   it('shows loading without an empty-result claim and supports a feed without optional callbacks', () => {
     useHotspotsList.mockReturnValue({ hotspots: [], isLoading: true });
     const { rerender } = render(<HotspotFeed />);
-    expect(screen.getByText('Loading hotspots...')).toBeInTheDocument();
-    expect(screen.queryByText(/No hotspots/)).not.toBeInTheDocument();
+    expect(screen.getByText('Loading observations...')).toBeInTheDocument();
+    expect(screen.queryByText(/No observations/)).not.toBeInTheDocument();
     useHotspotsList.mockReturnValue({ hotspots: [hotspots[0]], isLoading: false });
     rerender(<HotspotFeed />);
     fireEvent.click(screen.getByRole('button', { name: /^Crossing 0 / }));
@@ -138,13 +141,13 @@ describe('map and feed explorer integration', () => {
   it('searches a moved viewport, links card and pin selection, and clears a spatial search', () => {
     const select = vi.fn();
     render(<HotspotExplorer onSelectHotspot={select} />);
-    expect(screen.getAllByText('Showing 20 of 25 hotspots')).toHaveLength(2);
+    expect(screen.getAllByText('Showing 20 of 25 observations')).toHaveLength(2);
     fireEvent.click(screen.getAllByRole('button', { name: /Load More/ })[0]);
-    expect(screen.getAllByText('Showing 25 of 25 hotspots')).toHaveLength(2);
+    expect(screen.getAllByText('Showing 25 of 25 observations')).toHaveLength(2);
     const map = mapFixture.maps[0];
     act(() => map.emit('moveend'));
     fireEvent.click(screen.getByRole('button', { name: 'Search this area' }));
-    expect(screen.getAllByText('Showing 1 of 1 hotspot')).toHaveLength(2);
+    expect(screen.getAllByText('Showing 1 of 1 observation')).toHaveLength(2);
     fireEvent.mouseEnter(screen.getAllByRole('button', { name: /^Crossing 0 / })[0]);
     expect(useCommunityStore.getState().hoveredHotspotId).toBe('h0');
     const marker = mapFixture.markers.at(-1)!;
@@ -156,14 +159,14 @@ describe('map and feed explorer integration', () => {
     expect(select).toHaveBeenCalledWith('h0');
     fireEvent.click(screen.getAllByRole('button', { name: 'Clear all' })[0]);
     expect(useExplorerStore.getState().boundsFilter).toBeNull();
-    fireEvent.change(screen.getAllByPlaceholderText('Search hotspots...')[0], {
+    fireEvent.change(screen.getAllByPlaceholderText('Search observations...')[0], {
       target: { value: 'Broadway' },
     });
-    expect(screen.getAllByText('Showing 1 of 1 hotspot')).toHaveLength(2);
-    fireEvent.change(screen.getAllByPlaceholderText('Search hotspots...')[0], {
+    expect(screen.getAllByText('Showing 1 of 1 observation')).toHaveLength(2);
+    fireEvent.change(screen.getAllByPlaceholderText('Search observations...')[0], {
       target: { value: 'absent' },
     });
-    expect(screen.getAllByText('No hotspots match your filters.')).toHaveLength(2);
+    expect(screen.getAllByText('No observations match your filters.')).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: 'Map' }));
     expect(screen.getByRole('button', { name: 'Close map' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Close map' }));
@@ -182,7 +185,7 @@ describe('map and feed explorer integration', () => {
     ])
       act(() => map.emit('click', { lngLat: { lng, lat } }));
     act(() => map.emit('dblclick', { preventDefault: vi.fn() }));
-    expect(screen.getAllByText('Showing 1 of 1 hotspot')).toHaveLength(2);
+    expect(screen.getAllByText('Showing 1 of 1 observation')).toHaveLength(2);
     fireEvent.click(screen.getAllByRole('button', { name: 'Save area' })[0]);
     expect(screen.getAllByRole('button', { name: 'School crossing✕' })).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
@@ -219,7 +222,17 @@ describe('map and feed explorer integration', () => {
   it('shows source loading without describing it as an empty search', () => {
     useHotspotsList.mockReturnValue({ hotspots: [], isLoading: true });
     render(<HotspotExplorer />);
-    expect(screen.getAllByText('Loading hotspots...')).toHaveLength(2);
-    expect(screen.queryByText('No hotspots match your filters.')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Loading observations...')).toHaveLength(2);
+    expect(screen.queryByText('No observations match your filters.')).not.toBeInTheDocument();
   });
+});
+
+it.each(['feed', 'cards'] as const)('distinguishes fictional examples and browser-only records in the %s', (view) => {
+  backend.connected = false;
+  const records = [hotspots[0], { ...hotspots[1], id: 'local-h1' }];
+  useHotspotsList.mockReturnValue({ hotspots: records, isLoading: false });
+  if (view === 'feed') render(<HotspotFeed />);
+  else render(<HotspotCardList hotspots={records} onSelectHotspot={vi.fn()} />);
+  expect(screen.getByRole('button', { name: /Crossing 0.*Fictional example/ })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Crossing 1.*Browser session only/ })).toBeInTheDocument();
 });

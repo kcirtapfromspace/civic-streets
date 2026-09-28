@@ -29,9 +29,10 @@ vi.mock('@/features/drawing/DrawingLayer', () => ({ DrawingLayer: () => null }))
 vi.mock('@/features/drawing/DrawingToolbar', () => ({ DrawingToolbar: () => null }));
 vi.mock('@/features/drawing/DrawingActionCard', () => ({ DrawingActionCard: () => null }));
 vi.mock('@/features/safety-data/CrashDataLayer', () => ({ CrashDataLayer: () => null }));
-vi.mock('@/lib/api/use-hotspots', () => ({ useCreateHotspot: () => vi.fn() }));
+vi.mock('@/lib/api/use-hotspots', () => ({ useCreateHotspot: () => vi.fn(), useHotspotById: () => ({ hotspot: null, isLoading: false }) }));
 beforeEach(() => {
   useMapStore.setState(useMapStore.getInitialState());
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 503 })));
   Object.assign(viewport, { map: null, isLoaded: false, error: null, programmatic: false });
 });
 afterEach(cleanup);
@@ -55,6 +56,9 @@ it('writes user movements to the store, ignores programmatic moves, and removes 
   viewport.map = map.asMap();
   viewport.isLoaded = true;
   const { unmount } = render(<MapView />);
+  await act(() => map.emit('movestart', {}));
+  await act(() => map.emit('movestart', { originalEvent: new Event('pointerdown') }));
+  expect(useMapStore.getState().initialLocationStatus).toBe('skipped');
   map.center = { lat: 40, lng: -105 };
   map.zoom = 17;
   await act(() => map.emit('moveend'));
@@ -71,6 +75,7 @@ it('writes user movements to the store, ignores programmatic moves, and removes 
   expect(useMapStore.getState().contextMenuPosition).toBeNull();
   unmount();
   expect(map.listeners.get('moveend')?.size).toBe(0);
+  expect(map.listeners.get('movestart')?.size).toBe(0);
 });
 it('allows dismissing an unsent report without writing to the backend', () => {
   useMapStore.getState().openReportForm({ lat: 39.7, lng: -104.9, address: 'Broadway, Denver' });

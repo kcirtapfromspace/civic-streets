@@ -1,16 +1,30 @@
 import { useDrawingStore } from '@/stores/drawing-store';
+import { useProposalStore } from '@/stores/proposal-store';
+import { Modal } from '@/components/ui';
+import { useState } from 'react';
 
 /**
  * Appears inline above the build bar when a road stretch is selected.
  * Shows road info + "Design this stretch" / Clear actions.
  */
 export function DrawingActionCard() {
+  const [replacePending, setReplacePending] = useState(false);
   const selectedPath = useDrawingStore((s) => s.selectedPath);
   const activeTool = useDrawingStore((s) => s.activeTool);
   const isSnapping = useDrawingStore((s) => s.isSnapping);
   const streetName = useDrawingStore((s) => s.streetName);
   const commitToProposal = useDrawingStore((s) => s.commitToProposal);
   const clear = useDrawingStore((s) => s.clear);
+  const currentName = useProposalStore((s) => s.streetName);
+  const startDesign = () => {
+    const drawing = useDrawingStore.getState();
+    const startsIntersection = drawing.activeTool === 'intersection' && drawing.intersectionCenter;
+    if (!startsIntersection && useProposalStore.getState().hasUnsavedChanges()) {
+      setReplacePending(true);
+    } else {
+      commitToProposal();
+    }
+  };
 
   if (!selectedPath || selectedPath.length < 2 || activeTool === 'select') return null;
 
@@ -40,6 +54,16 @@ export function DrawingActionCard() {
   const color = activeTool === 'newroad' ? 'purple' : 'blue';
 
   return (
+    <>
+    {replacePending && (
+      <Modal isOpen onClose={() => setReplacePending(false)} title="Replace unsaved work?">
+        <p className="text-sm leading-relaxed text-civic-muted">Starting a proposal for this stretch will discard unsaved changes to {currentName || 'your current proposal'}. Any saved copy will remain available.</p>
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <button type="button" onClick={() => setReplacePending(false)} className="min-h-11 rounded border border-civic-line px-4 text-sm font-medium">Keep current work</button>
+          <button type="button" onClick={() => { setReplacePending(false); commitToProposal(); }} className="min-h-11 rounded bg-civic-ink px-4 text-sm font-medium text-white">Discard changes and design this stretch</button>
+        </div>
+      </Modal>
+    )}
     <div className="absolute bottom-44 left-1/2 -translate-x-1/2 z-10 animate-fade-up">
       <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.06] overflow-hidden">
         {/* Info strip */}
@@ -58,7 +82,7 @@ export function DrawingActionCard() {
         {/* Actions */}
         <div className="px-3 pb-3 flex gap-2">
           <button
-            onClick={commitToProposal}
+            onClick={startDesign}
             className={`flex-1 flex items-center justify-center gap-2 text-[12px] font-bold text-white px-4 py-2.5 rounded-full transition-all duration-300 ease-spring active:scale-[0.97] ${
               activeTool === 'intersection'
                 ? 'bg-orange-600 hover:bg-orange-500 shadow-[0_1px_3px_rgba(249,115,22,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]'
@@ -86,5 +110,6 @@ export function DrawingActionCard() {
         </div>
       </div>
     </div>
+    </>
   );
 }

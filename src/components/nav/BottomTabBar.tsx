@@ -3,8 +3,8 @@ import { useWorkspaceStore } from '@/stores/workspace-store';
 
 const tabs = [
   { to: '/map', label: 'Map', icon: MapPinIcon, end: true },
-  { to: '/editor', label: 'Editor', icon: PencilRulerIcon, end: false },
-  { to: '/hotspots', label: 'Hotspots', icon: FlameIcon, end: false },
+  { to: '/hotspots', label: 'Observations', icon: ConcernIcon, end: false },
+  { to: '/editor', label: 'Street concepts', icon: PencilRulerIcon, end: false },
   { to: '/account', label: 'Account', icon: UserIcon, end: false },
 ] as const;
 
@@ -20,7 +20,7 @@ export function BottomTabBar({ className = '' }: BottomTabBarProps) {
 
   return (
     <nav
-      className={`h-14 bg-white border-t border-gray-200 flex items-stretch z-50 shrink-0 ${className}`}
+      className={`safe-area-bottom flex shrink-0 items-stretch border-t border-civic-line bg-civic-paper ${className}`}
       aria-label="Tab navigation"
     >
       {tabs.map(({ to, label, icon: Icon, end }) => (
@@ -29,16 +29,16 @@ export function BottomTabBar({ className = '' }: BottomTabBarProps) {
           to={to}
           end={end}
           className={({ isActive }) =>
-            `flex-1 flex flex-col items-center justify-center gap-0.5 text-xs font-medium transition-colors ${
+            `flex min-h-16 min-w-0 flex-1 flex-col items-center justify-center gap-1 border-t-2 px-1 py-2 text-center text-[11px] font-medium leading-4 transition-colors ${
               isActive
-                ? 'text-blue-600'
-                : 'text-gray-500'
+                ? 'border-civic-accent text-civic-ink'
+                : 'border-transparent text-civic-muted hover:bg-civic-wash'
             }`
           }
         >
           {({ isActive }) => (
             <>
-              <Icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+              <Icon className={`h-5 w-5 ${isActive ? 'text-civic-ink' : 'text-civic-muted'}`} />
               <span>{label}</span>
             </>
           )}
@@ -52,7 +52,7 @@ export function BottomTabBar({ className = '' }: BottomTabBarProps) {
 
 function MapPinIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z" />
       <circle cx="12" cy="10" r="3" />
     </svg>
@@ -61,7 +61,7 @@ function MapPinIcon({ className }: { className?: string }) {
 
 function PencilRulerIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 21L12 12L21 3" />
       <path d="M15 6L18 3L21 6L18 9" />
       <path d="M3 15L6 12L9 15L6 18Z" />
@@ -69,17 +69,18 @@ function PencilRulerIcon({ className }: { className?: string }) {
   );
 }
 
-function FlameIcon({ className }: { className?: string }) {
+function ConcernIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 4h16v12H9l-5 4V4Z" />
+      <path d="M12 7v4m0 2v.5" />
     </svg>
   );
 }
 
 function UserIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
     </svg>

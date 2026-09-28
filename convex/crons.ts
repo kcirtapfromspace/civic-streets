@@ -5,6 +5,7 @@ const crons = cronJobs();
 
 crons.interval('clean up abandoned photo uploads', { minutes: 15 }, internal.storage.cleanupUploads);
 crons.interval('clean up geocoding cache and limits', { hours: 1 }, internal.geocoding.cleanup);
+crons.interval('clean up abandoned report suggestions', { hours: 1 }, internal.reportAssistance.cleanup);
 
 // Purge rate-limit records older than 48 hours every 6 hours.
 // Keeps the rateLimits table small and ensures stale data doesn't

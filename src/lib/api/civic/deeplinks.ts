@@ -1,4 +1,5 @@
-// Curated city 311 web form URLs for deep link fallback
+// Public reporting directories verified against official city sites on 2026-09-27.
+// Bounds only suggest a nearby portal; residents must confirm jurisdiction there.
 
 export interface DeepLinkCity {
   name: string;
@@ -17,33 +18,39 @@ export const DENVER_311_CITY: DeepLinkCity = {
 
 const DEEP_LINK_CITIES: DeepLinkCity[] = [
   {
+    name: 'Chicago',
+    url: 'https://311.chicago.gov/s/service-request?language=en_US',
+    bounds: [41.6, -87.9, 42.1, -87.5],
+    prefillSupported: false,
+  },
+  {
     name: 'New York City',
-    url: 'https://portal.311.nyc.gov/sr-step1/',
+    url: 'https://portal.311.nyc.gov/report-problems/',
     bounds: [40.4, -74.3, 40.95, -73.7],
     prefillSupported: false,
   },
   DENVER_311_CITY,
   {
     name: 'San Francisco',
-    url: 'https://sf311.org/services',
+    url: 'https://www.sf.gov/topics/311-online-services',
     bounds: [37.7, -122.55, 37.83, -122.35],
     prefillSupported: false,
   },
   {
     name: 'Los Angeles',
-    url: 'https://myla311.lacity.org/service-request',
+    url: 'https://myla311.lacity.gov/',
     bounds: [33.7, -118.7, 34.35, -118.15],
     prefillSupported: false,
   },
   {
     name: 'Portland',
-    url: 'https://www.portland.gov/transportation/report',
+    url: 'https://www.portland.gov/report',
     bounds: [45.4, -122.85, 45.65, -122.45],
     prefillSupported: false,
   },
   {
     name: 'Seattle',
-    url: 'https://www.seattle.gov/customer-service-bureau/find-it-fix-it-702',
+    url: 'https://www.seattle.gov/customer-service-bureau',
     bounds: [47.49, -122.44, 47.74, -122.24],
     prefillSupported: false,
   },
@@ -68,12 +75,10 @@ export function getCityDeepLink(
   _address?: string,
   _description?: string,
 ): { city: string; url: string } | null {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
   const city = DEEP_LINK_CITIES.find(
-    (c) =>
-      lat >= c.bounds[0] &&
-      lat <= c.bounds[2] &&
-      lng >= c.bounds[1] &&
-      lng <= c.bounds[3],
+    (c) => lat >= c.bounds[0] && lat <= c.bounds[2] && lng >= c.bounds[1] && lng <= c.bounds[3],
   );
 
   if (!city) return null;

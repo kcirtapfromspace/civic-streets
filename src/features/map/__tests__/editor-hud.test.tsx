@@ -10,6 +10,7 @@ import { useProposalStore } from '@/stores/proposal-store';
 import { useIntersectionStore } from '@/stores/intersection-store';
 import { useSavedProposalsStore } from '@/stores/saved-proposals-store';
 import { useSafetyDataStore } from '@/features/safety-data/safety-data-store';
+import { loadTemplates } from '@/lib/templates';
 const validation = vi.hoisted(() => ({ validate: vi.fn(), load: vi.fn() }));
 vi.mock('@/lib/standards', () => ({
   validateStreet: validation.validate,
@@ -54,6 +55,7 @@ vi.mock('@/features/intersection/IntersectionFlow', () => ({
 }));
 const location = { lat: 39.7, lng: -104.9, address: 'Broadway' };
 beforeEach(() => {
+  localStorage.clear();
   useMapStore.setState(useMapStore.getInitialState());
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState());
   useStreetStore.setState(useStreetStore.getInitialState());
@@ -132,4 +134,102 @@ it('keeps the editor available if the standards engine fails', async () => {
   expect(await screen.findByText('Editor dock')).toBeInTheDocument();
   await waitFor(() => expect(validation.load).toHaveBeenCalled());
   expect(useStreetStore.getState().validationResults).toEqual([]);
+});
+
+it('keeps work open after an Escape save failure and protects unsaved changes on reload', async () => {
+  useStreetStore.getState().createNewStreet('Broadway', 60, 'local', 'two-way');
+  useProposalStore.getState().initProposal('Broadway', location);
+  useProposalStore.setState({
+    beforeStreet: useStreetStore.getState().currentStreet,
+    afterStreet: useStreetStore.getState().currentStreet,
+    beforePresetId: 'local-road', selectedTemplateId: 'safer-crossing',
+  });
+  useWorkspaceStore.getState().enterProposeMode(location);
+  render(<EditorHUD />);
+  const unsaved = new Event('beforeunload', { cancelable: true });
+  window.dispatchEvent(unsaved);
+  expect(unsaved.defaultPrevented).toBe(true);
+  const blocked = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Blocked'); });
+  fireEvent.keyDown(window, { key: 'Escape' });
+  expect(screen.getByRole('alert')).toHaveTextContent('Drafts could not be saved');
+  expect(useWorkspaceStore.getState().mode).toBe('propose');
+  expect(useProposalStore.getState().afterStreet).not.toBeNull();
+  blocked.mockRestore();
+  act(() => useSavedProposalsStore.getState().saveProposal(useProposalStore.getState().getProposal()!));
+  const saved = new Event('beforeunload', { cancelable: true });
+  window.dispatchEvent(saved);
+  expect(saved.defaultPrevented).toBe(false);
+  fireEvent.keyDown(window, { key: 'Escape' });
+  expect(useWorkspaceStore.getState().mode).toBe('explore');
+  const empty = new Event('beforeunload', { cancelable: true });
+  window.dispatchEvent(empty);
+  expect(empty.defaultPrevented).toBe(false);
+  act(() => useProposalStore.getState().initProposal('Unfinished', location));
+  const incomplete = new Event('beforeunload', { cancelable: true });
+  window.dispatchEvent(incomplete);
+  expect(incomplete.defaultPrevented).toBe(true);
+});
+
+
+it('returns detailed edits to the same draft for saving without replacing its original street', async () => {
+  useStreetStore.getState().createNewStreet('Broadway', 60, 'local', 'two-way');
+  const before = useStreetStore.getState().currentStreet!;
+  useProposalStore.getState().initProposal('Broadway', location);
+  useProposalStore.getState().setBriefContext({ concern: 'Narrow walking space', desiredOutcome: 'More room to pass', requestedNextStep: 'Discuss at the next neighborhood meeting' });
+  useProposalStore.setState({ beforeStreet: before, afterStreet: before, beforePresetId: 'local-road', selectedTemplateId: 'safer-crossing' });
+  useWorkspaceStore.getState().enterDesignMode(location, useProposalStore.getState().proposalId!);
+  render(<EditorHUD />);
+  expect(await screen.findByRole('button', { name: 'Review draft' })).toBeInTheDocument();
+  act(() => useStreetStore.getState().updateStreetName('Broadway revised'));
+  expect(useProposalStore.getState().afterStreet?.name).toBe('Broadway revised');
+  expect(useProposalStore.getState().beforeStreet?.name).toBe('Broadway');
+  fireEvent.click(screen.getByRole('button', { name: 'Review draft' }));
+  expect(useWorkspaceStore.getState().mode).toBe('propose');
+  expect(useProposalStore.getState().getProposal()?.streetName).toBe('Broadway revised');
+  expect(useProposalStore.getState().getProposal()?.briefContext).toMatchObject({
+    concern: 'Narrow walking space', desiredOutcome: 'More room to pass',
+    requestedNextStep: 'Discuss at the next neighborhood meeting',
+  });
+});
+
+it('keeps a linked proposal and its original evidence when a replacement template creates a new street identity', async () => {
+  useStreetStore.getState().createNewStreet('Broadway', 60, 'local', 'two-way', location);
+  const before = useStreetStore.getState().currentStreet!;
+  const proposal = useProposalStore.getState();
+  proposal.initProposal('Broadway', location, { id: 'observed-1', title: 'Narrow sidewalk', description: 'Hard to pass here', photoUrls: ['https://example.org/photo.jpg'], ...location, createdAt: 1000, source: 'community' });
+  proposal.setBriefContext({ desiredOutcome: 'Room to pass', dimensionBasis: 'measured', dimensionSource: 'Tape measure' });
+  useProposalStore.setState({ beforeStreet: before, afterStreet: before, beforePresetId: 'local-road', selectedTemplateId: 'safer-crossing' });
+  const originalContext = useProposalStore.getState().briefContext;
+  const proposalId = useProposalStore.getState().proposalId!;
+  useWorkspaceStore.getState().enterDesignMode(location, proposalId);
+  render(<EditorHUD />);
+  expect(await screen.findByRole('button', { name: 'Review draft' })).toBeInTheDocument();
+  act(() => useStreetStore.getState().updateElement(before.elements[0].id, { width: 8 }));
+  const modifiedBeforeTemplate = useStreetStore.getState().currentStreet!;
+  act(() => useStreetStore.getState().applyTemplate(loadTemplates()[0], 60));
+  const replacement = useStreetStore.getState().currentStreet!;
+  expect(replacement.id).not.toBe(before.id);
+  expect(useProposalStore.getState()).toMatchObject({ proposalId, afterStreet: { id: replacement.id, location }, beforeStreet: before, briefContext: originalContext });
+  expect(useStreetStore.getState().beforeStreet).toEqual(before);
+  expect(useStreetStore.getState().beforeStreet).not.toEqual(modifiedBeforeTemplate);
+  fireEvent.click(screen.getByRole('button', { name: 'Review draft' }));
+  expect(useWorkspaceStore.getState()).toMatchObject({ mode: 'propose', designProposalId: null });
+  expect(proposal.getProposal()?.afterStreet.id).toBe(replacement.id);
+  expect(proposal.getProposal()?.briefContext?.observation?.photoUrls).toEqual(['https://example.org/photo.jpg']);
+});
+
+it('does not attach a standalone editor or an obsolete association to a draft with a matching street', async () => {
+  useStreetStore.getState().createNewStreet('Broadway', 60, 'local', 'two-way');
+  const before = useStreetStore.getState().currentStreet!;
+  useProposalStore.getState().initProposal('Broadway', location);
+  useProposalStore.setState({ beforeStreet: before, afterStreet: before });
+  useWorkspaceStore.getState().enterDesignMode(location);
+  render(<EditorHUD />);
+  expect(await screen.findByText('Editor dock')).toBeInTheDocument();
+  act(() => useStreetStore.getState().updateStreetName('Standalone edit'));
+  expect(screen.queryByRole('button', { name: 'Review draft' })).not.toBeInTheDocument();
+  expect(useProposalStore.getState().streetName).toBe('Broadway');
+  act(() => useWorkspaceStore.getState().enterDesignMode(location, 'old-proposal-id'));
+  act(() => useStreetStore.getState().updateStreetName('Other draft edit'));
+  expect(useProposalStore.getState().streetName).toBe('Broadway');
 });

@@ -248,3 +248,21 @@ it('provides official portal links for every configured city and none outside co
   }
   expect(getCityDeepLink(0, 0)).toBeNull();
 });
+
+it.each([
+  [NaN, -87.63],
+  [41.88, NaN],
+  [Infinity, -87.63],
+  [41.88, -Infinity],
+])('does not suggest a portal for invalid coordinates (%s, %s)', (lat, lng) =>
+  expect(getCityDeepLink(lat, lng)).toBeNull(),
+);
+
+it('treats city rectangles as routing hints with exact bounds', () => {
+  expect(getCityDeepLink(39.6, -105.1)?.city).toBe('Denver');
+  expect(getCityDeepLink(39.9, -104.8)?.city).toBe('Denver');
+  expect(getCityDeepLink(39.599, -104.99)).toBeNull();
+  expect(getCityDeepLink(39.901, -104.99)).toBeNull();
+  expect(getCityDeepLink(39.74, -105.101)).toBeNull();
+  expect(getCityDeepLink(39.74, -104.799)).toBeNull();
+});

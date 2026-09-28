@@ -49,11 +49,11 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route
               path="/pricing"
-              element={<Navigate to={{ pathname: '/', hash: '#government' }} replace />}
+              element={<Navigate to={{ pathname: '/', hash: '#features' }} replace />}
             />
             <Route
               path="/institutions"
-              element={<Navigate to={{ pathname: '/', hash: '#government' }} replace />}
+              element={<Navigate to={{ pathname: '/', hash: '#features' }} replace />}
             />
 
             {/* App pages — with nav layout */}

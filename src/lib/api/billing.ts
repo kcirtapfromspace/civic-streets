@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from './auth';
+import { convexAvailable } from './convex-provider';
 import type {
   BillingCheckoutResult,
   BillingEntitlements,
@@ -254,7 +255,7 @@ export interface UseBillingResult {
   openPortal: () => Promise<string | null>;
 }
 
-export function useBilling(): UseBillingResult {
+function useBillingConnected(): UseBillingResult {
   const convex = useConvex();
   const { user, sessionToken, isLoading: isLoadingAuth } = useAuth();
   const [billingState, setBillingState] =
@@ -375,3 +376,23 @@ export function useBilling(): UseBillingResult {
     openPortal,
   };
 }
+
+function useBillingLocal(): UseBillingResult {
+  return {
+    user: null,
+    sessionToken: null,
+    isLoadingAuth: false,
+    billingState: LOCAL_BILLING_STATE,
+    billingStateLoading: false,
+    billingError: null,
+    isStartingCheckout: false,
+    isOpeningPortal: false,
+    refreshBillingState: async () => LOCAL_BILLING_STATE,
+    startCheckout: async () => { throw new Error('No active session'); },
+    openPortal: async () => { throw new Error('No active session'); },
+  };
+}
+
+// Backend configuration is fixed for this build. Select the hook before render,
+// so local previews never enter provider-dependent authentication/billing hooks.
+export const useBilling = convexAvailable ? useBillingConnected : useBillingLocal;

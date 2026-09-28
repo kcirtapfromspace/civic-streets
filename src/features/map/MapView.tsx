@@ -1,5 +1,8 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Modal } from '@/components/ui/Modal';
 import { useMapStore } from './map-store';
+import { initializeMapLocation } from './initial-location';
 import { useMapLibre, isProgrammaticMove } from './useMapLibre';
 import { MapControls } from './MapControls';
 import { EarthView } from './EarthView';
@@ -14,7 +17,9 @@ import { DrawingToolbar } from '@/features/drawing/DrawingToolbar';
 import { DrawingActionCard } from '@/features/drawing/DrawingActionCard';
 import { CrashDataLayer } from '@/features/safety-data/CrashDataLayer';
 import { IssueReportForm } from '@/features/community/IssueReportForm';
-import { useCreateHotspot } from '@/lib/api/use-hotspots';
+import { useCreateHotspot, useHotspotById } from '@/lib/api/use-hotspots';
+import { useStartProposal } from '@/features/proposal/useStartProposal';
+import { convexAvailable } from '@/lib/api/convex-provider';
 import { issueGroupToLegacyCategory } from '@/lib/types/community';
 
 /**
@@ -34,6 +39,9 @@ export function MapView() {
   const reportFormLocation = useMapStore((s) => s.reportFormLocation);
   const closeReportForm = useMapStore((s) => s.closeReportForm);
   const createHotspot = useCreateHotspot();
+  const [savedReportId, setSavedReportId] = useState<string | null>(null);
+  const { hotspot: savedObservation, isLoading: isSavedObservationLoading } = useHotspotById(savedReportId ?? undefined);
+  const { startProposal, confirmation } = useStartProposal();
 
   const [mapElement, setMapElement] = useRefCallback();
 
@@ -43,6 +51,8 @@ export function MapView() {
     zoom,
     mapType,
   });
+
+  useEffect(() => { void initializeMapLocation(); }, []);
 
   // Sync map movements back to store
   useEffect(() => {
@@ -58,9 +68,14 @@ export function MapView() {
       setZoom(z);
     };
 
+    const onMoveStart = (event: { originalEvent?: Event }) => {
+      if (event.originalEvent) useMapStore.setState({ initialLocationStatus: 'skipped' });
+    };
+    map.on('movestart', onMoveStart);
     map.on('moveend', onMoveEnd);
     return () => {
       map.off('moveend', onMoveEnd);
+      map.off('movestart', onMoveStart);
     };
   }, [map, setCenter, setZoom]);
 
@@ -145,37 +160,78 @@ export function MapView() {
       )}
 
       {/* Floating issue report form */}
-      {reportFormOpen && reportFormLocation && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/20">
-          <div className="max-h-[90vh] overflow-y-auto">
-            <IssueReportForm
-              initialAddress={reportFormLocation.address}
-              initialLat={reportFormLocation.lat}
-              initialLng={reportFormLocation.lng}
-              onSubmit={async (data) => {
-                const hotspotId = await createHotspot({
-                  title: data.title,
-                  description: data.description,
-                  category: issueGroupToLegacyCategory(data.group),
-                  severity: data.severity,
-                  lat: data.location.lat,
-                  lng: data.location.lng,
-                  address: data.location.address,
-                  photoUrls: data.photoDataUrls,
-                  issueGroup: data.group,
-                  issueType: data.issueType,
-                  isBlocking: data.isBlocking,
-                  processedImages: data.processedImages,
-                  honeypotValue: data.honeypotValue,
-                  formOpenedAt: data.formOpenedAt,
-                });
-                if (!hotspotId) throw new Error('Your report was not saved. Please try again.');
-                closeReportForm();
-              }}
-              onCancel={closeReportForm}
-            />
+      {savedReportId && !reportFormOpen && (
+        <div role="status" className="absolute left-4 right-4 top-4 z-30 max-w-md rounded-lg border border-civic-line bg-white p-4 shadow-lg">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm font-semibold text-slate-900">
+              {convexAvailable ? 'Observation saved' : 'Demo observation saved'}
+            </p>
+            <button type="button" onClick={() => setSavedReportId(null)} aria-label="Dismiss saved observation" className="min-h-11 min-w-11 rounded px-2 text-slate-500 hover:text-slate-900 focus-visible:outline-2">
+              ×
+            </button>
           </div>
+          <p className="mt-1 text-xs leading-5 text-slate-600">
+            {convexAvailable
+              ? 'Your observation is on the public map.'
+              : 'Your observation is available in this browser session only and disappears on reload. It has not been published.'}
+          </p>
+          <Link to={`/hotspot/${encodeURIComponent(savedReportId)}`} className="mt-2 inline-block text-sm font-medium text-civic-ink underline underline-offset-4">
+            View observation
+          </Link>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" disabled={!savedObservation} onClick={() => {
+              if (!savedObservation) return;
+              startProposal({
+                streetName: savedObservation.address.split(',')[0].trim() || savedObservation.title,
+                location: { lat: savedObservation.lat, lng: savedObservation.lng, address: savedObservation.address },
+                observation: {
+                  id: savedObservation.id, title: savedObservation.title, description: savedObservation.description,
+                  photoUrls: [...savedObservation.photoUrls], lat: savedObservation.lat, lng: savedObservation.lng,
+                  address: savedObservation.address, createdAt: savedObservation.createdAt,
+                  source: convexAvailable ? 'community' : 'browser-session',
+                },
+                onStarted: () => setSavedReportId(null),
+              });
+            }} className="min-h-11 rounded-sm bg-civic-ink px-3 text-sm font-medium text-white disabled:opacity-50">
+              Explore a change here
+            </button>
+            <button type="button" onClick={() => setSavedReportId(null)} className="min-h-11 rounded-sm border border-civic-line px-3 text-sm font-medium text-civic-ink">Done</button>
+          </div>
+          {!savedObservation && <p className="mt-2 text-xs text-slate-600">{isSavedObservationLoading ? 'Loading your saved observation…' : 'Open the observation to continue when it becomes available.'}</p>}
         </div>
+      )}
+      {confirmation}
+      {reportFormOpen && reportFormLocation && (
+        <Modal isOpen onClose={closeReportForm} title="Mark a problem" dismissible={false}>
+          <IssueReportForm
+            initialAddress={reportFormLocation.address}
+            initialLat={reportFormLocation.lat}
+            initialLng={reportFormLocation.lng}
+            onSubmit={async (data) => {
+              const hotspotId = await createHotspot({
+                reportAssistanceId: data.reportAssistanceId,
+                title: data.title,
+                description: data.description,
+                category: issueGroupToLegacyCategory(data.group),
+                severity: data.severity,
+                lat: data.location.lat,
+                lng: data.location.lng,
+                address: data.location.address,
+                photoUrls: data.photoDataUrls,
+                issueGroup: data.group,
+                issueType: data.issueType,
+                isBlocking: data.isBlocking,
+                processedImages: data.processedImages,
+                honeypotValue: data.honeypotValue,
+                formOpenedAt: data.formOpenedAt,
+              });
+              if (!hotspotId) throw new Error('Your observation was not saved. Please try again.');
+              setSavedReportId(hotspotId);
+              closeReportForm();
+            }}
+            onCancel={closeReportForm}
+          />
+        </Modal>
       )}
     </div>
   );

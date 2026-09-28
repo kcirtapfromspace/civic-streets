@@ -196,4 +196,35 @@ describe('drawing a community search polygon', () => {
     expect(map.doubleClickZoom.enable).not.toHaveBeenCalled();
     unmount();
   });
+  it.each([false, true])('survives parent map removal before child cleanup, drawing=%s', (drawing) => {
+    const { map, clear, unmount } = setup();
+    const off = vi.spyOn(map, 'off');
+    if (drawing) fireEvent.click(screen.getByRole('button', { name: 'Draw area' }));
+    map.remove();
+    expect(map.getStyle()).toBeUndefined();
+    expect(() => map.getLayer('drawing-polygon-fill')).toThrow('Map style has been removed');
+    expect(() => unmount()).not.toThrow();
+    expect(map.doubleClickZoom.enable).not.toHaveBeenCalled();
+    if (drawing) {
+      expect(off).toHaveBeenCalledWith('click', expect.any(Function));
+      expect(off).toHaveBeenCalledWith('dblclick', expect.any(Function));
+    }
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(clear).not.toHaveBeenCalled();
+  });
+  it('ignores a start on a removed map and safely handles Escape while drawing during removal', () => {
+    const first = setup();
+    first.map.remove();
+    fireEvent.click(screen.getByRole('button', { name: 'Draw area' }));
+    expect(first.map.doubleClickZoom.disable).not.toHaveBeenCalled();
+    first.unmount();
+    const second = setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Draw area' }));
+    second.map.remove();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(second.clear).toHaveBeenCalledOnce();
+    expect(second.map.doubleClickZoom.enable).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Draw area' })).toBeInTheDocument();
+    second.unmount();
+  });
 });

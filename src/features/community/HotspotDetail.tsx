@@ -1,24 +1,20 @@
 import { findReportingArea } from '../../../shared/reporting-areas';
 import React, { useState } from 'react';
-import { Badge, Button } from '@/components/ui';
+import { Badge } from '@/components/ui';
 import {
   HOTSPOT_CATEGORY_LABELS,
   HOTSPOT_CATEGORY_COLORS,
   SEVERITY_LABELS,
+  ISSUE_GROUP_LABELS,
 } from '@/lib/types/community';
 import type { HotspotStatus } from '@/lib/types/community';
 import { VoteButton } from './VoteButton';
-import { CommentThread } from './CommentThread';
-import { DesignCard } from './DesignCard';
 import type { MockHotspot } from './mock-data';
-import { MOCK_COMMENTS, MOCK_DESIGNS, MOCK_USERS } from './mock-data';
-import type { MockUser } from './mock-data';
-import { submitCivicReport } from '@/lib/api/civic-report';
 import { getCityDeepLink } from '@/lib/api/civic/deeplinks';
 import { useVoteOnHotspot } from '@/lib/api/use-hotspots';
-import { useJurisdictionSummaryForLocation } from '@/lib/api/government';
-import { useToast } from '@/components/ui/Toast';
-import { UnsignedJurisdictionOutreachModal } from '@/features/government/UnsignedJurisdictionOutreachModal';
+import { convexAvailable } from '@/lib/api/convex-provider';
+import { getIssueTypeConfig } from '@/lib/config/issue-types';
+import { ObservationBrief } from './ObservationBrief';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -32,13 +28,6 @@ function timeAgo(timestamp: number): string {
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days}d ago`;
   return `${Math.floor(days / 30)}mo ago`;
-}
-
-function getUserName(authorId: string): string {
-  return (
-    MOCK_USERS.find((u: MockUser) => u.id === authorId)?.displayName ??
-    'Anonymous'
-  );
 }
 
 const SEVERITY_VARIANTS: Record<string, 'default' | 'warning' | 'error'> = {
@@ -70,31 +59,30 @@ function StatusTimeline({ currentStatus }: { currentStatus: HotspotStatus }) {
   const currentIndex = STATUS_STEPS.indexOf(currentStatus);
 
   return (
-    <div className="flex items-center gap-1" aria-label={`Status: ${STATUS_LABELS[currentStatus]}`}>
+    <div
+      className="flex items-center gap-1"
+      aria-label={`Community status: ${STATUS_LABELS[currentStatus]}`}
+    >
       {STATUS_STEPS.map((step, i) => {
         const isReached = i <= currentIndex;
         return (
           <React.Fragment key={step}>
             {i > 0 && (
               <div
-                className={`flex-1 h-0.5 ${
-                  isReached ? 'bg-blue-500' : 'bg-gray-200'
-                }`}
+                className={`flex-1 h-0.5 ${isReached ? 'bg-civic-ink' : 'bg-gray-200'}`}
                 aria-hidden="true"
               />
             )}
             <div className="flex flex-col items-center gap-1">
               <div
                 className={`w-3 h-3 rounded-full border-2 ${
-                  isReached
-                    ? 'bg-blue-500 border-blue-500'
-                    : 'bg-white border-gray-300'
+                  isReached ? 'bg-civic-ink border-civic-ink' : 'bg-white border-gray-300'
                 }`}
                 aria-hidden="true"
               />
               <span
                 className={`text-[10px] leading-none ${
-                  isReached ? 'text-blue-600 font-medium' : 'text-gray-400'
+                  isReached ? 'text-civic-ink font-medium' : 'text-gray-400'
                 }`}
               >
                 {STATUS_LABELS[step]}
@@ -110,8 +98,6 @@ function StatusTimeline({ currentStatus }: { currentStatus: HotspotStatus }) {
 // ── Photo Gallery ─────────────────────────────────────────────────────────
 
 function PhotoGallery({ urls }: { urls: string[] }) {
-  if (urls.length === 0) return null;
-
   return (
     <div className="flex gap-2 overflow-x-auto pb-2">
       {urls.map((url, i) => (
@@ -143,377 +129,224 @@ export function HotspotDetail({
   onSendToRep,
   onViewOnMap,
 }: HotspotDetailProps) {
-  const { showToast } = useToast();
   const categoryColor = HOTSPOT_CATEGORY_COLORS[hotspot.category];
-  const comments = MOCK_COMMENTS.filter((c) => c.hotspotId === hotspot.id);
   const voteOnHotspot = useVoteOnHotspot();
-  const linkedDesigns = MOCK_DESIGNS.filter((d) =>
-    hotspot.linkedDesignIds.includes(d.id),
-  );
-  const { summary: jurisdiction, isLoading: jurisdictionLoading } =
-    useJurisdictionSummaryForLocation({
-      address: hotspot.address,
-      lat: hotspot.lat,
-      lng: hotspot.lng,
-    });
   const cityPortal = getCityDeepLink(hotspot.lat, hotspot.lng);
-  const denverPortal = cityPortal?.city === 'Denver' ? cityPortal : null;
-  const denverHelpId = React.useId();
+  const cityHelpId = React.useId();
+  const repHelpId = React.useId();
   const reportingAllowed = Boolean(findReportingArea(hotspot.lat, hotspot.lng));
+  const isExample = !convexAvailable && !hotspot.id.startsWith('local-');
+  const sourceLabel = convexAvailable
+    ? 'Community observation'
+    : isExample
+      ? 'Example observation'
+      : 'Browser-session observation';
+  const [voteError, setVoteError] = useState<string | null>(null);
+  const [voteReset, setVoteReset] = useState(0);
 
-  // Civic reporting state
-  const [civicStatus, setCivicStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
-  const [civicResult, setCivicResult] = useState<{ trackingId?: string; trackingUrl?: string; deepLinkUrl?: string } | null>(null);
-  const [civicError, setCivicError] = useState<string | null>(null);
-  const [outreachAction, setOutreachAction] = useState<
-    'report_to_city' | 'send_to_rep' | null
-  >(null);
-
-  const handleReportToCity = async () => {
-    // Public city portals do not depend on a Curbwise government contract.
-    // Open synchronously from the click; no report or tracking state is changed.
-    if (denverPortal) {
-      window.open(denverPortal.url, '_blank', 'noopener,noreferrer');
-      return;
+  const handleVote = async (value: 1 | -1) => {
+    setVoteError(null);
+    try {
+      await voteOnHotspot(hotspot.id, value);
+    } catch {
+      setVoteError('Your vote could not be saved. Please try again.');
+      setVoteReset((previous) => previous + 1);
     }
-
-    if (jurisdictionLoading && !jurisdiction) {
-      showToast('Checking jurisdiction coverage...', 'info');
-      return;
-    }
-
-    if (!jurisdiction?.isSigned) {
-      setOutreachAction('report_to_city');
-      return;
-    }
-
-    setCivicStatus('submitting');
-    setCivicError(null);
-
-    const result = await submitCivicReport({
-      lat: hotspot.lat,
-      lng: hotspot.lng,
-      address: hotspot.address,
-      category: hotspot.category,
-      title: hotspot.title,
-      description: hotspot.description,
-    });
-
-    if (result.deepLinkUrl) {
-      window.open(result.deepLinkUrl, '_blank', 'noopener');
-      setCivicStatus('idle');
-      return;
-    }
-
-    if (result.success) {
-      setCivicStatus('success');
-      setCivicResult(result);
-    } else {
-      setCivicStatus('error');
-      setCivicError(result.error ?? 'Failed to submit report.');
-    }
-  };
-
-  const handleSendToRep = () => {
-    if (jurisdictionLoading && !jurisdiction) {
-      showToast('Checking jurisdiction coverage...', 'info');
-      return;
-    }
-
-    if (!jurisdiction?.isSigned) {
-      setOutreachAction('send_to_rep');
-      return;
-    }
-
-    onSendToRep?.(hotspot.id);
   };
 
   return (
-    <div className="bg-gray-50 min-h-full">
-      <div className="max-w-2xl mx-auto">
-        {/* Back button */}
+    <div className="min-h-full bg-civic-wash text-civic-ink">
+      <div className="mx-auto max-w-2xl px-4 py-4">
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="flex items-center gap-1 px-4 pt-4 text-sm text-gray-500 hover:text-gray-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+            className="mb-3 flex min-h-11 items-center gap-2 text-sm text-civic-muted hover:text-civic-ink"
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-            Back to feed
+            <span aria-hidden="true">←</span> Back to observations
           </button>
         )}
-
-        {/* Main card */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 m-4">
-          {/* Header */}
-          <div className="p-5 pb-0">
-            <div className="flex items-start gap-4">
-              <VoteButton
-                upvotes={hotspot.upvotes}
-                downvotes={hotspot.downvotes}
-                className="shrink-0 pt-1"
-                onVote={(value) => voteOnHotspot(hotspot.id, value)}
-              />
-
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <Badge
-                    className="text-white text-[10px]"
-                    style={{ backgroundColor: categoryColor } as React.CSSProperties}
-                  >
-                    {HOTSPOT_CATEGORY_LABELS[hotspot.category]}
-                  </Badge>
-                  <Badge variant={SEVERITY_VARIANTS[hotspot.severity]}>
-                    {SEVERITY_LABELS[hotspot.severity]}
-                  </Badge>
-                  <Badge variant={STATUS_VARIANTS[hotspot.status]}>
-                    {STATUS_LABELS[hotspot.status]}
-                  </Badge>
-                </div>
-
-                <h1 className="text-xl font-bold text-gray-900 leading-tight">
-                  {hotspot.title}
-                </h1>
-
-                <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                  <span>{getUserName(hotspot.authorId)}</span>
-                  <span>&middot;</span>
-                  <span>{timeAgo(hotspot.createdAt)}</span>
-                  {jurisdiction && (
-                    <>
-                      <span>&middot;</span>
-                      <Badge variant={jurisdiction.isSigned ? 'success' : 'warning'}>
-                        {jurisdiction.isSigned ? 'Government live' : 'Outreach'}
-                      </Badge>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Location */}
-          <div className="px-5 pt-4">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-gray-400 shrink-0"
-                aria-hidden="true"
+        <article className="rounded border border-civic-line bg-white">
+          <header className="space-y-3 border-b border-civic-line p-5">
+            <p className="text-xs text-civic-muted">{sourceLabel} · {timeAgo(hotspot.createdAt)}</p>
+            <h1 className="text-2xl font-semibold leading-tight">{hotspot.title}</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                className="text-white text-[10px]"
+                style={{ backgroundColor: categoryColor } as React.CSSProperties}
               >
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
-              <span>{hotspot.address}</span>
+                {HOTSPOT_CATEGORY_LABELS[hotspot.category]}
+              </Badge>
+              <Badge variant={SEVERITY_VARIANTS[hotspot.severity]}>
+                {SEVERITY_LABELS[hotspot.severity]}
+              </Badge>
+              <Badge variant={STATUS_VARIANTS[hotspot.status]}>
+                Community: {STATUS_LABELS[hotspot.status]}
+              </Badge>
+            </div>
+            {!convexAvailable && (
+              <p className="text-sm text-civic-muted">
+                {isExample
+                  ? 'This is an illustrative example, not an observation from a resident. Sample status and counts do not reflect community activity.'
+                  : 'This observation is stored only in this browser session. It disappears on reload and has not been published to the community.'}
+              </p>
+            )}
+          </header>
+
+          <section aria-label="Observation details" className="space-y-5 p-5">
+            <dl className="grid gap-4 text-sm sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <dt className="text-xs text-civic-muted">Location</dt>
+                <dd className="mt-1">{hotspot.address}</dd>
+                <dd className="mt-1 text-xs text-civic-muted">
+                  {hotspot.lat.toFixed(5)}, {hotspot.lng.toFixed(5)}
+                </dd>
+              </div>
+              {hotspot.issueGroup && (
+                <div>
+                  <dt className="text-xs text-civic-muted">Issue group</dt>
+                  <dd className="mt-1">{ISSUE_GROUP_LABELS[hotspot.issueGroup] ?? hotspot.issueGroup}</dd>
+                </div>
+              )}
+              {hotspot.issueType && (
+                <div>
+                  <dt className="text-xs text-civic-muted">Issue type</dt>
+                  <dd className="mt-1">{getIssueTypeConfig(hotspot.issueType)?.label ?? hotspot.issueType}</dd>
+                </div>
+              )}
+              {hotspot.isBlocking !== undefined && (
+                <div>
+                  <dt className="text-xs text-civic-muted">Blocking passage</dt>
+                  <dd className="mt-1">{hotspot.isBlocking ? 'Yes' : 'No'}</dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-xs text-civic-muted">Saved</dt>
+                <dd className="mt-1">
+                  <time dateTime={new Date(hotspot.createdAt).toISOString()}>
+                    {new Date(hotspot.createdAt).toLocaleString()}
+                  </time>
+                </dd>
+              </div>
+            </dl>
+            <div>
+              <h2 className="mb-2 text-sm font-medium">Notes</h2>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-civic-muted">
+                {hotspot.description || 'No notes added.'}
+              </p>
+            </div>
+            {hotspot.photoUrls.length > 0 && (
+              <div>
+                <h2 className="mb-2 text-sm font-medium">Photos</h2>
+                <PhotoGallery urls={hotspot.photoUrls} />
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
               {onViewOnMap && (
                 <button
                   type="button"
                   onClick={() => onViewOnMap(hotspot.lat, hotspot.lng)}
-                  className="text-blue-600 hover:text-blue-700 underline text-xs ml-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                  className="min-h-11 rounded border border-civic-line px-4 text-sm font-medium hover:bg-civic-wash"
                 >
                   View on Map
                 </button>
               )}
-            </div>
-          </div>
-
-          {/* Description */}
-          <div className="px-5 pt-4">
-            <p className="text-sm text-gray-700 leading-relaxed">
-              {hotspot.description}
-            </p>
-          </div>
-
-          {/* Photos */}
-          {hotspot.photoUrls.length > 0 && (
-            <div className="px-5 pt-4">
-              <PhotoGallery urls={hotspot.photoUrls} />
-            </div>
-          )}
-
-          {!reportingAllowed && (
-            <p className="px-5 pt-4 text-sm text-amber-800">
-              Reporting tools are available in Chicago, Denver, and New York City.
-            </p>
-          )}
-          {/* Action buttons */}
-          <div className="px-5 pt-4 flex flex-wrap gap-2">
-            <Button
-              variant="primary"
-              onClick={() => onDesignFix?.(hotspot.id)}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-1.5"
-                aria-hidden="true"
+              <button
+                type="button"
+                onClick={() => onDesignFix?.(hotspot.id)}
+                disabled={!onDesignFix}
+                className="min-h-11 rounded bg-civic-ink px-4 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
               >
-                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
-              </svg>
-              Design a Fix
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={handleSendToRep}
-              disabled={!reportingAllowed}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-1.5"
-                aria-hidden="true"
-              >
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                <polyline points="22,6 12,13 2,6" />
-              </svg>
-              {denverPortal && !jurisdiction?.isSigned
-                ? 'Ask Curbwise for outreach'
-                : 'Send to My Rep'}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={handleReportToCity}
-              disabled={!reportingAllowed || (!denverPortal && civicStatus === 'submitting')}
-              aria-describedby={denverPortal ? denverHelpId : undefined}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-1.5"
-                aria-hidden="true"
-              >
-                <path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16" />
-              </svg>
-              {denverPortal
-                ? 'Continue at Denver 311'
-                : civicStatus === 'submitting' ? 'Submitting...' : 'Report to City'}
-            </Button>
-          </div>
-
-          {denverPortal && (
-            <p id={denverHelpId} className="px-5 pt-3 text-xs leading-5 text-gray-600">
-              This is a Curbwise community report. To create a city case, confirm
-              the location is inside the City and County of Denver and complete
-              the form on Denver 311. The portal opens in a new tab; details and
-              photos are not transferred automatically. Curbwise does not submit
-              or track the city case.
-            </p>
-          )}
-
-          {!jurisdiction?.isSigned && (
-            <div className="mx-5 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-              <p className="text-sm font-medium text-amber-900">
-                {jurisdiction?.displayName ?? 'This jurisdiction'} is not live on
-                Curbwise yet.
-              </p>
-              <p className="mt-1 text-xs leading-5 text-amber-800">
-                {denverPortal
-                  ? 'Ask Curbwise for outreach opens an optional request for internal review. This is separate from submitting a case at Denver 311.'
-                  : 'Reporting to the city or representatives will queue an internal outreach request so Curbwise can contact the right offices.'}
-              </p>
+                Explore a change here
+              </button>
             </div>
-          )}
+          </section>
 
-          {/* Civic report result */}
-          {!denverPortal && civicStatus === 'success' && civicResult && (
-            <div className="mx-5 mt-3 rounded-lg bg-green-50 border border-green-200 p-3">
-              <p className="text-sm font-medium text-green-800">
-                Report submitted successfully!
-              </p>
-              {civicResult.trackingId && (
-                <p className="text-xs text-green-700 mt-1">
-                  Tracking ID: <span className="font-mono">{civicResult.trackingId}</span>
-                </p>
-              )}
-              {civicResult.trackingUrl && (
-                <a
-                  href={civicResult.trackingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-green-600 underline mt-1 inline-block"
-                >
-                  Track your report &rarr;
-                </a>
-              )}
-            </div>
-          )}
-          {!denverPortal && civicStatus === 'error' && civicError && (
-            <div className="mx-5 mt-3 rounded-lg bg-red-50 border border-red-200 p-3">
-              <p className="text-sm text-red-800">{civicError}</p>
-            </div>
-          )}
+          <ObservationBrief key={`brief-${hotspot.id}`} hotspot={hotspot} source={convexAvailable ? 'community' : isExample ? 'example' : 'browser-session'} />
 
-          {/* Status Timeline */}
-          <div className="px-5 pt-6 pb-2">
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
-              Community report status
-            </h3>
+          <section aria-label="Community status" className="space-y-3 border-t border-civic-line p-5">
+            <h2 className="text-sm font-medium">Community status</h2>
             <StatusTimeline currentStatus={hotspot.status} />
-          </div>
+            <p className="text-xs leading-5 text-civic-muted">
+              This status is recorded on Curbwise. It does not confirm city receipt, work in
+              progress, or a city-verified repair.
+            </p>
+            {convexAvailable && (
+              <VoteButton
+                key={`${hotspot.id}-${voteReset}`}
+                upvotes={hotspot.upvotes}
+                downvotes={hotspot.downvotes}
+                onVote={handleVote}
+              />
+            )}
+            {voteError && <p role="alert" className="text-sm text-red-700">{voteError}</p>}
+            <p className="text-xs leading-5 text-civic-muted">
+              Discussion and linked community designs are not available for this observation.
+            </p>
+          </section>
 
-          {/* Linked Designs */}
-          {linkedDesigns.length > 0 && (
-            <div className="px-5 pt-6">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                Community Designs ({linkedDesigns.length})
-              </h3>
-              <div className="space-y-3">
-                {linkedDesigns.map((design) => (
-                  <DesignCard key={design.id} design={design} />
-                ))}
+          <details key={hotspot.id} className="border-t border-civic-line">
+            <summary className="min-h-11 cursor-pointer px-5 py-4 text-sm font-medium">
+              Optional follow-up
+            </summary>
+            <div className="space-y-4 px-5 pb-5">
+              <p className="text-sm text-civic-muted">
+                Your observation stands on its own. If you want to take it further, you can contact
+                the city or prepare a representative draft.
+              </p>
+              <div className="space-y-2">
+                {cityPortal ? (
+                  <a
+                    href={cityPortal.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-describedby={cityHelpId}
+                    className="inline-flex min-h-11 items-center rounded border border-civic-line px-4 text-sm font-medium hover:bg-civic-wash"
+                  >
+                    {cityPortal.city === 'Denver'
+                      ? 'Continue at Denver 311'
+                      : `Continue at ${cityPortal.city} reporting`}
+                  </a>
+                ) : (
+                  <button type="button" disabled aria-describedby={cityHelpId} className="min-h-11 rounded border border-civic-line px-4 text-sm text-civic-muted">
+                    City reporting unavailable
+                  </button>
+                )}
+                <p id={cityHelpId} className="text-xs leading-5 text-civic-muted">
+                  {cityPortal ? (
+                    <>
+                      To create a city case, confirm the location is inside{' '}
+                      {cityPortal.city === 'Denver' ? 'the City and County of Denver' : cityPortal.city}{' '}
+                      and complete the city's form. The portal opens in a new tab; details and photos are
+                      not transferred automatically. Curbwise does not submit or track the city case.
+                    </>
+                  ) : (
+                    'We do not have a verified public reporting link for this location. Visit your local government website to find its reporting service.'
+                  )}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => onSendToRep?.(hotspot.id)}
+                  disabled={isExample || !reportingAllowed || !onSendToRep}
+                  aria-describedby={repHelpId}
+                  className="min-h-11 rounded border border-civic-line px-4 text-sm font-medium hover:bg-civic-wash disabled:text-civic-muted"
+                >
+                  Prepare a representative draft
+                </button>
+                <p id={repHelpId} className="text-xs leading-5 text-civic-muted">
+                  {isExample
+                    ? 'Representative drafts are unavailable for fictional examples. Capture your own observation first.'
+                    : reportingAllowed && onSendToRep
+                      ? 'This opens a draft for you to review. No message is sent from this page.'
+                      : 'Representative drafts are unavailable here. Visit your local government website to find your representative.'}
+                </p>
               </div>
             </div>
-          )}
-
-          {/* Comments */}
-          <div className="px-5 pt-6 pb-5">
-            <CommentThread hotspotId={hotspot.id} comments={comments} />
-          </div>
-        </div>
+          </details>
+        </article>
       </div>
-      <UnsignedJurisdictionOutreachModal
-        isOpen={outreachAction !== null}
-        onClose={() => setOutreachAction(null)}
-        hotspot={hotspot}
-        jurisdiction={jurisdiction}
-        sourceAction={outreachAction ?? 'report_to_city'}
-      />
     </div>
   );
 }

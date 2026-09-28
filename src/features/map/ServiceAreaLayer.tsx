@@ -39,6 +39,8 @@ export function ServiceAreaLayer({ map, activeServiceAreas = [] }: ServiceAreaLa
     if (!map) return;
 
     const cleanup = () => {
+      // The parent may have already removed the map and its style.
+      if (!map.getStyle()) return;
       if (map.getLayer(FILL_LAYER_ID)) map.removeLayer(FILL_LAYER_ID);
       if (map.getLayer(LINE_LAYER_ID)) map.removeLayer(LINE_LAYER_ID);
       if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);

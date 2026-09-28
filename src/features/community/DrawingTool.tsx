@@ -55,12 +55,13 @@ export function DrawingTool({ map, onPolygonComplete, onClear }: DrawingToolProp
   const verticesRef = useRef<[number, number][]>([]);
   const restoreZoomRef = useRef<boolean | null>(null);
   const restoreDoubleClickZoom = useCallback(() => {
-    if (restoreZoomRef.current) map.doubleClickZoom.enable();
+    if (restoreZoomRef.current && map.getStyle()) map.doubleClickZoom.enable();
     restoreZoomRef.current = null;
   }, [map]);
 
   const updateSource = useCallback(
     (closed = false) => {
+      if (!map.getStyle()) return;
       const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
       if (source) {
         source.setData(getGeoJSON(verticesRef.current, closed));
@@ -70,6 +71,8 @@ export function DrawingTool({ map, onPolygonComplete, onClear }: DrawingToolProp
   );
 
   const cleanup = useCallback(() => {
+    // The parent minimap may already have removed its style during navigation.
+    if (!map.getStyle()) return;
     if (map.getLayer(FILL_LAYER_ID)) map.removeLayer(FILL_LAYER_ID);
     if (map.getLayer(LINE_LAYER_ID)) map.removeLayer(LINE_LAYER_ID);
     if (map.getLayer(VERTEX_LAYER_ID)) map.removeLayer(VERTEX_LAYER_ID);
@@ -169,6 +172,7 @@ export function DrawingTool({ map, onPolygonComplete, onClear }: DrawingToolProp
   }, [isDrawing, map, onPolygonComplete, onClear, updateSource, cleanup, restoreDoubleClickZoom]);
 
   const startDrawing = () => {
+    if (!map.getStyle()) return;
     verticesRef.current = [];
     setHasPolygon(false);
     initLayers();

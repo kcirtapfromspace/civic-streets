@@ -1,27 +1,32 @@
-// WS3: PDF report generator — main entry point
-// @react-pdf/renderer is imported lazily to avoid SSR issues with localStorage
-import type { StreetSegment, ValidationResult } from '@/lib/types';
+// Keep the PDF renderer lazy: importing it eagerly breaks SSR and bloats the main bundle.
+import type { DiscussionBriefContext, StreetSegment, ValidationResult } from '@/lib/types';
+import { loadBriefPhotos } from './pdf-evidence';
 
-/**
- * Generate a PDF report for a street design concept.
- * Lazily imports @react-pdf/renderer to avoid SSR/Node localStorage issues.
- */
+/** Generate a discussion brief with concept drawings and a scoped technical appendix. */
 export async function generatePDF(
   currentStreet: StreetSegment,
   beforeStreet: StreetSegment | null,
   validationResults: ValidationResult[],
+  briefContext?: DiscussionBriefContext,
 ): Promise<Blob> {
-  const React = await import('react');
   const { pdf } = await import('@react-pdf/renderer');
   const { StreetReportDocument } = await import('./pdf-document');
-
-  const document = React.createElement(StreetReportDocument, {
+  const photos = await loadBriefPhotos(briefContext);
+  const document = StreetReportDocument({
     currentStreet,
     beforeStreet,
     validationResults,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  }) as any;
+    briefContext,
+    photos,
+    generatedAt: Date.now(),
+  });
+  return pdf(document).toBlob();
+}
 
-  const blob = await pdf(document).toBlob();
-  return blob;
+/** Export evidence and a requested next step without inventing a street design. */
+export async function generateObservationPDF(briefContext: DiscussionBriefContext): Promise<Blob> {
+  const { pdf } = await import('@react-pdf/renderer');
+  const { ObservationBriefDocument } = await import('./pdf-document');
+  const photos = await loadBriefPhotos(briefContext);
+  return pdf(ObservationBriefDocument({ briefContext, photos, generatedAt: Date.now() })).toBlob();
 }

@@ -306,3 +306,30 @@ it('keeps a second completed road when the first request later fails', async () 
   expect(useDrawingStore.getState().selectedPath).toBe(path);
   expect(useDrawingStore.getState().streetName).toBe('Broadway');
 });
+
+
+it.each(['newroad', 'road', 'intersection'] as const)(
+  'cleans up %s drawing and listeners after the parent destroys the map style',
+  async (tool) => {
+    useDrawingStore.getState().setActiveTool(tool);
+    const map = new MapFake();
+    const { unmount } = render(<DrawingLayer map={map.asMap()} />);
+    if (tool === 'intersection') await act(() => map.emit('click', mouse()));
+    else {
+      await start(map);
+      if (tool === 'road') await act(() => map.emit('mouseup'));
+    }
+    expect(map.sources.size).toBeGreaterThan(0);
+    map.remove();
+    map.getLayer.mockImplementation(() => { throw new Error('Map style was destroyed'); });
+    map.getSource.mockImplementation(() => { throw new Error('Map style was destroyed'); });
+    expect(() => unmount()).not.toThrow();
+    expect(useDrawingStore.getState()).toMatchObject({ isDragging: false, isSnapping: false });
+    expect(map.canvas.style.cursor).toBe('');
+    expect(map.off).toHaveBeenCalledWith(tool === 'intersection' ? 'click' : 'mousedown', expect.any(Function));
+    expect(map.off).toHaveBeenCalledWith('style.load', expect.any(Function));
+    const state = useDrawingStore.getState();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(useDrawingStore.getState()).toBe(state);
+  },
+);

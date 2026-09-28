@@ -4,23 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HotspotDetail } from '../HotspotDetail';
 import type { MockHotspot } from '../mock-data';
 
-const { useJurisdictionSummaryForLocation, submitCivicReport, showToast } = vi.hoisted(() => ({
-  useJurisdictionSummaryForLocation: vi.fn(),
+const { jurisdiction, submitCivicReport } = vi.hoisted(() => ({
+  jurisdiction: vi.fn(),
   submitCivicReport: vi.fn(),
-  showToast: vi.fn(),
 }));
-
-vi.mock('@/lib/api/government', () => ({ useJurisdictionSummaryForLocation }));
+vi.mock('@/lib/api/convex-provider', () => ({ convexAvailable: true }));
+vi.mock('@/lib/api/government', () => ({ useJurisdictionSummaryForLocation: jurisdiction }));
 vi.mock('@/lib/api/civic-report', () => ({ submitCivicReport }));
 vi.mock('@/lib/api/use-hotspots', () => ({ useVoteOnHotspot: () => vi.fn() }));
-vi.mock('@/components/ui/Toast', () => ({ useToast: () => ({ showToast }) }));
-vi.mock('../VoteButton', () => ({ VoteButton: () => null }));
-vi.mock('../CommentThread', () => ({ CommentThread: () => null }));
-vi.mock('../DesignCard', () => ({ DesignCard: () => null }));
-vi.mock('@/features/government/UnsignedJurisdictionOutreachModal', () => ({
-  UnsignedJurisdictionOutreachModal: ({ isOpen }: { isOpen: boolean }) =>
-    isOpen ? <div role="dialog" aria-label="Curbwise outreach review" /> : null,
-}));
 
 const hotspot: MockHotspot = {
   id: 'denver-hotspot',
@@ -41,103 +32,84 @@ const hotspot: MockHotspot = {
   linkedDesignIds: [],
 };
 
-describe('Denver city handoff', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-    useJurisdictionSummaryForLocation.mockReturnValue({
-      summary: { isSigned: false, displayName: 'Denver, CO' },
-      isLoading: false,
-    });
-    vi.spyOn(window, 'open').mockReturnValue(null);
-  });
-
+describe('public city handoffs', () => {
+  beforeEach(() => vi.resetAllMocks());
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
   });
 
   it.each([
-    ['unsigned', { isSigned: false, displayName: 'Denver, CO' }, false],
-    ['signed', { isSigned: true, displayName: 'Denver, CO' }, false],
+    ['unsigned', { isSigned: false }, false],
+    ['signed', { isSigned: true }, false],
     ['loading', null, true],
   ])(
-    'opens the official portal while jurisdiction is %s without submitting or queuing outreach',
+    'offers the Denver portal and representative draft while jurisdiction is %s',
     (_state, summary, isLoading) => {
-      useJurisdictionSummaryForLocation.mockReturnValue({ summary, isLoading });
-      render(<HotspotDetail hotspot={hotspot} />);
-
-      const button = screen.getByRole('button', { name: 'Continue at Denver 311' });
-      expect(button).toHaveAccessibleDescription(
+      jurisdiction.mockReturnValue({ summary, isLoading });
+      const rep = vi.fn();
+      render(<HotspotDetail hotspot={hotspot} onSendToRep={rep} />);
+      fireEvent.click(screen.getByText('Optional follow-up'));
+      const link = screen.getByRole('link', { name: 'Continue at Denver 311' });
+      expect(link).toHaveAttribute(
+        'href',
+        'https://www.denvergov.org/Online-Services-Hub/Report-an-Issue',
+      );
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+      expect(link).toHaveAccessibleDescription(
         /confirm the location is inside the City and County of Denver/,
       );
-      expect(button).toHaveAccessibleDescription(
+      expect(link).toHaveAccessibleDescription(
         /details and photos are not transferred automatically/,
       );
-      fireEvent.click(button);
-
-      expect(window.open).toHaveBeenCalledWith(
-        'https://www.denvergov.org/Online-Services-Hub/Report-an-Issue',
-        '_blank',
-        'noopener,noreferrer',
-      );
+      expect(link).toHaveAccessibleDescription(/does not submit or track the city case/);
+      fireEvent.click(link);
+      fireEvent.click(screen.getByRole('button', { name: 'Prepare a representative draft' }));
+      expect(rep).toHaveBeenCalledWith(hotspot.id);
       expect(submitCivicReport).not.toHaveBeenCalled();
-      expect(showToast).not.toHaveBeenCalled();
+      expect(jurisdiction).not.toHaveBeenCalled();
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.queryByText('Government live')).not.toBeInTheDocument();
+      expect(screen.queryByText('Outreach')).not.toBeInTheDocument();
       expect(screen.queryByText('Report submitted successfully!')).not.toBeInTheDocument();
       expect(screen.queryByText(/Tracking ID:/)).not.toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Community report status' })).toBeInTheDocument();
     },
   );
 
-  it('keeps internal outreach as a separate opt-in action', () => {
-    render(<HotspotDetail hotspot={hotspot} />);
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  it.each([
+    ['Chicago', 41.8781, -87.6298, 'https://311.chicago.gov/s/service-request?language=en_US'],
+    ['New York City', 40.7128, -74.006, 'https://portal.311.nyc.gov/report-problems/'],
+  ])(
+    'offers the %s public portal without waiting for a government service',
+    (city, lat, lng, url) => {
+      jurisdiction.mockImplementation(() => {
+        throw new Error('Backend offline');
+      });
+      render(<HotspotDetail hotspot={{ ...hotspot, lat, lng, address: city }} />);
+      fireEvent.click(screen.getByText('Optional follow-up'));
+      const link = screen.getByRole('link', { name: `Continue at ${city} reporting` });
+      expect(link).toHaveAttribute('href', url);
+      fireEvent.click(link);
+      expect(jurisdiction).not.toHaveBeenCalled();
+      expect(submitCivicReport).not.toHaveBeenCalled();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.queryByText('Report submitted successfully!')).not.toBeInTheDocument();
+    },
+  );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ask Curbwise for outreach' }));
-    expect(screen.getByRole('dialog', { name: 'Curbwise outreach review' })).toBeInTheDocument();
-    expect(window.open).not.toHaveBeenCalled();
-    expect(submitCivicReport).not.toHaveBeenCalled();
-  });
-
-  it('preserves the unsigned-city flow outside the Denver routing area', () => {
-    render(
-      <HotspotDetail
-        hotspot={{ ...hotspot, lat: 41.8781, lng: -87.6298, address: 'Chicago, IL' }}
-      />,
-    );
-    expect(
-      screen.queryByRole('button', { name: 'Continue at Denver 311' }),
-    ).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Report to City' }));
-    expect(screen.getByRole('dialog', { name: 'Curbwise outreach review' })).toBeInTheDocument();
-    expect(window.open).not.toHaveBeenCalled();
-    expect(submitCivicReport).not.toHaveBeenCalled();
-  });
-
-  it('does not carry another city’s submission result onto a Denver community report', async () => {
-    useJurisdictionSummaryForLocation.mockReturnValue({
-      summary: { isSigned: true },
-      isLoading: false,
-    });
-    submitCivicReport.mockResolvedValue({ success: true, trackingId: 'chicago-case-1' });
+  it('updates the portal on navigation without carrying a city submission result to another report', () => {
     const { rerender } = render(
-      <HotspotDetail
-        hotspot={{
-          ...hotspot,
-          id: 'chicago-hotspot',
-          lat: 41.8781,
-          lng: -87.6298,
-          address: 'Chicago, IL',
-        }}
-      />,
+      <HotspotDetail hotspot={{ ...hotspot, lat: 41.8781, lng: -87.6298 }} />,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Report to City' }));
-    expect(await screen.findByText('Report submitted successfully!')).toBeInTheDocument();
-
+    fireEvent.click(screen.getByText('Optional follow-up'));
+    fireEvent.click(screen.getByRole('link', { name: 'Continue at Chicago reporting' }));
     rerender(<HotspotDetail hotspot={hotspot} />);
-    expect(screen.getByRole('button', { name: 'Continue at Denver 311' })).toBeEnabled();
+    expect(screen.getByRole('link', { name: 'Continue at Denver 311' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Continue at Chicago reporting' }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('Report submitted successfully!')).not.toBeInTheDocument();
-    expect(screen.queryByText('chicago-case-1')).not.toBeInTheDocument();
+    expect(submitCivicReport).not.toHaveBeenCalled();
   });
 });

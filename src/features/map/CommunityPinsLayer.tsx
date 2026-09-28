@@ -209,6 +209,8 @@ export function CommunityPinsLayer({ map }: CommunityPinsLayerProps) {
     const layerId = 'heatmap-layer';
 
     const cleanup = () => {
+      // The parent may have already removed the map and its style.
+      if (!map.getStyle()) return;
       if (map.getLayer(layerId)) map.removeLayer(layerId);
       if (map.getSource(sourceId)) map.removeSource(sourceId);
     };

@@ -4,6 +4,7 @@ import { useSavedProposalsStore } from '@/stores/saved-proposals-store';
 import { useProposalStore } from '@/stores/proposal-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useStyleReload } from '@/features/map/useStyleReload';
+import { useOpenProposal } from './useOpenProposal';
 import {
   renderStreetOnMap,
   cleanupMapLayers,
@@ -23,7 +24,8 @@ const SAVED_PREFIX = 'saved-';
  */
 export function SavedProposalsLayer({ map }: SavedProposalsLayerProps) {
   const proposals = useSavedProposalsStore((s) => s.proposals);
-  const removeProposal = useSavedProposalsStore((s) => s.removeProposal);
+  const { openProposal, confirmation } = useOpenProposal();
+  const activeId = useProposalStore((s) => s.proposalId);
   const mode = useWorkspaceStore((s) => s.mode);
   const styleVersion = useStyleReload(map);
 
@@ -47,6 +49,7 @@ export function SavedProposalsLayer({ map }: SavedProposalsLayerProps) {
       if (!map.isStyleLoaded()) return;
 
       for (const [id, proposal] of Object.entries(proposals)) {
+        if (mode === 'propose' && id === activeId) continue;
         const prefix = `${SAVED_PREFIX}${id}`;
         try {
           const result = renderStreetOnMap(
@@ -73,7 +76,7 @@ export function SavedProposalsLayer({ map }: SavedProposalsLayerProps) {
       map.off('styledata', render);
       cleanup();
     };
-  }, [map, proposals, styleVersion]);
+  }, [map, proposals, styleVersion, mode, activeId]);
 
   // Click to reopen in explore mode
   useEffect(() => {
@@ -98,20 +101,12 @@ export function SavedProposalsLayer({ map }: SavedProposalsLayerProps) {
       const proposal = useSavedProposalsStore.getState().getProposal(proposalId);
       if (!proposal) return;
 
-      // Remove from saved (avoid visual duplication with active proposal)
-      removeProposal(proposalId);
-
-      // Load into proposal store and enter propose mode
-      const { loadProposal } = useProposalStore.getState();
-      const { enterProposeMode } = useWorkspaceStore.getState();
-
-      loadProposal(proposal);
-      enterProposeMode(proposal.location);
+      openProposal(proposal);
     };
 
     map.on('click', onClick);
     return () => { map.off('click', onClick); };
-  }, [map, mode, removeProposal]);
+  }, [map, mode, openProposal]);
 
   // Hover cursor in explore mode
   useEffect(() => {
@@ -132,5 +127,5 @@ export function SavedProposalsLayer({ map }: SavedProposalsLayerProps) {
     };
   }, [map, mode]);
 
-  return null;
+  return confirmation;
 }

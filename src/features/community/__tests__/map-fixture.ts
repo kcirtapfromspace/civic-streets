@@ -29,6 +29,7 @@ export class TestMap {
     getEast: () => -104.9,
   };
   zoomEnabled = true;
+  removed = false;
   doubleClickZoom = {
     isEnabled: () => this.zoomEnabled,
     enable: vi.fn(() => {
@@ -41,13 +42,21 @@ export class TestMap {
   addControl = vi.fn();
   fitBounds = vi.fn();
   flyTo = vi.fn();
-  remove = vi.fn();
+  remove = vi.fn(() => {
+    this.removed = true;
+    this.sources.clear();
+    this.layers.clear();
+    this.listeners.clear();
+  });
   constructor(options: { container: HTMLElement }) {
     this.container = options.container;
     mapFixture.maps.push(this);
   }
   isStyleLoaded() {
     return mapFixture.loaded;
+  }
+  getStyle() {
+    return this.removed ? undefined : { version: 8, sources: {}, layers: [] };
   }
   getBounds() {
     return this.bounds;
@@ -85,6 +94,7 @@ export class TestMap {
     this.sources.set(id, source);
   }
   getSource(id: string) {
+    if (this.removed) throw new Error('Map style has been removed');
     return this.sources.get(id);
   }
   removeSource(id: string) {
@@ -94,6 +104,7 @@ export class TestMap {
     this.layers.set(layer.id, layer);
   }
   getLayer(id: string) {
+    if (this.removed) throw new Error('Map style has been removed');
     return this.layers.get(id);
   }
   removeLayer(id: string) {

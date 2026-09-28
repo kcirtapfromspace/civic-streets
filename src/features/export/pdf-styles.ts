@@ -2,13 +2,13 @@ import { StyleSheet } from '@react-pdf/renderer';
 
 // ── Color Palette ────────────────────────────────────────────────────────────
 export const colors = {
-  primary: '#1A365D',       // Dark navy — headings
-  secondary: '#2C5282',     // Medium blue — subheadings
-  accent: '#3182CE',        // Bright blue — links/accents
-  text: '#2D3748',          // Dark gray — body text
-  textLight: '#718096',     // Medium gray — captions
-  border: '#CBD5E0',        // Light gray — borders
-  background: '#F7FAFC',    // Very light gray — table alternating rows
+  primary: '#242424',       // Dark navy — headings
+  secondary: '#404040',     // Medium blue — subheadings
+  accent: '#C7462C',        // Bright blue — links/accents
+  text: '#333333',          // Dark gray — body text
+  textLight: '#606060',     // Medium gray — captions
+  border: '#D9D9D9',        // Light gray — borders
+  background: '#F6F6F4',    // Very light gray — table alternating rows
   white: '#FFFFFF',
 
   // Severity colors
@@ -51,7 +51,9 @@ export const ELEMENT_TYPE_COLORS: Record<string, string> = {
 export const styles = StyleSheet.create({
   // ── Page layout ─────────────────────────────────────
   page: {
-    padding: 40,
+    paddingTop: 36,
+    paddingHorizontal: 40,
+    paddingBottom: 54,
     fontFamily: 'Helvetica',
     fontSize: 10,
     color: colors.text,
@@ -92,6 +94,13 @@ export const styles = StyleSheet.create({
     fontSize: 7,
     color: colors.textLight,
   },
+
+  body: { fontSize: 10, lineHeight: 1.45, marginBottom: 6 },
+  caption: { fontSize: 8, lineHeight: 1.4, color: colors.textLight, marginBottom: 4 },
+  briefTitle: { fontSize: 24, fontFamily: 'Helvetica-Bold', marginBottom: 10, color: colors.primary },
+  note: { padding: 10, backgroundColor: colors.background, marginBottom: 12 },
+  evidencePhoto: { width: '100%', height: 180, objectFit: 'contain', marginBottom: 5 },
+  crossSectionNumber: { fontSize: 7, color: '#000000', backgroundColor: '#FFFFFF', marginBottom: 3, paddingHorizontal: 2 },
 
   // ── Cover page ──────────────────────────────────────
   coverContainer: {
@@ -152,8 +161,8 @@ export const styles = StyleSheet.create({
   crossSectionContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    height: 140,
-    marginVertical: 16,
+    height: 64,
+    marginVertical: 8,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 4,
@@ -226,8 +235,8 @@ export const styles = StyleSheet.create({
   },
   validationMessage: {
     fontSize: 8,
+    lineHeight: 1.35,
     color: colors.text,
-    flex: 1,
   },
   validationCitation: {
     fontSize: 7,

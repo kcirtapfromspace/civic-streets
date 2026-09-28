@@ -1,8 +1,16 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 import { city, crash } from './crashValidators';
+import { assistanceInput, assistanceDecision } from './reportAssistanceValidators';
 
 export default defineSchema({
+  // Private model advice; original resident report fields remain authoritative.
+  reportAssistance: defineTable({
+    userId: v.id('users'), ...assistanceInput, ...assistanceDecision,
+    model: v.string(), criteriaVersion: v.string(), createdAt: v.number(),
+    expiresAt: v.optional(v.number()), hotspotId: v.optional(v.id('hotspots')),
+    selectedIssueType: v.optional(v.string()),
+  }).index('by_expiresAt', ['expiresAt']),
   // Additive crash archive. In-flight generations are never visible to readers.
   crashMonths: defineTable({
     source: city, month: v.string(), run: v.string(), offset: v.number(),

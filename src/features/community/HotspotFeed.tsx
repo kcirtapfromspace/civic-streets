@@ -7,6 +7,7 @@ import {
 } from '@/lib/types/community';
 import type { HotspotCategory, HotspotStatus, HotspotSeverity } from '@/lib/types/community';
 import { useCommunityStore } from './community-store';
+import { convexAvailable } from '@/lib/api/convex-provider';
 import type { MockHotspot } from './mock-data';
 import { useHotspotsList } from '@/lib/api/use-hotspots';
 
@@ -107,6 +108,11 @@ function HotspotCard({ hotspot, onClick }: HotspotCardProps) {
             <Badge variant={STATUS_VARIANTS[hotspot.status]}>
               {STATUS_LABELS[hotspot.status]}
             </Badge>
+              {!convexAvailable && (
+                <Badge variant="warning">
+                  {hotspot.id.startsWith('local-') ? 'Browser session only' : 'Fictional example'}
+                </Badge>
+              )}
           </div>
 
           {/* Address */}
@@ -207,11 +213,11 @@ export function HotspotFeed({
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-900">
-            Community Hotspots
+            Observations
           </h2>
           {onCreateReport && (
             <Button variant="primary" onClick={onCreateReport}>
-              + Report Issue
+              + Add observation
             </Button>
           )}
         </div>
@@ -238,7 +244,7 @@ export function HotspotFeed({
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search hotspots..."
+              placeholder="Search observations..."
               className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             />
           </div>
@@ -283,11 +289,11 @@ export function HotspotFeed({
         {isLoading ? (
           <div className="flex items-center gap-2 py-4">
             <div className="w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-            <span className="text-xs text-gray-400">Loading hotspots...</span>
+            <span className="text-xs text-gray-400">Loading observations...</span>
           </div>
         ) : (
           <p className="text-xs text-gray-400 mb-3">
-            {filtered.length} hotspot{filtered.length !== 1 ? 's' : ''} found
+            {filtered.length} observation{filtered.length !== 1 ? 's' : ''} found
           </p>
         )}
 
@@ -306,7 +312,7 @@ export function HotspotFeed({
         {!isLoading && filtered.length === 0 && (
           <div className="text-center py-12">
             <p className="text-sm text-gray-400">
-              No hotspots match your filters.
+              No observations match your filters.
             </p>
           </div>
         )}

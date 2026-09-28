@@ -1,6 +1,7 @@
-import { useMemo, useCallback, useState, useRef, useEffect } from 'react';
+import { useMemo, useCallback, useState } from 'react';
 import { useQuery, useMutation, useAction, usePaginatedQuery } from 'convex/react';
 import { ConvexError } from 'convex/values';
+import type { FunctionArgs, FunctionReturnType } from 'convex/server';
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
 import { MAX_PHOTO_BYTES, MAX_REPORT_PHOTOS, PHOTO_CONTENT_TYPE } from '../../../shared/photo-upload';
@@ -12,15 +13,29 @@ import type { MockHotspot } from '@/features/community/mock-data';
 import type { HotspotPin, HotspotCategory, HotspotSeverity, HotspotStatus, IssueGroup, IssueType } from '@/lib/types/community';
 import type { PhotoExifData } from '../images/process-image';
 
+type PublicHotspot = FunctionReturnType<typeof api.hotspots.list>['page'][number];
+const DEMO_CREATED_AT = Date.now();
 const SESSION_KEY = 'curbwise-session';
 function getSessionToken(): string {
   try { return localStorage.getItem(SESSION_KEY) ?? ''; } catch { return ''; }
 }
 
+function preparedPhotos(images: Array<{ blob: Blob }> = []) {
+  if (images.length > MAX_REPORT_PHOTOS) {
+    throw new Error('A report can include up to three photos.');
+  }
+  for (const image of images) {
+    if (image.blob.size === 0 || image.blob.size > MAX_PHOTO_BYTES || image.blob.type !== PHOTO_CONTENT_TYPE) {
+      throw new Error('A photo could not be prepared. Please add it again.');
+    }
+  }
+  return images;
+}
+
 // ── Shape adapters ──────────────────────────────────────────────────────
 
 /** Adapt a Convex hotspot doc to MockHotspot shape (used by all UI components). */
-function convexDocToMockHotspot(doc: Record<string, any>): MockHotspot {
+function convexDocToMockHotspot(doc: PublicHotspot): MockHotspot {
   return {
     id: doc._id,
     title: doc.title,
@@ -36,12 +51,15 @@ function convexDocToMockHotspot(doc: Record<string, any>): MockHotspot {
     commentCount: doc.commentCount ?? 0,
     photoUrls: doc.photoUrls ?? [],
     authorId: doc.userId ?? 'unknown',
-    createdAt: doc.createdAt ?? doc._creationTime ?? Date.now(),
+    createdAt: doc.createdAt ?? doc._creationTime ?? 0,
     linkedDesignIds: doc.designId ? [doc.designId] : [],
+    issueGroup: doc.issueGroup as IssueGroup | undefined,
+    issueType: doc.issueType,
+    isBlocking: doc.isBlocking,
   };
 }
 
-function convexDocToPin(doc: Record<string, any>): HotspotPin {
+function convexDocToPin(doc: PublicHotspot): HotspotPin {
   return {
     id: doc._id,
     title: doc.title,
@@ -78,16 +96,23 @@ interface HotspotFilters {
   sort?: 'votes' | 'newest' | 'nearest';
 }
 
+function sortHotspots(items: MockHotspot[], sort: HotspotFilters['sort']) {
+  return [...items].sort((a, b) =>
+    sort === 'newest' || sort === 'nearest'
+      ? b.createdAt - a.createdAt
+      : (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes),
+  );
+}
+
 // ══════════════════════════════════════════════════════════════════════════
 // CONVEX IMPLEMENTATIONS — used when VITE_CONVEX_URL is set
 // ══════════════════════════════════════════════════════════════════════════
 
 function useHotspotsListConvex(filters?: HotspotFilters) {
-  const category = filters?.category;
-  const status = filters?.status;
+  const { category, status, sort } = filters ?? {};
 
   const queryArgs = useMemo(() => {
-    const args: Record<string, unknown> = {
+    const args: FunctionArgs<typeof api.hotspots.list> = {
       paginationOpts: { numItems: 200, cursor: null },
     };
     if (category) args.category = category;
@@ -95,56 +120,25 @@ function useHotspotsListConvex(filters?: HotspotFilters) {
     return args;
   }, [category, status]);
 
-  const convexResult = useQuery(api.hotspots.list, queryArgs as any);
+  const convexResult = useQuery(api.hotspots.list, queryArgs);
 
-  const hotspots = useMemo(() => {
-    if (!convexResult) return []; // loading
-    let items = convexResult.page.map(convexDocToMockHotspot);
-
-    switch (filters?.sort) {
-      case 'newest':
-        items.sort((a, b) => b.createdAt - a.createdAt);
-        break;
-      case 'nearest':
-        items.sort((a, b) => b.createdAt - a.createdAt);
-        break;
-      case 'votes':
-      default:
-        items.sort((a, b) => b.upvotes - a.upvotes);
-        break;
-    }
-    return items;
-  }, [convexResult, filters?.sort]);
+  const hotspots = sortHotspots(convexResult?.page.map(convexDocToMockHotspot) ?? [], sort);
 
   return { hotspots, isLoading: convexResult === undefined };
 }
 
 function useHotspotByIdConvex(id: string | undefined) {
-  // Convex IDs are longer strings; mock IDs are short like "h1"
+  // Reject legacy demo IDs without reading example records in a connected app.
   const isConvexId = !!id && id.length > 10;
 
   const convexDoc = useQuery(
     api.hotspots.getById,
-    isConvexId ? { hotspotId: id as any } : 'skip',
+    isConvexId ? { hotspotId: id as Id<'hotspots'> } : 'skip',
   );
 
   const hotspot = useMemo(() => {
     if (!id) return null;
-    if (isConvexId) {
-      return convexDoc ? convexDocToMockHotspot(convexDoc) : null;
-    }
-    // Fall back to mock data for legacy IDs
-    const mock = COMMUNITY_MOCK_HOTSPOTS.find((h) => h.id === id);
-    if (mock) return mock;
-    const mapPin = MAP_MOCK_HOTSPOTS.find((h) => h.id === id);
-    if (mapPin) return {
-      id: mapPin.id, title: mapPin.title, description: '',
-      category: mapPin.category, severity: mapPin.severity, status: mapPin.status,
-      address: '', lat: mapPin.lat, lng: mapPin.lng, upvotes: mapPin.upvotes,
-      downvotes: 0, commentCount: mapPin.commentCount, photoUrls: [],
-      authorId: 'unknown', createdAt: Date.now(), linkedDesignIds: [],
-    } as MockHotspot;
-    return null;
+    return isConvexId && convexDoc ? convexDocToMockHotspot(convexDoc) : null;
   }, [id, isConvexId, convexDoc]);
 
   return { hotspot, isLoading: isConvexId && convexDoc === undefined };
@@ -173,6 +167,7 @@ function useCreateHotspotConvex() {
 
   return useCallback(
     async (data: {
+      reportAssistanceId?: Id<'reportAssistance'>;
       title: string;
       description: string;
       category: HotspotCategory;
@@ -193,15 +188,7 @@ function useCreateHotspotConvex() {
         throw new Error('Your reporting session is still getting ready. Wait a moment and try again.');
       }
 
-      const images = data.processedImages ?? [];
-      if (images.length > MAX_REPORT_PHOTOS) {
-        throw new Error('A report can include up to three photos.');
-      }
-      for (const image of images) {
-        if (image.blob.size === 0 || image.blob.size > MAX_PHOTO_BYTES || image.blob.type !== PHOTO_CONTENT_TYPE) {
-          throw new Error('A photo could not be prepared. Please add it again.');
-        }
-      }
+      const images = preparedPhotos(data.processedImages);
 
       // The action validates and owns the received bytes; arbitrary storage IDs
       // and browser-only preview URLs cannot become another user's report photo.
@@ -232,6 +219,7 @@ function useCreateHotspotConvex() {
         : undefined;
 
       return createMutation({
+        reportAssistanceId: data.reportAssistanceId,
         sessionToken,
         title: data.title,
         description: data.description || data.title,
@@ -261,12 +249,14 @@ function useVoteOnHotspotConvex() {
   return useCallback(
     async (hotspotId: string, value: 1 | -1) => {
       const sessionToken = getSessionToken();
-      if (!sessionToken) return;
-      // Only vote on Convex hotspots (long IDs)
-      if (hotspotId.length <= 10) return;
+      if (!sessionToken) {
+        throw new Error('Your voting session is still getting ready. Wait a moment and try again.');
+      }
+      // Demo IDs cannot receive community votes.
+      if (hotspotId.length <= 10) throw new Error('Only published reports can receive community votes.');
       return voteMutation({
         sessionToken,
-        hotspotId: hotspotId as any,
+        hotspotId: hotspotId as Id<'hotspots'>,
         value,
       });
     },
@@ -287,27 +277,16 @@ function useMergedMockHotspots(): MockHotspot[] {
 }
 
 function useHotspotsListMock(filters?: HotspotFilters) {
+  const { category, status, sort } = filters ?? {};
   const allHotspots = useMergedMockHotspots();
 
   const filtered = useMemo(() => {
     let items = [...allHotspots];
-    if (filters?.category) items = items.filter((h) => h.category === filters.category);
-    if (filters?.status) items = items.filter((h) => h.status === filters.status);
+    if (category) items = items.filter((h) => h.category === category);
+    if (status) items = items.filter((h) => h.status === status);
 
-    switch (filters?.sort) {
-      case 'newest':
-        items.sort((a, b) => b.createdAt - a.createdAt);
-        break;
-      case 'nearest':
-        items.sort((a, b) => b.createdAt - a.createdAt);
-        break;
-      case 'votes':
-      default:
-        items.sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
-        break;
-    }
-    return items;
-  }, [allHotspots, filters?.category, filters?.status, filters?.sort]);
+    return sortHotspots(items, sort);
+  }, [allHotspots, category, status, sort]);
 
   return { hotspots: filtered, isLoading: false };
 }
@@ -325,7 +304,7 @@ function useHotspotByIdMock(id: string | undefined) {
       category: mapPin.category, severity: mapPin.severity, status: mapPin.status,
       address: '', lat: mapPin.lat, lng: mapPin.lng, upvotes: mapPin.upvotes,
       downvotes: 0, commentCount: mapPin.commentCount, photoUrls: [],
-      authorId: 'unknown', createdAt: Date.now(), linkedDesignIds: [],
+      authorId: 'unknown', createdAt: DEMO_CREATED_AT, linkedDesignIds: [],
     } as MockHotspot;
     return null;
   }, [id, allHotspots]);
@@ -356,12 +335,25 @@ function useHotspotsByBoundsMock(bounds?: {
 function useCreateHotspotMock() {
   const addHotspot = useLocalHotspotsStore((s) => s.addHotspot);
   return useCallback(
-    (data: {
+    async (data: {
       title: string; description: string;
       category: HotspotCategory; severity: HotspotSeverity;
-      lat: number; lng: number; address: string; photoUrls: string[];
+      lat: number; lng: number; address: string; photoUrls?: string[];
       issueGroup?: IssueGroup; issueType?: IssueType; isBlocking?: boolean;
-    }) => addHotspot(data),
+      processedImages?: Array<{ blob: Blob; exif: PhotoExifData | null }>;
+    }) => {
+      // The form owns and revokes its preview URLs. Keep independent image bytes
+      // in browser memory so opening a locally saved report still shows photos.
+      const photoUrls = await Promise.all(preparedPhotos(data.processedImages).map(({ blob }) =>
+        new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reader.onabort = () => reject(new Error('A photo could not be saved in this browser session. Please try again.'));
+          reader.readAsDataURL(blob);
+        }),
+      ));
+      return addHotspot({ ...data, photoUrls });
+    },
     [addHotspot],
   );
 }
@@ -381,11 +373,10 @@ function useVoteOnHotspotMock() {
 const PAGE_SIZE = 20;
 
 function useHotspotsListPaginatedConvex(filters?: HotspotFilters) {
-  const category = filters?.category;
-  const status = filters?.status;
+  const { category, status, sort } = filters ?? {};
 
   const queryArgs = useMemo(() => {
-    const args: Record<string, unknown> = {};
+    const args: Omit<FunctionArgs<typeof api.hotspots.list>, 'paginationOpts'> = {};
     if (category) args.category = category;
     if (status) args.status = status;
     return args;
@@ -393,27 +384,11 @@ function useHotspotsListPaginatedConvex(filters?: HotspotFilters) {
 
   const { results, status: paginationStatus, loadMore } = usePaginatedQuery(
     api.hotspots.list,
-    queryArgs as any,
+    queryArgs,
     { initialNumItems: PAGE_SIZE },
   );
 
-  const hotspots = useMemo(() => {
-    let items = results.map(convexDocToMockHotspot);
-
-    switch (filters?.sort) {
-      case 'newest':
-        items.sort((a, b) => b.createdAt - a.createdAt);
-        break;
-      case 'nearest':
-        items.sort((a, b) => b.createdAt - a.createdAt);
-        break;
-      case 'votes':
-      default:
-        items.sort((a, b) => b.upvotes - a.upvotes);
-        break;
-    }
-    return items;
-  }, [results, filters?.sort]);
+  const hotspots = sortHotspots(results.map(convexDocToMockHotspot), sort);
 
   return {
     hotspots,
@@ -424,38 +399,22 @@ function useHotspotsListPaginatedConvex(filters?: HotspotFilters) {
 }
 
 function useHotspotsListPaginatedMock(filters?: HotspotFilters) {
+  const { category, status, sort } = filters ?? {};
   const allHotspots = useMergedMockHotspots();
-  const [page, setPage] = useState(1);
-
-  // Reset page when filters change
-  const filterKey = `${filters?.category}-${filters?.status}-${filters?.sort}`;
-  const prevFilterKey = useRef(filterKey);
-  useEffect(() => {
-    if (prevFilterKey.current !== filterKey) {
-      setPage(1);
-      prevFilterKey.current = filterKey;
-    }
-  }, [filterKey]);
+  const filterKey = `${category}-${status}-${sort}`;
+  const [pagination, setPagination] = useState({ filterKey, page: 1 });
+  if (pagination.filterKey !== filterKey) {
+    setPagination({ filterKey, page: 1 });
+  }
+  const page = pagination.page;
 
   const filtered = useMemo(() => {
     let items = [...allHotspots];
-    if (filters?.category) items = items.filter((h) => h.category === filters.category);
-    if (filters?.status) items = items.filter((h) => h.status === filters.status);
+    if (category) items = items.filter((h) => h.category === category);
+    if (status) items = items.filter((h) => h.status === status);
 
-    switch (filters?.sort) {
-      case 'newest':
-        items.sort((a, b) => b.createdAt - a.createdAt);
-        break;
-      case 'nearest':
-        items.sort((a, b) => b.createdAt - a.createdAt);
-        break;
-      case 'votes':
-      default:
-        items.sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
-        break;
-    }
-    return items;
-  }, [allHotspots, filters?.category, filters?.status, filters?.sort]);
+    return sortHotspots(items, sort);
+  }, [allHotspots, category, status, sort]);
 
   const paginated = useMemo(() => filtered.slice(0, page * PAGE_SIZE), [filtered, page]);
 
@@ -463,7 +422,7 @@ function useHotspotsListPaginatedMock(filters?: HotspotFilters) {
     hotspots: paginated,
     isLoading: false,
     hasMore: paginated.length < filtered.length,
-    loadMore: () => setPage((p) => p + 1),
+    loadMore: () => setPagination((previous) => ({ ...previous, page: previous.page + 1 })),
   };
 }
 

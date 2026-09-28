@@ -18,6 +18,7 @@ const { billing, organization, hub, portal, checkout, refresh, submitLead } = vi
   refresh: vi.fn(),
   submitLead: vi.fn(),
 }));
+vi.mock('@/lib/api/convex-provider', () => ({ convexAvailable: true }));
 vi.mock('@/lib/api/billing', () => ({ useBilling: billing }));
 vi.mock('@/lib/api/organization', () => ({ useOrganizationContext: organization }));
 vi.mock('@/lib/api/auth', () => ({ useAuth: () => ({ user: null }) }));

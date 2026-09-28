@@ -1,47 +1,12 @@
 import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { GovernmentLeadForm } from '@/features/government/GovernmentLeadForm';
 
-const HERO_VIDEO = '/demo-videos/curbwise-demo.webm';
-const HERO_POSTER = '/demo-screenshots/08-satellite-with-proposal.png';
-const SCREENSHOT_CRASH = '/demo-screenshots/03-crash-heatmap-layers.png';
-const SCREENSHOT_PROPOSAL = '/demo-screenshots/06-proposal-review.png';
-const SCREENSHOT_INTERSECTION = '/demo-screenshots/12-intersection-review.png';
+const BROADWAY_PLAN_URL = 'https://denvergov.org/files/assets/public/v/1/doti/documents/programsservices/denver-moves-downtown/denver-moves-downtown-broadway-central-grand.pdf';
 
 const DATA_SOURCES = [
+  { city: 'Denver', source: 'Denver Police Department', range: 'Previous 5 calendar years + current year' },
   { city: 'New York City', source: 'NYC OpenData / NYPD', range: '2012-present' },
   { city: 'Chicago', source: 'City of Chicago / CPD E-Crash', range: '2015-present' },
-  { city: 'Denver', source: 'Denver Police Department', range: 'Previous 5 calendar years + current year' },
-];
-
-const FEATURES = [
-  {
-    title: 'See the pattern fast',
-    description:
-      'Crash clusters, hotspots, and issue context land on one map so the dangerous block is obvious before the meeting starts.',
-    icon: HeatmapIcon,
-    image: SCREENSHOT_CRASH,
-  },
-  {
-    title: 'Sketch the fix in minutes',
-    description:
-      'Generate corridor and cross-section concepts quickly enough to keep up with workshops, committees, and corridor reviews.',
-    icon: RoadIcon,
-    image: SCREENSHOT_PROPOSAL,
-  },
-  {
-    title: 'Carry the work into government',
-    description:
-      'When a town or city is ready, Curbwise becomes the internal coordination layer instead of forcing staff into scattered files.',
-    icon: IntersectionIcon,
-    image: SCREENSHOT_INTERSECTION,
-  },
-];
-
-const GOVERNMENT_POINTS = [
-  'Private workspaces and internal review',
-  'Official contact routing and onboarding help',
-  'Manual contracting for towns, cities, and agencies',
 ];
 
 export default function LandingPage() {
@@ -49,332 +14,174 @@ export default function LandingPage() {
 
   useEffect(() => {
     if (!location.hash) return;
-    const targetId = location.hash.replace('#', '');
+    // Older municipal-sales links now lead to the observation-saving explanation.
+    const targetId = location.hash === '#government' ? 'reporting' : location.hash.replace('#', '');
     const target = document.getElementById(targetId);
     if (!target) return;
-    requestAnimationFrame(() => {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const frame = requestAnimationFrame(() => {
+      target.scrollIntoView({ behavior: 'auto', block: 'start' });
     });
+    return () => cancelAnimationFrame(frame);
   }, [location.hash]);
 
   return (
-    <div className="min-h-screen bg-stone-50 text-slate-950">
-      <section className="relative overflow-hidden border-b border-white/10">
-        <div className="absolute inset-0">
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            poster={HERO_POSTER}
-            className="h-full w-full object-cover"
-          >
-            <source src={HERO_VIDEO} type="video/webm" />
-          </video>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(56,189,248,0.22),transparent_28%),linear-gradient(180deg,rgba(2,6,23,0.64),rgba(2,6,23,0.82))]" />
+    <div className="min-h-screen bg-civic-paper text-civic-ink">
+      <a href="#main-content" className="skip-link">Skip to content</a>
+      <header className="border-b border-civic-line">
+        <div className="mx-auto flex min-h-16 max-w-5xl items-center justify-between gap-4 px-5 sm:px-8">
+          <Link to="/" className="inline-flex min-h-11 items-center gap-2 text-base font-semibold tracking-tight" aria-label="Curbwise home">
+            <StreetMark />
+            Curbwise
+          </Link>
+          <Link to="/account" className="inline-flex min-h-11 items-center text-sm text-civic-muted hover:text-civic-ink">Account</Link>
         </div>
+      </header>
 
-        <div className="relative z-10 mx-auto max-w-7xl px-6 pb-24 pt-24 lg:px-10 lg:pb-36 lg:pt-32">
-          <div className="grid gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-white/78 backdrop-blur">
-                <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                Crash-informed civic street work
-              </div>
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl px-5 pb-8 sm:px-8">
+        <section className="pb-8 pt-10 sm:pb-10 sm:pt-14">
+          <p className="text-sm text-civic-muted">A place to work on your street</p>
+          <h1 className="mt-3 max-w-xl text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1.14] tracking-[-0.035em]">Turn a street concern into a clear proposal.</h1>
+          <p className="mt-4 max-w-xl text-base leading-7 text-civic-muted">Show what needs attention. Explore how the space could change. Bring a discussion brief to your neighbors, an organizer, or a planning conversation.</p>
+          <Link to="/map" className="mt-6 inline-flex min-h-12 items-center justify-center gap-5 rounded-md bg-civic-ink px-5 text-sm font-semibold text-white transition-colors hover:bg-[#30414a]">
+            Start with a place <span aria-hidden="true">→</span>
+          </Link>
+        </section>
 
-              <h1 className="mt-8 max-w-4xl text-5xl font-black leading-[0.95] tracking-[-0.04em] text-white sm:text-6xl lg:text-8xl">
-                Find the dangerous block.
-                <span className="block text-sky-300">Sketch the fix.</span>
-                <span className="block text-white/80">Bring the city in.</span>
-              </h1>
-
-              <p className="mt-6 max-w-2xl text-base leading-7 text-white/72 sm:text-lg">
-                Curbwise keeps the public street-safety layer open, then helps
-                towns and cities wire up the internal side when they are ready.
-              </p>
-
-              <div className="mt-10 flex flex-wrap gap-4">
-                <Link
-                  to="/map"
-                  className="inline-flex items-center gap-2 rounded-full bg-sky-400 px-7 py-3.5 text-sm font-semibold text-slate-950 shadow-[0_20px_60px_rgba(56,189,248,0.32)] transition hover:bg-sky-300"
-                >
-                  Open the Map
-                </Link>
-                <a
-                  href="#government"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/18 bg-white/8 px-7 py-3.5 text-sm font-semibold text-white/88 backdrop-blur transition hover:bg-white/14"
-                >
-                  For Towns and Cities
-                </a>
-                <a
-                  href="#features"
-                  className="inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm font-medium text-white/72 transition hover:text-white"
-                >
-                  See the workflow
-                </a>
-              </div>
-            </div>
-
-            <div className="rounded-[32px] border border-white/12 bg-white/10 p-6 backdrop-blur-xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55">
-                What stays open
-              </p>
-              <p className="mt-4 text-2xl font-semibold leading-tight text-white">
-                Hotspots, public proposals, and civic reporting remain available.
-              </p>
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                {[
-                  ['Map hotspots', 'Open'],
-                  ['Public proposals', 'Open'],
-                  ['Government setup', 'Contact us'],
-                ].map(([label, value]) => (
-                  <div
-                    key={label}
-                    className="rounded-2xl border border-white/10 bg-slate-950/20 px-4 py-4"
-                  >
-                    <p className="text-xs uppercase tracking-[0.2em] text-white/45">
-                      {label}
-                    </p>
-                    <p className="mt-2 text-sm font-medium text-white">{value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-stone-50 to-transparent" />
-      </section>
-
-      <section className="border-b border-stone-200 py-12">
-        <div className="mx-auto max-w-6xl px-6">
-          <p className="text-center text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">
-            Built on public safety data
-          </p>
-          <div className="mt-8 grid gap-5 sm:grid-cols-3">
-            {DATA_SOURCES.map((source) => (
-              <div
-                key={source.city}
-                className="rounded-3xl border border-stone-200 bg-white px-5 py-5 text-center shadow-[0_8px_30px_rgba(15,23,42,0.04)]"
-              >
-                <p className="text-sm font-semibold text-slate-900">{source.city}</p>
-                <p className="mt-1 text-xs text-slate-500">{source.source}</p>
-                <p className="mt-2 text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                  {source.range}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="features" className="py-20 lg:py-28">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="max-w-2xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
-              Workflow
-            </p>
-            <h2 className="mt-4 text-4xl font-black tracking-[-0.04em] text-slate-950 sm:text-5xl">
-              One street-safety loop, from signal to concept.
-            </h2>
-          </div>
-
-          <div className="mt-16 flex flex-col gap-16">
-            {FEATURES.map((feature, index) => {
-              const Icon = feature.icon;
-              const reversed = index % 2 === 1;
-
-              return (
-                <div
-                  key={feature.title}
-                  className={`grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center ${reversed ? 'lg:[&>*:first-child]:order-2' : ''}`}
-                >
-                  <div className="max-w-xl">
-                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <h3 className="mt-6 text-3xl font-semibold tracking-tight text-slate-950">
-                      {feature.title}
-                    </h3>
-                    <p className="mt-4 text-base leading-7 text-slate-600">
-                      {feature.description}
-                    </p>
-                  </div>
-
-                  <div className="overflow-hidden rounded-[28px] border border-stone-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.08)]">
-                    <img
-                      src={feature.image}
-                      alt={feature.title}
-                      className="w-full"
-                      loading="lazy"
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <section className="border-y border-stone-200 bg-white py-20 lg:py-24">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="grid gap-8 lg:grid-cols-3">
-            {[
-              ['1', 'Search the block', 'Center the map, pull in crash context, and identify the exact curb or intersection that needs attention.'],
-              ['2', 'Shape the proposal', 'Switch into design mode, apply a transformation, and review the concept without leaving the workflow.'],
-              ['3', 'Move the jurisdiction', 'If the city is not live yet, Curbwise starts the government-side follow-up instead of dropping the thread.'],
-            ].map(([step, title, description]) => (
-              <div
-                key={step}
-                className="rounded-[28px] border border-stone-200 bg-stone-50 px-6 py-6"
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">
-                  {step}
-                </div>
-                <h3 className="mt-5 text-xl font-semibold text-slate-950">
-                  {title}
-                </h3>
-                <p className="mt-3 text-sm leading-6 text-slate-600">
-                  {description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="government" className="relative overflow-hidden bg-[#f4efe5] py-20 lg:py-28">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_25%),radial-gradient(circle_at_bottom_right,rgba(15,23,42,0.08),transparent_30%)]" />
-        <div className="relative mx-auto grid max-w-6xl gap-10 px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+        <section id="features" className="grid scroll-mt-5 items-start gap-7 border-t border-civic-line pt-6 md:grid-cols-[0.8fr_1.2fr]">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-              For Towns and Cities
+          <h2 className="text-base font-semibold">From something you notice to something you can discuss.</h2>
+          <dl className="mt-4 space-y-3 text-sm leading-6">
+            <div className="grid grid-cols-[6rem_1fr] gap-4">
+              <dt className="font-medium">Concern</dt>
+              <dd className="text-civic-muted">Mark the place, describe what happens, and add a photo. An observation is enough to start.</dd>
+            </div>
+            <div className="grid grid-cols-[6rem_1fr] gap-4">
+              <dt className="font-medium">Explore</dt>
+              <dd className="text-civic-muted">Try a street layout and see what changes. Keep estimates and open questions visible.</dd>
+            </div>
+            <div className="grid grid-cols-[6rem_1fr] gap-4">
+              <dt className="font-medium">Brief</dt>
+              <dd className="text-civic-muted">Download your evidence, an optional concept, and what you’re asking for in one PDF.</dd>
+            </div>
+          </dl>
+          <details id="reporting" className="mt-5 scroll-mt-5 text-xs leading-5 text-civic-muted">
+            <summary className="min-h-11 cursor-pointer py-3">About saving an observation</summary>
+            <p className="mt-1">Adding an observation to Curbwise does not send it to a city or 311.</p>
+          </details>
+          </div>
+          <figure className="min-w-0" aria-labelledby="map-demo-caption">
+            <video
+              controls
+              playsInline
+              preload="none"
+              width="1440"
+              height="900"
+              poster="/demo-screenshots/08-satellite-with-proposal.png"
+              aria-label="Map and street concept demo"
+              aria-describedby="map-demo-description"
+              className="aspect-[8/5] w-full rounded border border-civic-line bg-civic-wash"
+            >
+              <source src="/demo-videos/curbwise-demo-compatible.mp4" type="video/mp4" />
+              <source src="/demo-videos/curbwise-demo.webm" type="video/webm" />
+              This silent demo shows a Chicago map search, crash layers, and street concepts.
+            </video>
+            <figcaption id="map-demo-caption" className="mt-3 text-sm font-medium">
+              A closer look at the map <span className="font-normal text-civic-muted">· 46 seconds</span>
+            </figcaption>
+            <p id="map-demo-description" className="mt-1 text-xs leading-5 text-civic-muted">
+              Earlier interface. This silent walkthrough explores Humboldt Park, Chicago, crash layers,
+              and optional street concepts. Crash markers are separate from community observations.
             </p>
-            <h2 className="mt-4 text-4xl font-black tracking-[-0.04em] text-slate-950 sm:text-5xl">
-              Need the government side wired up?
-            </h2>
-            <p className="mt-5 max-w-xl text-base leading-7 text-slate-700">
-              Tell us the jurisdiction, the team, and what needs to be unlocked.
-              We handle scope and onboarding directly instead of pushing a public
-              pricing page.
-            </p>
+          </figure>
+        </section>
 
-            <div className="mt-8 space-y-3">
-              {GOVERNMENT_POINTS.map((point) => (
-                <div
-                  key={point}
-                  className="flex items-start gap-3 rounded-2xl border border-black/5 bg-white/70 px-4 py-4"
-                >
-                  <div className="mt-1 h-2.5 w-2.5 rounded-full bg-sky-500" />
-                  <p className="text-sm leading-6 text-slate-700">{point}</p>
+        <section aria-label="Street concept example" className="mt-8 rounded border border-civic-line">
+          <p className="px-4 py-4 text-sm leading-6 text-civic-muted sm:px-6">A concept makes the choices visible. Save a draft as you explore; bring your concern, assumptions, and requested next step into the discussion brief.</p>
+          <figure className="overflow-hidden border-t border-civic-line" aria-labelledby="broadway-caption">
+            <div className="flex flex-wrap items-center justify-between gap-1 border-b border-civic-line px-4 py-3 sm:px-6">
+              <h2 className="text-sm font-semibold">Broadway, Denver</h2>
+              <span className="text-xs text-civic-muted">A concept to discuss</span>
+            </div>
+            <BroadwayConcept />
+            <figcaption id="broadway-caption" className="border-t border-civic-line px-4 py-4 sm:px-6">
+              <p className="text-sm font-medium">One street. Different ways to share the space.</p>
+              <p className="mt-1 text-xs leading-5 text-civic-muted">Original illustration only. Not to scale, a current-condition survey, or an approved project.</p>
+            </figcaption>
+            <details id="broadway-notes" className="border-t border-civic-line">
+              <summary className="cursor-pointer px-4 py-4 text-sm font-medium marker:text-civic-muted sm:px-6">Sources, assumptions, and open questions</summary>
+              <div className="space-y-5 px-4 pb-5 text-sm leading-6 text-civic-muted sm:px-6">
+                <p>Denver’s <cite className="not-italic">Denver Moves: Downtown</cite> plan considers walking, protected bicycling, and dedicated transit on Broadway. This sketch explores those choices; it does not reproduce the city’s plan or describe today’s street. <a href={BROADWAY_PLAN_URL} className="font-medium text-civic-ink underline underline-offset-4">City’s Broadway corridor plan (PDF)</a></p>
+                <div>
+                  <h3 className="font-medium text-civic-ink">Still to work out</h3>
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    <li>How people reach bus stops and cross the bikeway.</li>
+                    <li>Where deliveries and accessible pickup fit.</li>
+                    <li>What site measurements, turning movements, and maintenance needs allow.</li>
+                  </ul>
+                  <p className="mt-2">These are discussion questions, not field-research findings. Concepts need site measurements, engineering review, and city approval before implementation.</p>
                 </div>
-              ))}
-            </div>
-
-            <p className="mt-8 text-sm text-slate-500">
-              Already inside the app? You can manage jurisdiction status and
-              contact Curbwise from <Link to="/account" className="font-medium text-slate-900 underline">Account</Link>.
-            </p>
-          </div>
-
-          <GovernmentLeadForm
-            sourceSurface="landing"
-            title="Request municipal onboarding"
-            description="Share the jurisdiction and the internal workflow you need. We will follow up directly."
-            submitLabel="Send setup request"
-          />
-        </div>
-      </section>
-
-      <footer className="border-t border-stone-200 bg-stone-50 py-10">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 text-center sm:flex-row sm:text-left">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950 text-white">
-              <svg
-                className="h-4 w-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M4 19L8 5" />
-                <path d="M16 5L20 19" />
-                <path d="M12 6V8" />
-                <path d="M12 11V13" />
-                <path d="M12 16V18" />
-              </svg>
-            </div>
-            <span className="text-sm font-semibold text-slate-900">Curbwise</span>
-          </div>
-          <p className="text-xs text-slate-500">
-            Street safety workspace built on public crash data from NYC, Chicago,
-            and Denver.
-          </p>
-        </div>
-      </footer>
+                <div>
+                  <h3 className="font-medium text-civic-ink">Crash records available in the map</h3>
+                  <dl className="mt-2 space-y-2">
+                    {DATA_SOURCES.map((source) => (
+                      <div key={source.city}>
+                        <dt className="font-medium text-civic-ink">{source.city}</dt>
+                        <dd><span>{source.source}</span> · <span>{source.range}</span></dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <p className="mt-3 text-xs leading-5">Records add context. They do not describe every street condition or replace a site visit.</p>
+                </div>
+              </div>
+            </details>
+          </figure>
+        </section>
+      </main>
     </div>
   );
 }
 
-function HeatmapIcon({ className }: { className?: string }) {
+function StreetMark() {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 17h4v4" />
-      <path d="M7 7h4V3" />
-      <path d="M17 21v-4h4" />
-      <path d="M21 7h-4V3" />
-      <circle cx="8.5" cy="8.5" r="1.5" />
-      <circle cx="15.5" cy="8.5" r="2.2" />
-      <circle cx="11.5" cy="14.5" r="2.7" />
-      <circle cx="17.5" cy="16.5" r="1.4" />
+    <svg aria-hidden="true" className="h-6 w-6 text-civic-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <path d="m3 20 5-16m8 0 5 16M12 5v3m0 3v3m0 3v3" />
     </svg>
   );
 }
 
-function RoadIcon({ className }: { className?: string }) {
+function BroadwayConcept() {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M7 3h10l4 18H3L7 3Z" />
-      <path d="M12 6v2" />
-      <path d="M12 12v2" />
-      <path d="M12 18v.5" />
-    </svg>
-  );
-}
-
-function IntersectionIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M10 3v6.5a2.5 2.5 0 0 1-5 0V3" />
-      <path d="M14 21v-6.5a2.5 2.5 0 0 1 5 0V21" />
-      <path d="M3 10h6.5a2.5 2.5 0 0 1 0 5H3" />
-      <path d="M21 14h-6.5a2.5 2.5 0 0 1 0-5H21" />
-    </svg>
+    <div className="bg-civic-wash px-3 pb-4 pt-4 sm:px-6">
+      <svg role="img" aria-labelledby="broadway-diagram-title" aria-describedby="broadway-diagram-description" viewBox="0 0 880 218" className="w-full">
+        <title id="broadway-diagram-title">Illustrative Broadway street-space concept</title>
+        <desc id="broadway-diagram-description">A not-to-scale discussion sketch with space for walking, protected biking, transit, and street access. It does not show current conditions or a city-approved design.</desc>
+        <path d="M20 190h174v20H20z" fill="#dce2e4" />
+        <path d="M194 200h145v10H194z" fill="#e7bcb3" />
+        <path d="M339 193h29v17h-29z" fill="#b2bec4" />
+        <path d="M368 200h259v10H368zM627 200h233v10H627z" fill="#dce2e4" />
+        <path d="M20 211h840" stroke="#172126" strokeWidth="2" />
+        <g fill="none" stroke="#172126" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M69 189v-63M69 146l-12-12m12 30 16-13" />
+          <path d="M53 89c-18 16-18 43 15 42 31 6 46-25 22-37-5-26-31-28-37-5Z" fill="#e1e6e8" />
+          <circle cx="136" cy="132" r="8" fill="#fff" />
+          <path d="m136 142-6 28m6-28 12 18m-15-5-14 9m11 6-9 20m9-20 14 20" />
+          <circle cx="235" cy="184" r="15" /><circle cx="294" cy="184" r="15" />
+          <path d="m235 184 18-28 18 28h-36m18-28h28l13 28m-24-43h17m-29 12 12-23m0 0 10-7" />
+          <circle cx="282" cy="109" r="7" fill="#fff" />
+          <path d="m276 120-20 13 12 17 18-9" />
+          <rect x="399" y="95" width="196" height="96" rx="8" fill="#fff" />
+          <path d="M413 110h43v31h-43zM467 110h43v31h-43zM527 109h50v77h-50z" fill="#e1e6e8" />
+          <path d="M413 161h97M552 111v75" />
+          <circle cx="429" cy="193" r="10" fill="#172126" /><circle cx="566" cy="193" r="10" fill="#172126" />
+          <path d="m665 162 20-32h70l22 32 24 10v24H650v-24z" fill="#fff" />
+          <path d="m692 139-12 23h81l-13-23z" fill="#e1e6e8" />
+          <circle cx="680" cy="195" r="10" fill="#172126" /><circle cx="776" cy="195" r="10" fill="#172126" />
+          <path d="M354 192v-26m-7 0h14" />
+        </g>
+      </svg>
+      <div className="grid grid-cols-[174fr_174fr_259fr_233fr] gap-1 px-[2.3%] pt-2 text-center text-xs leading-4 text-civic-muted">
+        <span>Walk &amp; roll</span><span>Protected biking</span><span>Transit</span><span>Street access</span>
+      </div>
+    </div>
   );
 }

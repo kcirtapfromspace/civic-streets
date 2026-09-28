@@ -117,6 +117,29 @@ export interface BeforePreset {
   suggestedTransformations: string[];
 }
 
+/** Evidence captured when a proposal starts, retained even if its source changes. */
+export interface ObservationSnapshot {
+  id: string;
+  title: string;
+  description: string;
+  photoUrls: string[];
+  lat: number;
+  lng: number;
+  address: string;
+  createdAt: number;
+  source: 'community' | 'example' | 'browser-session';
+}
+
+/** The resident's purpose and assumptions, shared by the draft and its export. */
+export interface DiscussionBriefContext {
+  concern: string;
+  desiredOutcome: string;
+  requestedNextStep: string;
+  dimensionBasis: 'assumed' | 'estimated' | 'measured';
+  dimensionSource: string;
+  observation?: ObservationSnapshot;
+}
+
 export interface StreetProposal {
   id: string;
   streetName: string;
@@ -127,5 +150,6 @@ export interface StreetProposal {
   beforeStreet: StreetSegment;
   afterStreet: StreetSegment;
   transformationTemplateId: string;
+  briefContext?: DiscussionBriefContext;
   metadata: { createdAt: string; updatedAt: string };
 }

@@ -1,179 +1,174 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import type maplibregl from 'maplibre-gl';
-import { useMapStore } from './map-store';
+import { useMapStore, type MapState } from './map-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
+import { useProposalStore } from '@/stores/proposal-store';
 import { useDrawingStore } from '@/stores/drawing-store';
 import { reverseGeocodeLocation } from '@/lib/api/geocoding';
-
-import { findReportingArea } from '../../../shared/reporting-areas';
+import { fetchRoadPath } from '@/features/proposal/utils/road-geometry';
+import { useStartProposal } from '@/features/proposal/useStartProposal';
 
 interface PinDesignFlowProps {
   map: maplibregl.Map | null;
 }
 
-/**
- * Handles map click events to show a context menu with
- * "Design a Street Here" and "Report a Hotspot" options.
- * Reverse-geocodes the clicked location through the shared backend proxy.
- */
+/** Offers problem capture and optional sketches at the location a resident clicks. */
 export function PinDesignFlow({ map }: PinDesignFlowProps) {
   const openContextMenu = useMapStore((s) => s.openContextMenu);
   const closeContextMenu = useMapStore((s) => s.closeContextMenu);
   const contextMenuPosition = useMapStore((s) => s.contextMenuPosition);
   const setSelectedLocation = useMapStore((s) => s.setSelectedLocation);
+  const openReportForm = useMapStore((s) => s.openReportForm);
+  const [pendingContext, setPendingContext] = useState<MapState['contextMenuPosition']>(null);
+  const pendingRequest = useRef<MapState['contextMenuPosition']>(null);
+  const isMounted = useRef(false);
+  const isPending = contextMenuPosition !== null && pendingContext === contextMenuPosition;
+  const firstActionRef = useRef<HTMLButtonElement>(null);
+  const { startProposal, confirmation } = useStartProposal();
 
-  // Handle map clicks
   useEffect(() => {
     if (!map) return;
-
-    const onClick = (e: maplibregl.MapMouseEvent) => {
-      // Don't open context menu when drawing tools are active
+    const onClick = (event: maplibregl.MapMouseEvent) => {
       if (useDrawingStore.getState().activeTool !== 'select') return;
       if (useMapStore.getState().lockedToLocation) return;
-
-      const { lat, lng } = e.lngLat;
-      const point = map.project(e.lngLat);
-      const mapContainer = map.getContainer();
-      const rect = mapContainer.getBoundingClientRect();
-
-      openContextMenu({
-        lat,
-        lng,
-        x: point.x + rect.left,
-        y: point.y + rect.top,
-      });
+      const { lat, lng } = event.lngLat;
+      const point = map.project(event.lngLat);
+      const rect = map.getContainer().getBoundingClientRect();
+      openContextMenu({ lat, lng, x: point.x + rect.left, y: point.y + rect.top });
     };
-
     map.on('click', onClick);
     return () => {
       map.off('click', onClick);
     };
   }, [map, openContextMenu]);
 
-  // Close context menu on map drag or zoom
   useEffect(() => {
     if (!map) return;
-
-    const onDragStart = () => closeContextMenu();
-    const onZoom = () => closeContextMenu();
-
-    map.on('dragstart', onDragStart);
-    map.on('zoom', onZoom);
-
+    const close = () => closeContextMenu();
+    map.on('dragstart', close);
+    map.on('zoom', close);
     return () => {
-      map.off('dragstart', onDragStart);
-      map.off('zoom', onZoom);
+      map.off('dragstart', close);
+      map.off('zoom', close);
     };
   }, [map, closeContextMenu]);
 
-  const reverseGeocode = useCallback(
-    async (lat: number, lng: number): Promise<string> => {
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    firstActionRef.current?.focus();
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && contextMenuPosition) {
+        closeContextMenu();
+        map?.getCanvas().focus();
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [contextMenuPosition, closeContextMenu, map]);
+
+  const handleAction = useCallback(
+    async (action: 'proposal' | 'report') => {
+      if (!contextMenuPosition || pendingRequest.current === contextMenuPosition) return;
+      pendingRequest.current = contextMenuPosition;
+      setPendingContext(contextMenuPosition);
+      const { lat, lng } = contextMenuPosition;
+      let address = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      let streetName = 'Selected street';
       try {
         const result = await reverseGeocodeLocation(lat, lng);
-        if (result?.display_name) return result.display_name;
+        if (result?.display_name) {
+          address = result.display_name;
+          streetName = address.split(',')[0].trim();
+        }
       } catch {
-        // Fall back to coordinates
+        /* Coordinates remain usable when address lookup is unavailable. */
       }
-      return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      if (!isMounted.current || useMapStore.getState().contextMenuPosition !== contextMenuPosition)
+        return;
+      const location = { lat, lng, address };
+      setSelectedLocation(location);
+      closeContextMenu();
+      if (action === 'report') {
+        openReportForm(location);
+        return;
+      }
+      startProposal({ streetName, location, onStarted: async () => {
+        const { proposalId, setRoadPath } = useProposalStore.getState();
+        try {
+          const { path, bearing } = await fetchRoadPath({ lat, lng });
+          if (
+            useProposalStore.getState().proposalId === proposalId &&
+            useWorkspaceStore.getState().mode === 'propose'
+          ) {
+            setRoadPath(path, bearing);
+          }
+        } catch {
+          /* A proposal can begin without road geometry. */
+        }
+      } });
     },
-    [],
+    [contextMenuPosition, setSelectedLocation, closeContextMenu, openReportForm, startProposal],
   );
 
-  const enterConfigureMode = useWorkspaceStore((s) => s.enterConfigureMode);
-
-  const handleDesignHere = useCallback(async () => {
-    if (!contextMenuPosition) return;
-
-    const { lat, lng } = contextMenuPosition;
-    const address = await reverseGeocode(lat, lng);
-    if (useMapStore.getState().contextMenuPosition !== contextMenuPosition) return;
-    const location = { lat, lng, address };
-    setSelectedLocation(location);
-    closeContextMenu();
-    enterConfigureMode(location);
-  }, [contextMenuPosition, reverseGeocode, setSelectedLocation, closeContextMenu, enterConfigureMode]);
-
-  const openReportForm = useMapStore((s) => s.openReportForm);
-
-  const handleReportHotspot = useCallback(async () => {
-    if (!contextMenuPosition) return;
-
-    const { lat, lng } = contextMenuPosition;
-    const address = await reverseGeocode(lat, lng);
-    if (useMapStore.getState().contextMenuPosition !== contextMenuPosition) return;
-    setSelectedLocation({ lat, lng, address });
-    closeContextMenu();
-    openReportForm({ lat, lng, address });
-  }, [contextMenuPosition, reverseGeocode, setSelectedLocation, closeContextMenu, openReportForm]);
-
-  if (!contextMenuPosition) return null;
+  if (!contextMenuPosition) return confirmation;
 
   return (
-    <div
-      className="fixed z-50"
+    <section
+      role="dialog"
+      aria-label="Choose an action at this location"
+      aria-busy={isPending}
+      className="fixed z-50 max-h-[calc(100dvh-24px)] overflow-y-auto rounded-lg border border-[#d8dddf] bg-white p-2 text-[#172126]"
       style={{
-        left: contextMenuPosition.x,
-        top: contextMenuPosition.y,
+        width: 'min(280px, calc(100vw - 24px))',
+        left: `clamp(12px, ${contextMenuPosition.x}px, max(12px, calc(100vw - 292px)))`,
+        top: `clamp(12px, ${contextMenuPosition.y}px, max(12px, calc(100dvh - 240px)))`,
       }}
     >
-      <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.1)] ring-1 ring-black/[0.06] py-2 min-w-[230px] animate-scale-in">
+      <div className="flex items-center justify-between gap-2 pl-2">
+        <p className="text-[10px] font-semibold  text-[#59646a]">At this location</p>
         <button
-          onClick={handleDesignHere}
-          className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors flex items-center gap-3 group"
+          type="button"
+          aria-label="Close location actions"
+          onClick={closeContextMenu}
+          className="min-h-11 min-w-11 rounded-md text-lg hover:bg-[#f3f5f5] focus-visible:outline-2 focus-visible:outline-[#172126]"
         >
-          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 group-hover:bg-blue-200 transition-colors">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              className="w-4 h-4"
-            >
-              <path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192zM6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.898l-2.051-.683a1 1 0 01-.633-.633L6.95 5.684zM13.949 13.684a1 1 0 00-1.898 0l-.184.551a1 1 0 01-.632.633l-.551.183a1 1 0 000 1.898l.551.183a1 1 0 01.633.633l.183.551a1 1 0 001.898 0l.184-.551a1 1 0 01.632-.633l.551-.183a1 1 0 000-1.898l-.551-.184a1 1 0 01-.633-.632l-.183-.551z" />
-            </svg>
-          </span>
-          <div>
-            <div className="font-medium text-gray-900 text-sm">
-              Design a Street Here
-            </div>
-            <div className="text-xs text-gray-500">
-              Open cross-section editor
-            </div>
-          </div>
-        </button>
-
-        <div className="border-t border-gray-100" />
-
-        <button
-          onClick={handleReportHotspot}
-          disabled={!findReportingArea(contextMenuPosition.lat, contextMenuPosition.lng)}
-          className="w-full text-left px-4 py-3 hover:bg-red-50 transition-colors flex items-center gap-3 group"
-        >
-          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-red-100 text-red-600 group-hover:bg-red-200 transition-colors">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              className="w-4 h-4"
-            >
-              <path
-                fillRule="evenodd"
-                d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </span>
-          <div>
-            <div className="font-medium text-gray-900 text-sm">
-              Report a Hotspot
-            </div>
-            <div className="text-xs text-gray-500">
-              {findReportingArea(contextMenuPosition.lat, contextMenuPosition.lng)
-                ? 'Flag a safety concern'
-                : 'Reporting: Chicago, Denver, and NYC only'}
-            </div>
-          </div>
+          ×
         </button>
       </div>
-    </div>
+      <button
+        ref={firstActionRef}
+        type="button"
+        disabled={isPending}
+        onClick={() => void handleAction('report')}
+        className="min-h-16 w-full rounded-md bg-[#172126] px-3 py-3 text-left text-white hover:bg-[#303d43] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#172126] disabled:opacity-60"
+      >
+        <span className="block text-sm font-semibold">Mark a problem</span>
+        <span className="mt-1 block text-xs text-white/80">Add details about this location</span>
+      </button>
+      <button
+        type="button"
+        disabled={isPending}
+        onClick={() => void handleAction('proposal')}
+        className="mt-1 min-h-16 w-full rounded-md px-3 py-3 text-left hover:bg-[#f3f5f5] focus-visible:outline-2 focus-visible:outline-[#172126] disabled:opacity-60"
+      >
+        <span className="block text-sm font-semibold">Sketch a change</span>
+        <span className="mt-1 block text-xs text-[#59646a]">
+          Explore a possible street improvement
+        </span>
+      </button>
+      {isPending && (
+        <p role="status" className="px-3 py-2 text-xs text-[#59646a]">
+          Finding the address…
+        </p>
+      )}
+    </section>
   );
 }

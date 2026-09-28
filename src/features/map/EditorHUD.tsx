@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useStreetStore } from '@/stores/street-store';
 import { useProposalStore } from '@/stores/proposal-store';
@@ -6,6 +6,7 @@ import { useSavedProposalsStore } from '@/stores/saved-proposals-store';
 import { useSafetyDataStore } from '@/features/safety-data/safety-data-store';
 import { useIntersectionStore } from '@/stores/intersection-store';
 import { useMapStore } from './map-store';
+import { SavedDrafts } from '@/features/proposal/SavedDrafts';
 
 // Lazy-load editor components to keep initial map bundle small
 const EditorDock = lazy(() =>
@@ -41,6 +42,17 @@ const IntersectionFlow = lazy(() =>
  * Manages which panels are visible based on workspace mode.
  */
 export function EditorHUD() {
+  const [escapeError, setEscapeError] = useState<string | null>(null);
+  useEffect(() => {
+    useSavedProposalsStore.getState().loadProposals();
+    const warnBeforeDiscard = (event: BeforeUnloadEvent) => {
+      if (!useProposalStore.getState().hasUnsavedChanges()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeDiscard);
+    return () => window.removeEventListener('beforeunload', warnBeforeDiscard);
+  }, []);
   const mode = useWorkspaceStore((s) => s.mode);
   const showElementPanel = useWorkspaceStore((s) => s.showElementPanel);
   const showValidationPanel = useWorkspaceStore((s) => s.showValidationPanel);
@@ -48,8 +60,12 @@ export function EditorHUD() {
   const toggleValidationPanel = useWorkspaceStore((s) => s.toggleValidationPanel);
   const exitToExplore = useWorkspaceStore((s) => s.exitToExplore);
   const designLocation = useWorkspaceStore((s) => s.designLocation);
+  const designProposalId = useWorkspaceStore((s) => s.designProposalId);
 
   const currentStreet = useStreetStore((s) => s.currentStreet);
+  const proposalId = useProposalStore((s) => s.proposalId);
+  const proposalBeforeStreet = useProposalStore((s) => s.beforeStreet);
+  const proposalLocation = useProposalStore((s) => s.location);
   const setValidationResults = useStreetStore((s) => s.setValidationResults);
 
   const setCenter = useMapStore((s) => s.setCenter);
@@ -72,6 +88,16 @@ export function EditorHUD() {
   useEffect(() => {
     setLockedToLocation(mode === 'design');
   }, [mode, setLockedToLocation]);
+
+  // Detailed edits belong to the same draft and must survive returning to review.
+  useEffect(() => {
+    if (mode === 'design' && currentStreet && designProposalId && designProposalId === proposalId) {
+      useProposalStore.setState({ afterStreet: { ...currentStreet, location: proposalLocation ?? undefined }, streetName: currentStreet.name });
+      if (useStreetStore.getState().beforeStreet !== proposalBeforeStreet) {
+        useStreetStore.getState().setBeforeStreet(proposalBeforeStreet);
+      }
+    }
+  }, [mode, currentStreet, designProposalId, proposalId, proposalLocation, proposalBeforeStreet]);
 
   // Auto-validate when street changes in design mode
   useEffect(() => {
@@ -98,11 +124,19 @@ export function EditorHUD() {
         if (mode === 'propose') {
           // Save proposal before resetting so it persists on the map
           const proposal = useProposalStore.getState().getProposal();
-          if (proposal) useSavedProposalsStore.getState().saveProposal(proposal);
-          useProposalStore.getState().reset();
+          try {
+            if (proposal) {
+              useSavedProposalsStore.getState().saveProposal(proposal);
+              useProposalStore.getState().reset();
+            }
+          } catch (error) {
+            setEscapeError((error as Error).message);
+            return;
+          }
         } else if (mode === 'propose-intersection') {
           useIntersectionStore.getState().reset();
         }
+        setEscapeError(null);
         exitToExplore();
       }
     };
@@ -110,11 +144,11 @@ export function EditorHUD() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [mode, exitToExplore]);
 
-  // In explore mode, render nothing
-  if (mode === 'explore') return null;
+  if (mode === 'explore') return <SavedDrafts />;
 
   return (
     <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
+      {escapeError && <p role="alert" className="absolute top-16 left-4 right-4 z-30 mx-auto max-w-md border border-red-200 bg-[#ffffff] p-3 text-sm text-red-800">{escapeError}</p>}
       <Suspense fallback={null}>
         {/* Configure mode: compact new street form */}
         {mode === 'configure' && <CompactNewStreetForm />}
@@ -163,6 +197,15 @@ export function EditorHUD() {
 
             {/* Floating toggles for hidden panels */}
             <div className="absolute top-2 left-1/2 -translate-x-1/2 flex gap-2 pointer-events-auto">
+              {designProposalId && designProposalId === proposalId && proposalLocation && (
+                <button
+                  type="button"
+                  onClick={() => useWorkspaceStore.getState().enterProposeMode(proposalLocation)}
+                  className="min-h-11 border border-[#d8dddf] bg-[#ffffff] px-3 py-2 text-xs font-semibold text-[#172126]"
+                >
+                  Review draft
+                </button>
+              )}
               {!showElementPanel && (
                 <button
                   onClick={toggleElementPanel}
