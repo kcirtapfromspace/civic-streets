@@ -1,4 +1,4 @@
-vi.mock('@/lib/api/use-report-eligibility', () => ({ usePhotoRequirement: () => 'optional' }));
+vi.mock('@/lib/api/use-report-eligibility', () => ({ useReportEligibility: () => 'ready' }));
 import '@testing-library/jest-dom/vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -56,7 +56,7 @@ describe('map issue reporting', () => {
 
   it('keeps the draft and shows the reason after failure, then closes after a successful retry', async () => {
     createHotspot.mockRejectedValueOnce(
-      new ConvexError('New reporters must include at least one photo'),
+      new ConvexError('You already reported a similar issue nearby. Consider upvoting the existing report.'),
     );
     createHotspot.mockResolvedValueOnce('saved-report-id');
     renderMap();
@@ -64,7 +64,7 @@ describe('map issue reporting', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Save observation' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'New reporters must include at least one photo',
+      'You already reported a similar issue nearby. Consider upvoting the existing report.',
     );
     expect(useMapStore.getState().reportFormOpen).toBe(true);
     expect(screen.getByLabelText('Any details that would help? (optional)')).toHaveValue(

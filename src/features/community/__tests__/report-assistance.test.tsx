@@ -1,4 +1,4 @@
-vi.mock('@/lib/api/use-report-eligibility', () => ({ usePhotoRequirement: () => 'optional' }));
+vi.mock('@/lib/api/use-report-eligibility', () => ({ useReportEligibility: () => 'ready' }));
 import '@testing-library/jest-dom/vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

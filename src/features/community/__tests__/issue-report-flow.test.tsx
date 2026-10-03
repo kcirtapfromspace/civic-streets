@@ -1,5 +1,5 @@
-const eligibility = vi.hoisted(() => ({ value: 'optional' }));
-vi.mock('@/lib/api/use-report-eligibility', () => ({ usePhotoRequirement: () => eligibility.value }));
+const eligibility = vi.hoisted(() => ({ value: 'ready' }));
+vi.mock('@/lib/api/use-report-eligibility', () => ({ useReportEligibility: () => eligibility.value }));
 import '@testing-library/jest-dom/vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -21,7 +21,7 @@ function choosePothole() {
   fireEvent.click(screen.getByRole('button', { name: 'Pothole' }));
 }
 beforeEach(() => {
-  eligibility.value = 'optional';
+  eligibility.value = 'ready';
   captureAnalytics.mockClear();
   processImages.mockReset().mockResolvedValue([photo()]);
   vi.stubGlobal(
@@ -190,7 +190,7 @@ describe('community issue draft and submission', () => {
     });
   });
   it.each([
-    [new ConvexError('Add a photo before submitting.'), 'Add a photo before submitting.'],
+    [new ConvexError('A report can include up to three different photos.'), 'A report can include up to three different photos.'],
     [new ConvexError({ code: 'INTERNAL' }), 'Your observation could not be saved. Please try again.'],
     [
       new Error('[CONVEX M(reports)] internal details'),
@@ -300,18 +300,15 @@ describe('issue photo preparation interactions', () => {
 });
 
 
-it('enforces this reporter’s photo requirement before advancing and rechecks at submission', async () => {
-  eligibility.value = 'required';
-  const submit = vi.fn();
+it('saves a public observation without photos and rechecks the session at submission', async () => {
+  const submit = vi.fn().mockResolvedValue(undefined);
   const { container, rerender } = render(<IssueReportForm initialLat={39.74} initialLng={-104.99} initialAddress="Grant Street" onSubmit={submit} />);
-  expect(screen.getByText('At least one photo is required for your public observation.')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
-  fireEvent.submit(container.querySelector('form')!);
-  expect(submit).not.toHaveBeenCalled();
-  fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files: [sourcePhoto] } });
-  await screen.findByRole('img', { name: 'Upload 1' });
-  expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
+  expect(screen.getByText('Optional, but photos help others see the problem.')).toBeInTheDocument();
   choosePothole();
+  fireEvent.click(screen.getByRole('button', { name: 'Save observation' }));
+  await waitFor(() => expect(submit).toHaveBeenCalledOnce());
+  expect(submit.mock.calls[0][0]).toMatchObject({ photoDataUrls: [], processedImages: [] });
+  submit.mockClear();
   eligibility.value = 'unavailable';
   rerender(<IssueReportForm initialLat={39.74} initialLng={-104.99} initialAddress="Grant Street" onSubmit={submit} />);
   expect(screen.getByRole('button', { name: 'Save observation' })).toBeDisabled();
@@ -323,7 +320,7 @@ it.each(['loading', 'unavailable'])('explains session %s before the resident com
   eligibility.value = state;
   render(<IssueReportForm initialLat={39.74} initialLng={-104.99} initialAddress="Grant Street" onSubmit={vi.fn()} />);
   expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
-  expect(screen.getByText(state === 'loading' ? /Checking the photo requirement/ : /Your reporting session is unavailable/)).toBeInTheDocument();
+  expect(screen.getByText(state === 'loading' ? /Checking your reporting session/ : /Your reporting session is unavailable/)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Keep as a private concern' })).toBeEnabled();
 });
 

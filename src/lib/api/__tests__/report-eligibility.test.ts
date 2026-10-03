@@ -6,15 +6,14 @@ vi.mock('../auth', () => ({ useAuth: () => fixture }));
 beforeEach(() => { vi.resetModules(); fixture.connected = true; fixture.user = null; fixture.isLoading = false; });
 afterEach(cleanup);
 it('reflects the current public reporter eligibility, including loading and unavailable sessions', async () => {
-  const { usePhotoRequirement } = await import('../use-report-eligibility');
-  const { result, rerender } = renderHook(usePhotoRequirement);
+  const { useReportEligibility } = await import('../use-report-eligibility');
+  const { result, rerender } = renderHook(useReportEligibility);
   expect(result.current).toBe('unavailable');
   fixture.isLoading = true; rerender(); expect(result.current).toBe('loading');
-  fixture.isLoading = false; fixture.user = { reputation: 9 }; rerender(); expect(result.current).toBe('required');
-  fixture.user = { reputation: 10 }; rerender(); expect(result.current).toBe('optional');
+  fixture.isLoading = false; fixture.user = { reputation: 0 }; rerender(); expect(result.current).toBe('ready');
 });
-it('never requires a photo or an account for a demo observation', async () => {
+it('never requires an account for a demo observation', async () => {
   fixture.connected = false;
-  const { usePhotoRequirement } = await import('../use-report-eligibility');
-  expect(renderHook(usePhotoRequirement).result.current).toBe('optional');
+  const { useReportEligibility } = await import('../use-report-eligibility');
+  expect(renderHook(useReportEligibility).result.current).toBe('ready');
 });

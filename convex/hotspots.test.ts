@@ -148,21 +148,14 @@ describe('community reporting in Chicago, Denver, and NYC', () => {
     ).rejects.toThrow(label);
   });
 
-  it('keeps the photo requirement and allows a corrected retry immediately', async () => {
-    const { t, sessionToken, photoStorageIds } = await setup();
-    await expect(
-      t.mutation(api.hotspots.create, {
-        ...report,
-        sessionToken,
-      }),
-    ).rejects.toThrow('at least one photo');
-    await expect(
-      t.mutation(api.hotspots.create, {
-        ...report,
-        sessionToken,
-        photoStorageIds,
-      }),
-    ).resolves.toBeTruthy();
+  it('accepts a new reporter’s report without photos', async () => {
+    const { t, sessionToken, user } = await setup();
+    expect(user.reputation).toBeLessThan(10);
+    const id = await t.mutation(api.hotspots.create, {
+      ...report,
+      sessionToken,
+    });
+    expect(await t.run((ctx) => ctx.db.get(id))).toMatchObject({ photoStorageIds: [] });
   });
 
   it('accepts the form’s skip-details path with a title, category and photo', async () => {

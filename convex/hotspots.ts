@@ -169,13 +169,6 @@ export const create = mutation({
       throw new ConvexError('You already reported a similar issue nearby. Consider upvoting the existing report.');
     }
 
-    // ── Photo requirement for new users ───────────────────────────────────
-
-    const hasPhotos = photoStorageIds.length > 0;
-    if (user.reputation < 10 && !hasPhotos) {
-      throw new ConvexError('New reporters must include at least one photo');
-    }
-
     // ── Insert hotspot ────────────────────────────────────────────────────
 
     const now = Date.now();

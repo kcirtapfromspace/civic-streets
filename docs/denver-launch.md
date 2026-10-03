@@ -27,7 +27,7 @@ Items 4–5 and the updated form copy require the frontend release.
 
 ## Resident flow
 
-Open the map, search for Denver or a specific intersection, click/tap the location, and choose **Report a Hotspot**. New reporters need a photo. The report becomes a Curbwise community record after successful persistence. A city case is a separate submission.
+Open the map, search for Denver or a specific intersection, click/tap the location, and choose **Report a Hotspot**. Photos are optional. The report becomes a Curbwise community record after successful persistence. A city case is a separate submission.
 
 ## Current technical work
 

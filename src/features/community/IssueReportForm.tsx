@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useRef, useId, useMemo } from 
 import { ConvexError } from 'convex/values';
 import { captureAnalytics } from '@/lib/analytics';
 import { convexAvailable } from '@/lib/api/convex-provider';
-import { usePhotoRequirement } from '@/lib/api/use-report-eligibility';
+import { useReportEligibility } from '@/lib/api/use-report-eligibility';
 import { useStartProposal } from '@/features/proposal/useStartProposal';
 import { useProposalStore } from '@/stores/proposal-store';
 import type { IssueGroup, IssueType, HotspotSeverity } from '@/lib/types/community';
@@ -76,7 +76,7 @@ export function IssueReportForm({
   onSubmit,
   onCancel,
 }: IssueReportFormProps) {
-  const photoRequirement = usePhotoRequirement();
+  const eligibility = useReportEligibility();
   const { startProposal, confirmation } = useStartProposal();
   // Step navigation
   const [step, setStep] = useState(1);
@@ -244,8 +244,8 @@ export function IssueReportForm({
   // ── Navigation ──────────────────────────────────────────────────────
 
   const reportingAllowed = Boolean(findReportingArea(initialLat, initialLng));
-  const photosReady = photoRequirement === 'optional' || (photoRequirement === 'required' && processedImages.length > 0);
-  const canAdvanceStep1 = reportingAllowed && address.trim().length > 0 && photosReady;
+  const sessionReady = eligibility === 'ready';
+  const canAdvanceStep1 = reportingAllowed && address.trim().length > 0 && sessionReady;
   const canAdvanceStep2 = selectedGroup !== null && selectedType !== null;
 
   const goNext = useCallback(() => setStep((s) => Math.min(s + 1, 3)), []);
@@ -256,7 +256,7 @@ export function IssueReportForm({
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!reportingAllowed || !photosReady || !selectedGroup || !selectedType || !address.trim() || isProcessingImages || submittingRef.current) return;
+      if (!reportingAllowed || !sessionReady || !selectedGroup || !selectedType || !address.trim() || isProcessingImages || submittingRef.current) return;
 
       submittingRef.current = true;
       setIsSubmitting(true);
@@ -291,7 +291,7 @@ export function IssueReportForm({
         setIsSubmitting(false);
       }
     },
-    [reportingAllowed, photosReady, selectedGroup, selectedType, titleEdited, title, autoTitle, address, initialLat, initialLng, photoDataUrls, severity, isBlocking, description, onSubmit, processedImages, honeypotValue, formOpenedAt, isProcessingImages],
+    [reportingAllowed, sessionReady, selectedGroup, selectedType, titleEdited, title, autoTitle, address, initialLat, initialLng, photoDataUrls, severity, isBlocking, description, onSubmit, processedImages, honeypotValue, formOpenedAt, isProcessingImages],
   );
 
   // ── Step indicator ──────────────────────────────────────────────────
@@ -403,7 +403,7 @@ export function IssueReportForm({
                     : 'Take a photo of the problem'}
                 </span>
                 <span className="text-xs text-gray-600 mt-0.5">
-                  {photoRequirement === 'required' ? 'At least one photo is required for your public observation.' : photoRequirement === 'loading' ? 'Checking the photo requirement for your reporting session…' : photoRequirement === 'unavailable' ? 'Your reporting session is unavailable. You can keep a private concern below.' : 'Photos are optional for this observation.'}
+                  {eligibility === 'loading' ? 'Checking your reporting session…' : eligibility === 'unavailable' ? 'Your reporting session is unavailable. You can keep a private concern below.' : 'Optional, but photos help others see the problem.'}
                 </span>
                 <span className="text-xs text-gray-600 mt-0.5">Up to 3 photos &middot; JPEG, PNG, or WebP &middot; 10 MiB each</span>
               </div>
@@ -777,7 +777,7 @@ export function IssueReportForm({
           {step > 1 && (
             <button
               type="submit"
-              disabled={isSubmitting || isProcessingImages || !canAdvanceStep2 || !photosReady}
+              disabled={isSubmitting || isProcessingImages || !canAdvanceStep2 || !sessionReady}
               className="min-h-11 rounded bg-civic-ink px-4 text-sm font-medium text-white hover:bg-black disabled:opacity-40"
             >
               {isSubmitting ? 'Saving...' : 'Save observation'}
@@ -786,7 +786,7 @@ export function IssueReportForm({
         </div>
       </div>
       <div className="border-t border-civic-line px-5 py-3 text-xs leading-5 text-civic-muted">
-        <p>Prefer to keep notes for yourself? A private concern does not require a photo or public posting.</p>
+        <p>Prefer to keep notes for yourself? A private concern stays off the public map.</p>
         <button type="button" disabled={!address.trim()} className="min-h-11 underline disabled:opacity-50" onClick={() => startProposal({
           streetName: title.trim() || address.trim(),
           location: { lat: initialLat, lng: initialLng, address: address.trim() },
